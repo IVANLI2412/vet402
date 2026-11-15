@@ -38,6 +38,10 @@ import { parseSellerJson } from "./json-depth";
 import { randomBytes } from "node:crypto";
 import { isAddress, type Account } from "viem";
 import { chainLabel, publicChainLabel } from "./chains";
+import {
+  captureOfferReceiptExtension,
+  type OfferReceiptCapture,
+} from "./offer-receipt";
 
 /**
  * Canonical Base USDC. Same value as chain/config.BASE_USDC_ADDRESS —
@@ -1103,26 +1107,37 @@ export function encodePaymentHeader(input: {
   };
 }
 
-/** Parse the settlement response header (v2 PAYMENT-RESPONSE / v1 X-PAYMENT-RESPONSE). */
-export function parseSettlementResponse(headers: Headers): {
+export type ParsedSettlementResponse = {
   success: boolean;
   transaction: string | null;
   network: string | null;
   payer: string | null;
   errorReason: string | null;
-} | null {
+  offerReceipt?: OfferReceiptCapture;
+};
+
+/** Parse the settlement response header (v2 PAYMENT-RESPONSE / v1 X-PAYMENT-RESPONSE). */
+export function parseSettlementResponse(headers: Headers): ParsedSettlementResponse | null {
   const raw = headers.get("PAYMENT-RESPONSE") ?? headers.get("X-PAYMENT-RESPONSE");
   if (!raw) return null;
   try {
     const rec = asRecord(JSON.parse(Buffer.from(raw, "base64").toString("utf8")));
     if (!rec) return null;
-    return {
+    const base: ParsedSettlementResponse = {
       success: rec.success === true,
       transaction: typeof rec.transaction === "string" && rec.transaction !== "" ? rec.transaction : null,
       network: typeof rec.network === "string" ? rec.network : null,
       payer: typeof rec.payer === "string" ? rec.payer : null,
       errorReason: typeof rec.errorReason === "string" ? rec.errorReason : null,
     };
+    // offer-and-receipt 拡張の捕捉は別の try に置く。ここが落ちても既存の5欄は今までどおり返す。
+    let offerReceipt: OfferReceiptCapture | undefined;
+    try {
+      offerReceipt = captureOfferReceiptExtension(rec.extensions);
+    } catch {
+      offerReceipt = undefined;
+    }
+    return offerReceipt ? { ...base, offerReceipt } : base;
   } catch {
     return null;
   }

@@ -217,6 +217,172 @@ if (!TEST_DB) {
       assert.equal(summary.attempted, 1);
     });
 
+    await t.test("offer-receipt: eip712 seller receipt on rawSettlement", async () => {
+      const { privateKeyToAccount } = await import("viem/accounts");
+      const {
+        RECEIPT_EIP712_DOMAIN,
+        RECEIPT_EIP712_TYPES,
+      } = await import("@/lib/observatory/offer-receipt");
+      process.env.OBSERVATORY_L1_ENABLED = "true";
+      process.env.OBSERVATORY_WALLET_PRIVATE_KEY = TEST_PK;
+      // 前の試験の購入を消して、需要の高い seller1 をもう一度買える状態にする（F-1 の試験と同じ手）。
+      await db.execute(sql`TRUNCATE x402_l1_purchases`);
+      const sellerUrl = "https://seller1.example/api";
+      const payerAddr = "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266";
+      const account = privateKeyToAccount(TEST_PK);
+      const receiptPayload = {
+        version: 1,
+        network: "eip155:8453",
+        resourceUrl: sellerUrl,
+        payer: payerAddr,
+        issuedAt: 1703123456,
+        transaction: "",
+      };
+      const receiptSig = await account.signTypedData({
+        domain: RECEIPT_EIP712_DOMAIN,
+        types: RECEIPT_EIP712_TYPES,
+        primaryType: "Receipt",
+        message: {
+          version: 1n,
+          network: receiptPayload.network,
+          resourceUrl: receiptPayload.resourceUrl,
+          payer: receiptPayload.payer,
+          issuedAt: BigInt(receiptPayload.issuedAt),
+          transaction: "",
+        },
+      });
+      const settlementBody = {
+        success: true,
+        transaction: "0xdeadbeef000000000000000000000000000000000000000000000000000000a1",
+        network: "eip155:8453",
+        payer: "0xf39F",
+        extensions: {
+          "offer-receipt": {
+            info: {
+              receipt: {
+                format: "eip712",
+                payload: receiptPayload,
+                signature: receiptSig,
+              },
+            },
+          },
+        },
+      };
+      const paidUrls: string[] = [];
+      const fetchImpl = async (url: string, init?: RequestInit) => {
+        const headers = new Headers(init?.headers);
+        const paid = headers.has("PAYMENT-SIGNATURE") || headers.has("X-PAYMENT");
+        if (paid) paidUrls.push(url);
+        if (!paid) {
+          return new Response(challengeFor(url), {
+            status: 402,
+            headers: { "content-type": "application/json" },
+          });
+        }
+        return new Response(JSON.stringify({ data: "the goods" }), {
+          status: 200,
+          headers: {
+            "content-type": "application/json",
+            "PAYMENT-RESPONSE": Buffer.from(JSON.stringify(settlementBody)).toString("base64"),
+          },
+        });
+      };
+      const summary = await runL1Batch({ getPayerUsdcBalance: FUNDED_PAYER, fetchImpl, limit: 1 });
+      assert.equal(summary.attempted, 1);
+      assert.equal(summary.settled, 1);
+      assert.deepEqual(paidUrls, [sellerUrl]);
+      const rows = await db
+        .select()
+        .from(schema.x402L1Purchases)
+        .where(eq(schema.x402L1Purchases.txHash, settlementBody.transaction));
+      assert.equal(rows.length, 1);
+      const raw = rows[0].rawSettlement as Record<string, unknown>;
+      // offerReceipt は売り手の extensions["offer-receipt"] そのもの（包まない）。
+      assert.deepEqual(raw.offerReceipt, settlementBody.extensions["offer-receipt"]);
+      const check = raw.offerReceiptCheck as Record<string, unknown>;
+      assert.equal(check.signature, "recovered");
+      assert.equal(check.resourceUrl, "match");
+      assert.equal(check.payer, "match");
+      assert.equal(check.network, "match");
+      assert.equal(rows[0].status, "settle_claimed");
+      assert.equal(rows[0].txHash, settlementBody.transaction);
+      // 既存の5欄は receipt が無いときと同じ値（鍵の追加だけ）。
+      assert.equal(raw.success, true);
+      assert.equal(raw.transaction, settlementBody.transaction);
+      assert.equal(raw.network, "eip155:8453");
+      assert.equal(raw.payer, "0xf39F");
+      assert.equal(raw.errorReason, null);
+      assert.deepEqual(Object.keys(raw).sort(), ["errorReason", "network", "offerReceipt", "offerReceiptCheck", "payer", "success", "transaction"]);
+      assert.equal(check.signer, payerAddr);
+    });
+
+    await t.test("offer-receipt: 8192 バイトを超える拡張は原文を置かず over_cap の印だけ・5欄は同じ", async () => {
+      process.env.OBSERVATORY_L1_ENABLED = "true";
+      process.env.OBSERVATORY_WALLET_PRIVATE_KEY = TEST_PK;
+      await db.execute(sql`TRUNCATE x402_l1_purchases`);
+      const tx = "0xdeadbeef000000000000000000000000000000000000000000000000000000a2";
+      const big = { info: { receipt: { format: "jws", signature: "a.b.c" } }, pad: "x".repeat(9000) };
+      const body = { success: true, transaction: tx, network: "eip155:8453", payer: "0xf39F", extensions: { "offer-receipt": big } };
+      const fetchImpl = async (url: string, init?: RequestInit) => {
+        const headers = new Headers(init?.headers);
+        const paid = headers.has("PAYMENT-SIGNATURE") || headers.has("X-PAYMENT");
+        if (!paid) return new Response(challengeFor(url), { status: 402, headers: { "content-type": "application/json" } });
+        return new Response(JSON.stringify({ data: "the goods" }), {
+          status: 200,
+          headers: { "content-type": "application/json", "PAYMENT-RESPONSE": Buffer.from(JSON.stringify(body)).toString("base64") },
+        });
+      };
+      const summary = await runL1Batch({ getPayerUsdcBalance: FUNDED_PAYER, fetchImpl, limit: 1 });
+      assert.equal(summary.settled, 1);
+      const rows = await db.select().from(schema.x402L1Purchases).where(eq(schema.x402L1Purchases.txHash, tx));
+      assert.equal(rows.length, 1);
+      const raw = rows[0].rawSettlement as Record<string, unknown>;
+      assert.deepEqual(Object.keys(raw).sort(), ["errorReason", "network", "offerReceiptCheck", "payer", "success", "transaction"]);
+      assert.equal((raw.offerReceiptCheck as Record<string, unknown>).receipt, "over_cap");
+      assert.equal(raw.success, true);
+      assert.equal(raw.transaction, tx);
+      assert.equal(rows[0].status, "settle_claimed");
+    });
+
+    await t.test("offer-receipt: 保存の無害化で原文が変わる receipt は storedAltered・署名者は送られた原文で復元", async () => {
+      const { privateKeyToAccount } = await import("viem/accounts");
+      const { RECEIPT_EIP712_DOMAIN, RECEIPT_EIP712_TYPES } = await import("@/lib/observatory/offer-receipt");
+      process.env.OBSERVATORY_L1_ENABLED = "true";
+      process.env.OBSERVATORY_WALLET_PRIVATE_KEY = TEST_PK;
+      await db.execute(sql`TRUNCATE x402_l1_purchases`);
+      const tx = "0xdeadbeef000000000000000000000000000000000000000000000000000000a3";
+      const payload = { version: 1, network: "eip155:8453", resourceUrl: "https://seller1.example/api?x=\u0000", payer: "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", issuedAt: 1703123456, transaction: "" };
+      const signature = await privateKeyToAccount(TEST_PK).signTypedData({
+        domain: RECEIPT_EIP712_DOMAIN,
+        types: RECEIPT_EIP712_TYPES,
+        primaryType: "Receipt",
+        message: { ...payload, version: 1n, issuedAt: BigInt(payload.issuedAt) },
+      });
+      const body = { success: true, transaction: tx, network: "eip155:8453", payer: "0xf39F", extensions: { "offer-receipt": { info: { receipt: { format: "eip712", payload, signature } } } } };
+      const fetchImpl = async (url: string, init?: RequestInit) => {
+        const headers = new Headers(init?.headers);
+        const paid = headers.has("PAYMENT-SIGNATURE") || headers.has("X-PAYMENT");
+        if (!paid) return new Response(challengeFor(url), { status: 402, headers: { "content-type": "application/json" } });
+        return new Response(JSON.stringify({ data: "the goods" }), {
+          status: 200,
+          headers: { "content-type": "application/json", "PAYMENT-RESPONSE": Buffer.from(JSON.stringify(body)).toString("base64") },
+        });
+      };
+      const summary = await runL1Batch({ getPayerUsdcBalance: FUNDED_PAYER, fetchImpl, limit: 1 });
+      assert.equal(summary.settled, 1);
+      const rows = await db.select().from(schema.x402L1Purchases).where(eq(schema.x402L1Purchases.txHash, tx));
+      assert.equal(rows.length, 1);
+      const raw = rows[0].rawSettlement as Record<string, unknown>;
+      const check = raw.offerReceiptCheck as Record<string, unknown>;
+      assert.equal(check.signature, "recovered");
+      assert.equal(check.signer, "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266");
+      assert.equal(check.storedAltered, true);
+      assert.equal(check.resourceUrl, "match_path");
+      assert.equal(JSON.stringify(raw).includes("\\u0000"), false, "保存した原文に U+0000 が残らない");
+      assert.ok(((rows[0].rawResponseMeta as Record<string, unknown>).pgSanitized as { fields: string[] }).fields.includes("rawSettlement"));
+      assert.equal(rows[0].status, "settle_claimed");
+    });
+
     await t.test("未置換パスパラメータのURLは買いに行かない（2026-08-26 F-1）", async () => {
       // settle_failed の82%（724/885 が HTTP 400）が ':siren' 等の未置換
       // プレースホルダを我々がそのまま叩いた結果だった。正しいリクエストを

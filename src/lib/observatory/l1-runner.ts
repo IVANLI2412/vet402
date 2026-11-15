@@ -78,6 +78,7 @@ import {
   selectAccept,
   signX402Payment,
 } from "./x402-payer";
+import { checkOfferReceipt } from "./offer-receipt";
 import { logServerErrorSafe, logServerWarnSafe } from "@/lib/util/log-safe";
 import { ARKIV_RULING_GATE_TIMEOUT_MS, checkArkivRuling as defaultCheckArkivRuling, createBatchRulingBreaker, type ArkivRulingCheck } from "./arkiv-ruling-gate";
 import { isWellFormedSettlementTx } from "@/lib/validation/settlement-tx";
@@ -5170,16 +5171,40 @@ async function purchaseOne(input: {
       return r.value;
     };
     const claimedTx = isArcGateway ? null : (settlement?.transaction ? safe("txHash", settlement.transaction) : null);
-    const safeSettlement = safe(
-      "rawSettlement",
-      settlement
-        ? isTempo && mppReceipt
-          ? { ...settlement, receipt: mppReceipt.receipt, header: paid?.headers.get("payment-receipt") ?? null }
-          : settlement
-        : paidError
-          ? { error: paidError }
-          : null,
-    );
+    let settlementForRecord: unknown = settlement;
+    if (settlement) {
+      if (isTempo && mppReceipt) {
+        settlementForRecord = {
+          ...settlement,
+          receipt: mppReceipt.receipt,
+          header: paid?.headers.get("payment-receipt") ?? null,
+        };
+      } else if (!isTempo && "offerReceipt" in settlement && settlement.offerReceipt) {
+        // offer-and-receipt 拡張（2026-11-16 wave2 receipt）: raw_settlement.offerReceipt には売り手の
+        // extensions["offer-receipt"] をそのまま置く（8192 バイトまで）。判定は記録だけで、status・tx には効かない。
+        // 署名者の復元は仕様 §5.5 どおり送られた原文の payload で行う。保存の無害化（下の safe("rawSettlement")・
+        // pgSafeJson）で原文が変わる場合（U+0000・深さの打ち切り等）は、判定に storedAltered: true を付けて、
+        // 保存した原文が送られた原文と違うこと（判定は送られた原文で行ったこと）を残す。
+        const { offerReceipt: cap, ...five } = settlement;
+        if (cap && "raw" in cap) {
+          const check = await checkOfferReceipt(cap.raw, {
+            resourceUrls: [...new Set([paidRequestUrl?.url ?? candidate.resourceUrl, candidate.resourceUrl])],
+            payer: payerLabel,
+            network: accept.network,
+          });
+          const storedAltered = pgSafeJsonChanged({ offerReceipt: cap.raw }).changed;
+          const offerReceiptCheck = storedAltered && check.receipt !== "over_cap" ? { ...check, storedAltered: true as const } : check;
+          settlementForRecord = { ...five, offerReceipt: cap.raw, offerReceiptCheck };
+        } else if (cap) {
+          settlementForRecord = { ...five, offerReceiptCheck: { checkVersion: 1, receipt: "over_cap", bytes: cap.bytes } as const };
+        }
+      }
+    } else if (paidError) {
+      settlementForRecord = { error: paidError };
+    } else {
+      settlementForRecord = null;
+    }
+    const safeSettlement = safe("rawSettlement", settlementForRecord);
     const safeMeta = safe("rawResponseMeta", rawResponseMeta);
     const outcomeRow = {
       status,
