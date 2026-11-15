@@ -2,10 +2,11 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { loadPlaygroundCatalog, type PlaygroundCatalogLoad } from "./load-catalog";
+import { playgroundProbeEndpointId } from "./probe-endpoint";
 
 /**
- * /playground の対話部（Phase 0.1）。候補は server 側（page.tsx）が
- * 観測所リーダーから渡す。ここは「選ぶ → 撃つ → 見る」だけ:
+ * /playground の対話部（Phase 0.1）。候補は Run を押したあと server action で読む。
  * 判定の語彙は観測所と同じ閉集合（pass / fail / unverified）で、
  * 評価語・合成スコアは出さない（法務ゲート・design §11 と同じ規律）。
  */
@@ -38,8 +39,10 @@ function Cell({ value }: { value: boolean | null }) {
   return value ? <span className="text-brand-deep">yes</span> : <span className="font-semibold text-brand-deep">no</span>;
 }
 
-export default function PlaygroundClient({ candidates }: { candidates: PlaygroundCandidate[] }) {
-  const [selected, setSelected] = useState<string>(candidates[0]?.id ?? "");
+export default function PlaygroundClient() {
+  const [candidates, setCandidates] = useState<PlaygroundCandidate[]>([]);
+  const [coverage, setCoverage] = useState<PlaygroundCatalogLoad["coverage"]>(null);
+  const [selected, setSelected] = useState<string>("");
   const [state, setState] = useState<
     | { phase: "idle" }
     | { phase: "running" }
@@ -49,15 +52,46 @@ export default function PlaygroundClient({ candidates }: { candidates: Playgroun
 
   const chosen = candidates.find((c) => c.id === selected) ?? null;
 
+  async function ensureCatalog(): Promise<PlaygroundCatalogLoad | null> {
+    if (candidates.length > 0) {
+      return { candidates, coverage };
+    }
+    try {
+      const loaded = await loadPlaygroundCatalog();
+      setCandidates(loaded.candidates);
+      setCoverage(loaded.coverage);
+      const first = loaded.candidates[0]?.id ?? "";
+      setSelected((prev) => prev || first);
+      if (loaded.candidates.length === 0) {
+        setState({
+          phase: "error",
+          message: "The catalog reader is not reachable right now. The full register is at /observatory.",
+        });
+        return null;
+      }
+      return loaded;
+    } catch {
+      setState({ phase: "error", message: "The catalog reader did not answer. Reload and retry." });
+      return null;
+    }
+  }
+
   async function run() {
-    if (!selected) return;
     setState({ phase: "running" });
+    const hadCatalog = candidates.length > 0;
+    const loaded = await ensureCatalog();
+    if (!loaded) return;
+    const endpointId = playgroundProbeEndpointId(hadCatalog, selected, candidates, loaded.candidates);
+    if (!endpointId) {
+      setState({ phase: "error", message: "Pick an endpoint from the catalog." });
+      return;
+    }
     const started = Date.now();
     try {
       const res = await fetch("/api/v1/demo/verify", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ endpointId: selected }),
+        body: JSON.stringify({ endpointId }),
       });
       if (res.status === 429) {
         setState({ phase: "error", message: "Rate limited — the demo allows 5 live probes per minute per caller. Wait a moment and retry." });
@@ -80,34 +114,47 @@ export default function PlaygroundClient({ candidates }: { candidates: Playgroun
             data-clarity-mask="true"
             className="doc-input mt-1 w-full"
             value={selected}
+            disabled={candidates.length === 0}
             onChange={(e) => {
               setSelected(e.target.value);
               setState({ phase: "idle" });
             }}
           >
-            {candidates.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.resourceKey}
-                {c.network ? ` · ${c.network}` : ""}
-              </option>
-            ))}
+            {candidates.length === 0 ? (
+              <option value="">Press Run to load the catalog</option>
+            ) : (
+              candidates.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.resourceKey}
+                  {c.network ? ` · ${c.network}` : ""}
+                </option>
+              ))
+            )}
           </select>
         </label>
         <button
           type="button"
           onClick={run}
-          disabled={state.phase === "running" || !selected}
+          disabled={state.phase === "running"}
           className="doc-input shrink-0 cursor-pointer font-semibold disabled:cursor-wait disabled:opacity-60"
         >
           {state.phase === "running" ? "Probing…" : "Run L0 verification"}
         </button>
       </div>
 
+      {coverage && coverage.pct !== null ? (
+        <p className="doc-p mt-6 max-w-[62ch] text-brand-lift">
+          {coverage.measuredLast7d.toLocaleString()} of {coverage.activeEndpoints.toLocaleString()} active records (
+          {coverage.pct}% of active records) carry an L0 measurement from the last 7 days (catalog read{" "}
+          {coverage.readAt.slice(0, 10)}).
+        </p>
+      ) : null}
+
       <p className="doc-caption mt-8">2. Read the measurement</p>
       {state.phase === "idle" && (
         <p className="mt-3 max-w-[62ch] text-brand">
-          The probe runs the moment you press the button — this is a live HTTP request to the
-          endpoint&apos;s payment wall, not a cached result.
+          The first press loads the pass-only catalog, then sends a live HTTP request to the payment
+          wall. Later presses probe only.
         </p>
       )}
       {state.phase === "running" && (

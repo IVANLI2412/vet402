@@ -4,8 +4,7 @@ import { headers } from "next/headers";
 import { breadcrumbJsonLd, pageMetadata, webPageJsonLd } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/util/json-ld";
 import { formatUsdcUnits } from "@/lib/util/usd";
-import { getDecisionFeed } from "@/lib/observatory/decisions";
-import { computeSpendGuardBacktest } from "@/lib/observatory/backtest";
+import { getDecisionFeed30Cached, getSpendGuardBacktestCached, withoutReadAt } from "@/lib/observatory/impact-cached-reads";
 import { TableScroll } from "@/components/site/TableScroll";
 import { WideColumn } from "@/components/site/WideColumn";
 import { explorerTxUrl } from "@/lib/observatory/chains";
@@ -58,10 +57,14 @@ export default async function DecisionsPage() {
     { name: "Decisions", path: "/decisions" },
   ]);
   const webPage = webPageJsonLd({ name: "Decisions", description: DECISIONS_DESCRIPTION, path: "/decisions" });
-  const feed = await getDecisionFeed(DECISION_WINDOW_DAYS);
+  const feedRead = await getDecisionFeed30Cached();
+  const feed = withoutReadAt(feedRead);
+  const asOf = feedRead.readAt.slice(0, 16).replace("T", " ") + " UTC";
   // 見出しの 3 つに入らない判定（受領証なしと、未確定の決済の主張）。行から数えず合計から出す。
   const otherDecisions = Math.max(0, feed.totalDecisions - feed.totals.refused - feed.totals.paidSettled - feed.totals.paidNoSettlement);
-  const backtest = await computeSpendGuardBacktest().catch(() => null);
+  const backtest = await getSpendGuardBacktestCached()
+    .then(withoutReadAt)
+    .catch(() => null);
 
   return (
     <main className="px-4 pt-8 pb-4 sm:px-6 md:px-8 md:pt-12">
@@ -97,6 +100,7 @@ export default async function DecisionsPage() {
         </div>
 
         <h1 className="doc-title mt-8">Decisions</h1>
+        <p className="doc-p text-brand-lift">as of {asOf}</p>
         <div className="rule-double mx-auto mt-6 w-full max-w-[34ch]" />
 
         <div className="mt-8 flex flex-col gap-1 sm:flex-row sm:gap-0">

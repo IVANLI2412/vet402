@@ -3,8 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { pageMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/util/json-ld";
-import { getCoverageShare, getObservatoryOverview } from "@/lib/observatory/reader";
-import PlaygroundClient, { type PlaygroundCandidate } from "./playground-client";
+import PlaygroundClient from "./playground-client";
 
 /**
  * /playground — 実購入検証のライブデモ（Phase 0.1・仕様書§4）。
@@ -28,17 +27,6 @@ export const metadata: Metadata = pageMetadata({
 export const revalidate = 600;
 
 export default async function PlaygroundPage() {
-  const overview = await getObservatoryOverview({ verdict: "pass", pageSize: 20 });
-  // 2026-09-04 外部監査 E・P0-5: §4 は「on the whole public catalog daily」と
-  // 書いていた。それは 9/2 に訂正した文と同じ主張で、訂正が伝播していなかった。
-  // 実測（カタログは日次再取得・プローブはローリング）を出す。
-  const coverage = await getCoverageShare().catch(() => null);
-  const candidates: PlaygroundCandidate[] = overview.rows.map((r) => ({
-    id: r.id,
-    resourceKey: r.resourceKey,
-    network: r.network,
-    method: r.method,
-  }));
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   const breadcrumb = breadcrumbJsonLd([
     { name: "Home", path: "/" },
@@ -59,10 +47,7 @@ export default async function PlaygroundPage() {
           <div className="doc-head-col">
             <span>Independent Measurement</span>
             <span>Live demonstration: one endpoint, one probe</span>
-            <span>
-              Candidates: {candidates.length} endpoints whose latest L0 measurement is{" "}
-              <span className="text-signal">pass</span>
-            </span>
+            <span>Candidates load when you press Run</span>
           </div>
           <div className="doc-head-col">
             <span>vet402</span>
@@ -98,17 +83,7 @@ export default async function PlaygroundPage() {
           </p>
         </div>
 
-        {candidates.length === 0 ? (
-          <p className="mt-8 max-w-[62ch] font-semibold text-brand-deep">
-            The catalog reader is not reachable right now — the full register is at{" "}
-            <Link href="/observatory" className="underline">
-              /observatory
-            </Link>
-            .
-          </p>
-        ) : (
-          <PlaygroundClient candidates={candidates} />
-        )}
+        <PlaygroundClient />
 
         <h2 className="sec-head">
           <span className="sec-no">4.</span>
@@ -127,15 +102,8 @@ export default async function PlaygroundPage() {
           performs over the public catalog. On that Observatory measurement, two failures in a row
           on that probe can be published as fail. Demo probes are not written into the public
           register. The catalog itself is read in runs roughly two hours apart. The probes run
-          on a rolling schedule rather than sweeping every endpoint every day
-          {coverage && coverage.pct !== null ? (
-            <>
-              , and {coverage.measuredLast7d.toLocaleString()} of{" "}
-              {coverage.activeEndpoints.toLocaleString()} active records ({coverage.pct}% of
-              active records) carry an L0 measurement from the last 7 days
-            </>
-          ) : null}
-          .
+          on a rolling schedule rather than sweeping every endpoint every day. Coverage figures for
+          the last 7 days load with the catalog when you press Run.
         </p>
         <p className="doc-p">
           L1 receipts on each endpoint&apos;s page are real purchases made under a hard daily

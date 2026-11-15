@@ -89,8 +89,10 @@ test("caught up: checkpoint at the tip is 0 s behind", async () => {
 });
 
 test("/status shows freshness by chain; /api/health public body is unchanged", () => {
+  const cached = readFileSync("src/lib/health/status-cached-reads.ts", "utf8");
+  assert.match(cached, /readChainFreshness\(/);
   const status = readFileSync("src/app/status/page.tsx", "utf8");
-  assert.match(status, /readChainFreshness\(/);
+  assert.match(status, /getChainFreshnessCached/);
   assert.match(status, /Data freshness, by chain/);
   const health = readFileSync("src/app/api/health/route.ts", "utf8");
   assert.match(health, /return NextResponse\.json\(\{ status \}, \{ status: httpStatus \}\);/);

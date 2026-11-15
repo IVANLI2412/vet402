@@ -80,18 +80,10 @@ const nextConfig: NextConfig = {
     ];
   },
   // 2026-08-06 (JS-disabled / navigation audit): the header's "Pricing" item
-  // points at the in-page anchor /#pricing, but developers type URLs directly
-  // and inbound links get written as /pricing — which returned a hard 404. The
-  // pricing table itself is server-rendered on the homepage, so a redirect is
-  // the whole fix. Kept temporary (307) rather than 308 so that promoting
-  // pricing to a real page later isn't fighting a permanently cached redirect.
+  // points at the in-page anchor /#pricing, while direct URLs use /pricing.
+  // Since 2026-11-16, /pricing is a standalone public page (no redirect here).
   async redirects() {
     return [
-      {
-        source: "/pricing",
-        destination: "/#pricing",
-        permanent: false,
-      },
       // 2026-08-23 UX監査: ヘッダーの Method は /#methodology、Verify は /payee を
       // 指しており（内部リンク32本を本番実測して404は0件）、ナビ自体は死んで
       // いない。だが /method・/verify・/methodology はいずれも読者が推測して

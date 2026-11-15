@@ -95,12 +95,12 @@ test("OG 画像は実在する（HTML だけ正しく見える状態を作らな
   assert.ok(existsSync(alt), "opengraph-image.alt.txt が無い");
 });
 
-test("sitemap の全エントリが lastmod を持ち、未来日付が無い", () => {
+test("sitemap の全エントリが lastmod を持ち、未来日付が無い", async () => {
   // 日付のみの lastmod と UTC の「今日」を直接比べると、JST で書いた当日の
   // 日付が UTC ではまだ翌日扱いになる。時差ぶんの 1 日だけ許容する
   // （「未来日付を書いていないか」を見たいのであって、時差を見たいのではない）。
   const tomorrow = new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-  for (const entry of sitemap()) {
+  for (const entry of await sitemap()) {
     assert.ok(entry.lastModified, `${entry.url} に lastModified が無い`);
     const iso =
       entry.lastModified instanceof Date
@@ -149,13 +149,13 @@ test("公開の読み取り API は * と AI クローラに名指しで開け�
   assert.deepEqual(p.disallow, ["/api/", "/dashboard/"]);
 });
 
-test("売り手の sitemap は /sellers の一覧と同じデータ源から、頁が受け付けるホストだけを出す（2026-09-28）", () => {
+test("売り手の sitemap は /sellers の一覧と同じデータ源から、頁が受け付けるホストだけを出す（2026-09-28）", async () => {
   const route = readFileSync(join(ROOT, "src/app/sitemap-sellers.xml/route.ts"), "utf8");
   assert.ok(route.includes("getSellerBoardCached"), "一覧と別の読みから出すと件数が食い違う");
   assert.ok(route.includes("parseSellerHostParam"), "404 になるホストを載せない");
   assert.ok(route.includes("x-vet402-truncated"), "上限で切れたことを黙らせない");
   assert.ok(route.includes("status: 503"), "読めなかったときに空の urlset を 200 で返さない");
-  assert.ok(sitemap().some((e) => e.url === `${SITE_URL}/rwa`), "/rwa が静的 sitemap に無い");
+  assert.ok((await sitemap()).some((e) => e.url === `${SITE_URL}/rwa`), "/rwa が静的 sitemap に無い");
 });
 
 test("endpoint sitemap は測定済みだけを、規格上限の内側で出す", () => {
@@ -172,6 +172,6 @@ test("endpoint sitemap は測定済みだけを、規格上限の内側で出す
   assert.ok(fn.includes("last_probed_at >="), "実測の鮮度で絞っていない");
 });
 
-test("静的 sitemap は endpoint 頁を列挙しない（2 本立ての境界を保つ）", () => {
-  assert.ok(!sitemap().some((e) => e.url.includes("/observatory/e/")));
+test("静的 sitemap は endpoint 頁を列挙しない（2 本立ての境界を保つ）", async () => {
+  assert.ok(!(await sitemap()).some((e) => e.url.includes("/observatory/e/")));
 });

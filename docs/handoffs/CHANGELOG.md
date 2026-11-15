@@ -13,6 +13,12 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-16 pmf85 PAGES: /pricing, ways-to-check, 50 x402 seller reputation pages, cached first paint
+
+- What: Standalone `/pricing` (PricingSection only). New `/x402/ways-to-check-a-seller` comparison page. Up to fifty indexable `/x402/sellers/{host}` pages: `getReputationHostsCached` walks `selectReputationHosts` order, reads seller detail (cap 150), and keeps hosts that pass the same `reputationPageEligible` gate as the page (purchased-only copy, no newer undelivered other-chain signal, no withdrawn routes, forbidden-word scan on rendered text). `sitemap-sellers.xml` and `sitemap()` list only that cached set. Removed `/pricing` redirect. Playground loads the catalog on first Run using returned candidates (not stale React state). Decisions and status use cached reads; chain freshness stays ISO inside `unstable_cache` and becomes `Date` after read. Status chain copy uses chain freshness `readAt` for “as of”.
+- Why: SEO audit pmf85: pricing URL, comparison intent, delivered-only seller pages in search, fix sitemap listing noindex seller URLs, shorten first byte on heavy public pages.
+- Tests: `tests/pmf85-pages-reputation.test.ts`, `tests/pmf85-pages-seo.test.ts`, `tests/pmf85-pages-ttfb.test.ts`.
+- Impact: `/sellers/{host}` stays noindex. robots.txt sitemap lines unchanged (2 lines). No API or SQL changes.
 ## 2026-11-16 PMF85 API: check/decision alias, keyless caller metrics, badge fetch stats
 
 - What: vet402 added `GET /api/v1/decision` as a key-less alias of `GET /api/v1/check`, `diagnose_url` on `not_in_catalog` answers, full `RateLimit-*` headers including `RateLimit-Policy`, weekly keyless caller counts with rotating salts (no stored IP or UA), badge image fetch tallies by referer host, dashboard session tokens hashed with HMAC-SHA256 and pepper, stats routes `GET /api/v1/stats/keyless-callers` and `GET /api/v1/stats/badge-fetches?days=7`, daily cron `/api/cron/close-keyless-week`, CI `npm audit --omit=dev --audit-level=high`, and an incident runbook section for rollback targets.

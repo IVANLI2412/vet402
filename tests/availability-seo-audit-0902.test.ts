@@ -85,8 +85,8 @@ test("/demo の title はテンプレートが付ける接尾辞を自分で持�
   assert.ok(!m[1].includes("vet402"), `"${m[1]}" — layout の template "%s | vet402" と二重になる`);
 });
 
-test("sitemap に公開・被リンクありの 4 頁が入り、孤立 3 頁は入らない", () => {
-  const urls = new Set(sitemap().map((e) => e.url));
+test("sitemap に公開・被リンクありの 4 頁が入り、孤立 3 頁は入らない", async () => {
+  const urls = new Set((await sitemap()).map((e) => e.url));
   for (const p of ["/impact", "/decisions", "/operations", "/playground"]) {
     assert.ok(urls.has(`${SITE_URL}${p}`), `sitemap missing ${p}`);
   }

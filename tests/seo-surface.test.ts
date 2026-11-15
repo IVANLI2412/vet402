@@ -24,8 +24,8 @@ import { SITE_URL } from "@/lib/site-url";
 const ROOT = process.cwd();
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
-test("every public indexable route is in the sitemap", () => {
-  const urls = new Set(sitemap().map((e) => e.url));
+test("every public indexable route is in the sitemap", async () => {
+  const urls = new Set((await sitemap()).map((e) => e.url));
   for (const path of [
     "/",
     "/docs/api",

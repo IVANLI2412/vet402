@@ -8,8 +8,8 @@ import { GUIDE_CHAINS } from "@/components/site/x402-guides";
 
 const REV = "2026-10-26";
 
-test("回答頁とチェーン頁は静的 sitemap に入り、売り手頁は入らない", () => {
-  const urls = sitemap();
+test("回答頁とチェーン頁は静的 sitemap に入り、売り手頁は入らない", async () => {
+  const urls = await sitemap();
   for (const q of LLM_QUESTIONS) {
     if (q.path.startsWith("/blog/")) continue;
     const hit = urls.find((e) => e.url.endsWith(q.path));
@@ -22,7 +22,10 @@ test("回答頁とチェーン頁は静的 sitemap に入り、売り手頁は�
     assert.ok(hit, chain.slug);
     assert.equal(String(hit.lastModified).slice(0, 10), REV);
   }
-  assert.equal(urls.some((e) => e.url.includes("/sellers")), false);
+  assert.equal(
+    urls.some((e) => e.url.includes("/sellers") && !e.url.includes("/x402/sellers/")),
+    false,
+  );
 });
 
 test("llms.txt は各回答の先導文と日付を持つ", () => {

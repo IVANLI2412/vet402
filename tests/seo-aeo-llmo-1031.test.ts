@@ -52,8 +52,8 @@ test("cacheComponents stays off: with htmlLimitedBots /.*/ every request would b
   assert.notEqual((nextConfig.experimental as { ppr?: unknown } | undefined)?.ppr, true);
 });
 
-test("the page sitemap lists pages only; the RSS feed stays linked from <head> and the footer", () => {
-  const urls = sitemap().map((e) => e.url);
+test("the page sitemap lists pages only; the RSS feed stays linked from <head> and the footer", async () => {
+  const urls = (await sitemap()).map((e) => e.url);
   assert.equal(urls.some((u) => /\.(xml|txt|json|csv|yaml)$/.test(u)), false, urls.join("\n"));
   assert.equal(new Set(urls).size, urls.length, "duplicate sitemap URL");
   for (const u of urls) assert.ok(u.startsWith(`${SITE_URL}/`), u);

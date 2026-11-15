@@ -2332,3 +2332,10 @@ claims:
     check: null
     why_unverifiable: "文書面の主張。tests/mcp-plain-english.test.ts と tests/delivery-feed-surface.test.ts が固定する"
     verified_at: 2026-10-28
+  - id: ways_watch402_heading_quote
+    surface: src/app/x402/ways-to-check-a-seller/page.tsx
+    quote: "Every x402 listing on the Bazaar, checked daily. Publicly."
+    means: "第三者 Watch402 の公開見出しの逐語引用。vet402 の網羅・頻度の主張ではない。出典 https://watchx402.com/（取得 2026-11-15 UTC）"
+    check: null
+    why_unverifiable: "他社公開ページの文言。頁に出典 URL と取得日を併記。"
+    verified_at: 2026-11-15

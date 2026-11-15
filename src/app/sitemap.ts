@@ -29,7 +29,10 @@ const REV_2026_11_10 = "2026-11-10";
 /** 2026-11-12: /x402/refunds（返金の答えの頁）を足した。 */
 const REV_2026_11_12 = "2026-11-12";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+/** 2026-11-16: /pricing、/x402/ways-to-check-a-seller、/x402/sellers/* 評判ページ。 */
+const REV_2026_11_16 = "2026-11-16";
+
+function coreStaticSitemap(): MetadataRoute.Sitemap {
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: `${SITE_URL}/`, lastModified: REV_2026_11_08, changeFrequency: "weekly", priority: 1 },
     // /memo is the long document the front page used to be, linked from /, indexable with a self canonical.
@@ -84,6 +87,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${SITE_URL}/x402/stablecoin-payments`, lastModified: REV_2026_10_26, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/x402/check-a-seller`, lastModified: REV_2026_10_26, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/x402/refunds`, lastModified: REV_2026_11_12, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${SITE_URL}/x402/ways-to-check-a-seller`, lastModified: REV_2026_11_16, changeFrequency: "monthly", priority: 0.8 },
+    { url: `${SITE_URL}/pricing`, lastModified: REV_2026_11_16, changeFrequency: "monthly", priority: 0.8 },
     { url: `${SITE_URL}/x402/chains`, lastModified: REV_2026_10_26, changeFrequency: "weekly", priority: 0.8 },
     ...GUIDE_CHAINS.map((chain) => ({
       url: `${SITE_URL}/x402/chains/${chain.slug}`,
@@ -120,4 +125,33 @@ export default function sitemap(): MetadataRoute.Sitemap {
   }));
 
   return [...staticRoutes, ...postRoutes];
+}
+
+const REPUTATION_SITEMAP_READ_MS = 5000;
+
+async function reputationSitemapEntries(): Promise<MetadataRoute.Sitemap> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    const { getReputationHostsCached } = await import("@/lib/sellers/reputation");
+    const hosts = await Promise.race([
+      getReputationHostsCached(),
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(new Error("reputation hosts read timeout")), REPUTATION_SITEMAP_READ_MS);
+      }),
+    ]);
+    return hosts.map((host) => ({
+      url: `${SITE_URL}/x402/sellers/${encodeURIComponent(host)}`,
+      lastModified: REV_2026_11_16,
+      changeFrequency: "daily" as const,
+      priority: 0.5,
+    }));
+  } catch {
+    return [];
+  } finally {
+    if (timer !== undefined) clearTimeout(timer);
+  }
+}
+
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  return [...coreStaticSitemap(), ...(await reputationSitemapEntries())];
 }

@@ -40,9 +40,9 @@ test("metadata description numbers all appear in the report markdown", () => {
   assert.ok(markdown.includes("87.9"));
 });
 
-test("sitemap includes the dated State of x402 report", () => {
+test("sitemap includes the dated State of x402 report", async () => {
   const url = `${SITE_URL}/x402/report/2026-11`;
-  const entry = sitemap().find((e) => e.url === url);
+  const entry = (await sitemap()).find((e) => e.url === url);
   assert.ok(entry, "missing /x402/report/2026-11");
   assert.equal(String(entry?.lastModified), "2026-11-10");
   assert.equal(entry?.changeFrequency, "yearly");
