@@ -1,12 +1,35 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeCron } from "@/lib/cron/auth";
 import {
-  metricsRollupCronRollups,
+  metricsRollupCronRollups as defaultMetricsRollupCronRollups,
   shiftDay,
   utcDayString,
 } from "@/lib/observatory/metrics-rollup";
-import { anchorThrough } from "@/lib/observatory/anchors";
+import { anchorThrough as defaultAnchorThrough } from "@/lib/observatory/anchors";
+import { sealTradeDisputeDay as defaultSealTradeDisputeDay } from "@/lib/observatory/trade-dispute-store";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+
+let anchorThroughFn: typeof defaultAnchorThrough = defaultAnchorThrough;
+let sealTradeDisputeDayFn: typeof defaultSealTradeDisputeDay = defaultSealTradeDisputeDay;
+let metricsRollupCronRollupsFn: typeof defaultMetricsRollupCronRollups = defaultMetricsRollupCronRollups;
+
+export function setMetricsRollupE6DepsForTests(
+  deps: {
+    anchorThrough?: typeof defaultAnchorThrough;
+    sealTradeDisputeDay?: typeof defaultSealTradeDisputeDay;
+    metricsRollupCronRollups?: typeof defaultMetricsRollupCronRollups;
+  } | null,
+): void {
+  if (!deps) {
+    anchorThroughFn = defaultAnchorThrough;
+    sealTradeDisputeDayFn = defaultSealTradeDisputeDay;
+    metricsRollupCronRollupsFn = defaultMetricsRollupCronRollups;
+    return;
+  }
+  if (deps.anchorThrough) anchorThroughFn = deps.anchorThrough;
+  if (deps.sealTradeDisputeDay) sealTradeDisputeDayFn = deps.sealTradeDisputeDay;
+  if (deps.metricsRollupCronRollups) metricsRollupCronRollupsFn = deps.metricsRollupCronRollups;
+}
 
 // Phase 1.1 — 日次メトリクスのロールアップ。
 //
@@ -27,7 +50,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "forbidden" }, { status: 403 });
   }
   try {
-    const { lookbackDays, days, driftDaysRecomputed } = await metricsRollupCronRollups({
+    const { lookbackDays, days, driftDaysRecomputed } = await metricsRollupCronRollupsFn({
       endDay: utcDayString(),
     });
     // 台帳ハッシュチェーン: 完結した前日だけをアンカーする（当日は行が増える）。
@@ -36,7 +59,7 @@ export async function GET(request: NextRequest) {
     // 2026-11-10 公平審査 3.8 の 6c: 欠けた日は後から埋めない。昨日だけを固定し、
     // 穴は /api/v1/observatory/anchors の missingHeadDays と headFreshness が公開する
     // （2026-09-02 の「5 日間検出されなかった」は、この公開と chainContinuity で防ぐ）。
-    const anchors = await anchorThrough(shiftDay(utcDayString(), -1));
+    const anchors = await anchorThroughFn(shiftDay(utcDayString(), -1));
     for (const anchor of anchors) {
       if (anchor.status === "conflict_frozen") {
         logServerErrorSafe(
@@ -46,6 +69,17 @@ export async function GET(request: NextRequest) {
       }
     }
     const anchor = anchors[anchors.length - 1] ?? null;
+    try {
+      const e6 = await sealTradeDisputeDayFn(shiftDay(utcDayString(), -1));
+      if (e6.status === "conflict_frozen") {
+        logServerErrorSafe(
+          "cron.metrics-rollup.e6-anchor",
+          new Error(`E6 trade dispute day conflict on ${e6.day}`),
+        );
+      }
+    } catch (error) {
+      logServerErrorSafe("cron.metrics-rollup.e6-anchor", error);
+    }
     return NextResponse.json({
       ok: true,
       lookbackDays,

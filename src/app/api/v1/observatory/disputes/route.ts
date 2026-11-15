@@ -2,31 +2,15 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClientIp } from "@/lib/api/client-ip";
 import { consumeIpRateLimit, ipRateLimitHeaders } from "@/lib/api/ip-rate-limit";
 import { submitDispute } from "@/lib/observatory/disputes";
-import { getE6Store } from "@/lib/observatory/e6-store";
-import { publicTradeDisputeJson } from "@/lib/observatory/trade-dispute";
+import { TRADE_ID_RE } from "@/lib/observatory/trade-dispute";
+import { getTradeDisputeStore, publicJsonForTrade } from "@/lib/observatory/trade-dispute-store";
+import { isMissingSchemaError } from "@/lib/db/pg-errors";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 
-/**
- * GET /api/v1/observatory/disputes?purchaseId=… — P2 の取引争い（E6）の公開 JSON。
- * 判定の段だけ。本文とヘッダは返さない。測定の異議（POST）とは別口。
- *
- * POST /api/v1/observatory/disputes — 売り手の署名付き異議（C8）。
- * payTo 保持者の EIP-191 署名を実検証し、受理と同時に本物の L0 を
- * 1回再測定して通常の公開ゲートへ流す。申し立てで記録は消えない——
- * 訂正も、訂正に至らない再測定も、同じ重みで公開される。
- *
- * 2026-08-22（監査残件）: 署名にリプレイ防止が無かったので `issued` を必須に
- * した。呼び手は署名時の `new Date().toISOString()` をそのまま送る。窓外は
- * 400 signature_expired、同一メッセージの再送は 409 replayed。
- */
+export const dynamic = "force-dynamic";
 
 const RL_LIMIT = 5;
 const RL_WINDOW_MS = 60_000;
-
-// 2026-09-02 監査: 静的化された route handler が prerender から古い判定を返すのを防ぐ（09c1fa0 と同じ欠陥）。
-export const dynamic = "force-dynamic";
-
-const PURCHASE_ID_RE = /^[A-Za-z0-9-]{1,64}$/;
 
 export async function GET(request: NextRequest) {
   const ip = getClientIp(request) ?? "unknown";
@@ -35,22 +19,34 @@ export async function GET(request: NextRequest) {
   if (!limited.allowed) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429, headers: perCaller });
   }
-  const purchaseId = request.nextUrl.searchParams.get("purchaseId")?.trim() ?? "";
-  if (!PURCHASE_ID_RE.test(purchaseId)) {
+
+  if (request.nextUrl.searchParams.has("purchaseId")) {
     return NextResponse.json({ error: "invalid_request" }, { status: 400, headers: perCaller });
   }
-  const store = getE6Store();
+
+  const tradeId = request.nextUrl.searchParams.get("tradeId")?.trim().toLowerCase() ?? "";
+  if (!TRADE_ID_RE.test(tradeId)) {
+    return NextResponse.json({ error: "invalid_request" }, { status: 400, headers: perCaller });
+  }
+
+  const store = getTradeDisputeStore();
   if (!store) {
     return NextResponse.json({ error: "disputes_unavailable" }, { status: 503, headers: perCaller });
   }
-  const record = await store.get(purchaseId);
-  if (!record) {
-    return NextResponse.json({ error: "not_found" }, { status: 404, headers: perCaller });
+
+  try {
+    const body = await publicJsonForTrade(store, tradeId);
+    if (!body) {
+      return NextResponse.json({ error: "not_found" }, { status: 404, headers: perCaller });
+    }
+    return NextResponse.json(body, { status: 200, headers: perCaller });
+  } catch (error) {
+    if ((error as { code?: string }).code === "disputes_unavailable" || isMissingSchemaError(error)) {
+      return NextResponse.json({ error: "disputes_unavailable" }, { status: 503, headers: perCaller });
+    }
+    logServerErrorSafe("disputes-get", error);
+    return NextResponse.json({ error: "disputes_unavailable" }, { status: 503, headers: perCaller });
   }
-  return NextResponse.json(publicTradeDisputeJson(record, { viewer: "anonymous" }), {
-    status: 200,
-    headers: perCaller,
-  });
 }
 
 export async function POST(request: NextRequest) {

@@ -5,7 +5,6 @@
 // Held / delivered predicates come from delivery.ts.
 // ============================================================
 import type { E6PublicStage } from "@/lib/observatory/e6-record";
-import type { e4OutcomeForStage } from "@/lib/observatory/trade-dispute";
 import { GATEWAY_NOT_CHARGED_EXPIRED } from "@/lib/observatory/arc-gateway-words";
 import {
   deliveredPredicate,
@@ -25,11 +24,8 @@ import type { getDb } from "@/lib/db/client";
 /** 3.4 dispute stage for a paid request that did not arrive (e6-record.ts). */
 export const NOT_DELIVERED_STAGE = "not_delivered" as const satisfies Extract<E6PublicStage, "not_delivered">;
 
-/** 3.4 dispute outcome bucket tied to held rows (trade-dispute.ts). */
-export const INCONCLUSIVE_STAGE = "inconclusive" as const satisfies Extract<
-  NonNullable<ReturnType<typeof e4OutcomeForStage>>,
-  "inconclusive"
->;
+/** 3.4 dispute outcome bucket tied to held rows. */
+export const INCONCLUSIVE_STAGE = "inconclusive" as const;
 
 export const PURCHASE_STAGES = [
   "http_402",

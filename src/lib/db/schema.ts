@@ -1681,3 +1681,50 @@ export const x402PayerRefundTransfers = pgTable(
     index("x402_payer_refund_transfers_from_address_idx").on(t.fromAddress),
   ],
 );
+
+/** P2 争いの窓口: 買い手・売り手の署名した主張（履歴つき追記）。SQL: scripts/sql/2026-11-16-trade-claims.sql（本番適用 2026-11-16）。 */
+export const tradeDisputeLegs = pgTable(
+  "trade_dispute_legs",
+  {
+    id: bigserial("id", { mode: "number" }).primaryKey(),
+    tradeId: text("trade_id").notNull(),
+    side: text("side").notNull(),
+    chain: text("chain").notNull(),
+    payer: text("payer").notNull(),
+    receiver: text("receiver").notNull(),
+    paymentInfoOperator: text("payment_info_operator").notNull(),
+    signer: text("signer").notNull(),
+    paymentTx: text("payment_tx").notNull(),
+    delivery: text("delivery").notNull(),
+    receivedBodySha256: text("received_body_sha256"),
+    paymentSeen: text("payment_seen"),
+    deliveredBodySha256: text("delivered_body_sha256"),
+    sellerReceiptCommitment: text("seller_receipt_commitment"),
+    sellerReceiptSignature: text("seller_receipt_signature"),
+    sellerReceiptIssued: text("seller_receipt_issued"),
+    commitment: text("commitment").notNull(),
+    issued: text("issued").notNull(),
+    acceptedAt: timestamp("accepted_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    uniqueIndex("trade_dispute_legs_trade_side_issued_unique").on(t.tradeId, t.side, t.issued),
+    index("trade_dispute_legs_trade_side_idx").on(t.tradeId, t.side),
+    index("trade_dispute_legs_signer_accepted_idx").on(t.signer, t.acceptedAt),
+    check("trade_dispute_legs_side_check", sql`${t.side} IN ('payer', 'seller')`),
+    check("trade_dispute_legs_chain_check", sql`${t.chain} = 'eip155:84532'`),
+    check("trade_dispute_legs_trade_id_check", sql`${t.tradeId} ~ '^0x[0-9a-f]{64}$'`),
+  ],
+);
+
+export const tradeDisputeDayRoots = pgTable(
+  "trade_dispute_day_roots",
+  {
+    day: date("day", { mode: "string" }).primaryKey(),
+    rootHash: text("root_hash").notNull(),
+    prevRoot: text("prev_root"),
+    entryCount: integer("entry_count").notNull(),
+    payload: text("payload").notNull(),
+    sealedAt: timestamp("sealed_at", { withTimezone: true }).notNull(),
+  },
+  (t) => [check("trade_dispute_day_roots_hash_check", sql`${t.rootHash} ~ '^[0-9a-f]{64}$'`)],
+);

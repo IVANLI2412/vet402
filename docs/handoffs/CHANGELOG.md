@@ -13,6 +13,11 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-15 P2d: trade claims and chain facts on Base Sepolia (wave1 3.4)
+
+- What: vet402 publishes the signed claim of each side with its history, next to chain facts read at a fixed block number on each GET. vet402 does not publish fault stages on this path. Only paymentInfo.payer or paymentInfo.receiver from the authorize calldata can submit, and the calldata hash must equal tradeId. The authorize tx on the real escrow comes from the operator, so vet402 reads the parties from the calldata and not from tx.from. Limits are per wallet per UTC day and per trade side history. The global write cap is gone. Ops counts trades where both sides have a current claim for the seller wallet, and the seller dashboard names that number as records signed by both sides. A submit that names a tx the chain does not have returns payment_tx_not_found. A test fixes tradeId against getHash of a known Base Sepolia authorize tx. Draft APIs in /docs/api and `/connect/trade-dispute` (noindex).
+- Tests: `tests/dispute-acceptance.test.ts`, `tests/dispute-acceptance.pg.test.ts`, `tests/ops-dashboard.test.ts`, `tests/ops-dashboard.pg.test.ts`, `tests/purchase-stage.test.ts`, fixture `tests/fixtures/auth-capture-known-authorize-84532.json`.
+- Impact: `trade_dispute_legs` uses `id bigserial` and unique `(trade_id, side, issued)`. Each write is one conditional INSERT with no transaction and no advisory lock, because the production driver (neon-http) has no transactions. Every argument in that INSERT and in the follow up reads carries an explicit type, since neon-http sends arguments as text. Apply `scripts/sql/2026-11-16-trade-claims.sql` before this code ships. It stops if an older trade_dispute_legs shape exists. The owner applied it on production on 2026-11-16. `e4OutcomeForStage` and `e6PublicStage` are removed.
 ## 2026-11-15 U1: paste a URL on the front page, see the verdict, three alternatives and one line of code
 
 - What: vet402 added `GET /api/v1/find`, pure rank and term helpers, and a paste box on `/` that calls check and find together. The first screen keeps two pill actions for the buyer path and paste Check, with the seller path as a text link. Check shows last delivered paid test from `evidence_age`, reason sentences from the check body, alternatives (including when there is no catalog row), and before-pay snippets. Find uses one term from the later part of the path (or a host label), one find-only store read (`readFindAlternatives`, cutoff and order before LIMIT) per request, and `q` trimmed to 3 through 80 characters.
@@ -56,6 +61,7 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 - `delivery.csv` is in the robots allow list and the Freshness table (`s-maxage=3600`, `stale-while-revalidate=7200`), like the ledger export.
 - The frozen ledger export `GET /api/v1/observatory/export.csv` is unchanged (columns, headers, and cache keys).
 - Tests: `tests/delivery-values.test.ts`, `tests/delivery-export.pg.test.ts`.
+
 ## 2026-11-15 J1: binary output declarations and answer checks on stored bodies (internal)
 
 - What: vet402 adds binary media type extraction and `checkL2Binary` in `l2-check.ts` (additive only). vet402 adds `src/lib/observatory/answer-check/` judges on stored purchase bodies without new network calls or purchases, and `checkedPurchaseShare` for the share of settled purchases with a checked answer over 30 days. vet402 adds tests for binary L2 and answer checks.

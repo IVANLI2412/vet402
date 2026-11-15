@@ -1,7 +1,97 @@
 // P3 運用画面（DB あり）
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { encodeFunctionData, type Hex } from "viem";
+import { AUTH_CAPTURE_ESCROW_ABI, AUTH_CAPTURE_AUTHORIZE_SELECTOR } from "@/lib/observatory/e6-chain-reader";
 import { assertTestDatabaseIsNotProduction } from "./helpers/pg-test-guard";
+
+const ESCROW_AUTH_INPUT = encodeFunctionData({
+  abi: AUTH_CAPTURE_ESCROW_ABI,
+  functionName: "authorize",
+  args: [
+    {
+      operator: "0x0000000000000000000000000000000000000abc" as Hex,
+      payer: "0x0000000000000000000000000000000000000ccc" as Hex,
+      receiver: "0x2222222222222222222222222222222222222222" as Hex,
+      token: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as Hex,
+      maxAmount: 1_000_000n,
+      preApprovalExpiry: 1,
+      authorizationExpiry: 2,
+      refundExpiry: 3,
+      minFeeBps: 0,
+      maxFeeBps: 100,
+      feeReceiver: "0x0000000000000000000000000000000000000000" as Hex,
+      salt: 1n,
+    },
+    1n,
+    "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as Hex,
+    "0x",
+  ],
+});
+
+import type { TradeDisputeLegRow } from "@/lib/observatory/trade-dispute-store";
+import type { E6ChainReader } from "@/lib/observatory/e6-chain-reader";
+
+const E6_READER_TAIL: Pick<E6ChainReader, "readPaymentStateAtBlock" | "getLatestBlockNumber" | "readAuthorizeAtBlock"> = {
+  async readPaymentStateAtBlock() {
+    return { collected: true, capturable: "1", refundable: "0" };
+  },
+  async getLatestBlockNumber() {
+    return 1;
+  },
+  async readAuthorizeAtBlock() {
+    return "not_found";
+  },
+};
+
+function mergeReader(partial: Omit<E6ChainReader, keyof typeof E6_READER_TAIL>): E6ChainReader {
+  return { ...partial, ...E6_READER_TAIL };
+}
+
+function disputeLeg(input: {
+  tradeId: string;
+  side: "payer" | "seller";
+  payer: string;
+  receiver: string;
+  paymentInfoOperator: string;
+  paymentTx: string;
+  commitment: string;
+  acceptedAt: string;
+  receivedBodySha256?: string | null;
+  deliveredBodySha256?: string | null;
+  paymentSeen?: "yes" | "no" | null;
+  delivery?: string;
+}): TradeDisputeLegRow {
+  const delivery =
+    input.delivery ??
+    (input.side === "payer"
+      ? input.receivedBodySha256
+        ? "received"
+        : "none"
+      : input.deliveredBodySha256
+        ? "delivered"
+        : "none");
+  return {
+    chain: "eip155:84532",
+    tradeId: input.tradeId,
+    side: input.side,
+    payer: input.payer,
+    receiver: input.receiver,
+    paymentInfoOperator: input.paymentInfoOperator,
+    signer: (input.side === "seller" ? input.receiver : input.payer).toLowerCase(),
+    paymentTx: input.paymentTx,
+    delivery,
+    receivedBodySha256: input.receivedBodySha256 ?? null,
+    paymentSeen: input.side === "seller" ? (input.paymentSeen ?? "yes") : null,
+    deliveredBodySha256: input.deliveredBodySha256 ?? null,
+    sellerReceiptCommitment: null,
+    sellerReceiptSignature: null,
+    sellerReceiptIssued: null,
+    commitment: input.commitment,
+    issued: input.acceptedAt,
+    acceptedAt: input.acceptedAt,
+  };
+}
 
 const TEST_DB = process.env.TEST_DATABASE_URL;
 if (!TEST_DB) {
@@ -28,8 +118,9 @@ if (!TEST_DB) {
     } = await import("@/lib/dashboard/ops-data");
     const { dispatchOpsDigest } = await import("@/lib/dashboard/ops-notify");
     const { buildBuyerCard } = await import("@/lib/dashboard/ops-card");
-    const { memoryE6Store, setE6StoreForTests } = await import("@/lib/observatory/e6-store");
-    const { mergeE6Record } = await import("@/lib/observatory/e6-record");
+    const { memoryTradeDisputeStore, setTradeDisputeStoreForTests } = await import(
+      "@/lib/observatory/trade-dispute-store"
+    );
     const { resourceId, endpointHash, payeeId } = await import("@/lib/ids/canonical");
     const prevPepper = process.env.API_KEY_PEPPER;
     process.env.API_KEY_PEPPER = process.env.API_KEY_PEPPER ?? "ops-dashboard-test-pepper-32ch";
@@ -126,13 +217,20 @@ if (!TEST_DB) {
         (${endpointMain}::uuid, 'settle_failed', 'eip155:8453', ${OTHER}, '1', '0', '0xabc', null, 500, false)
     `);
 
-    const rec = mergeE6Record(null, {
-      purchaseId,
-      payer: { paymentTx: "0x1", receivedBodyHash: null, state: "settled" },
-      seller: { paymentVerified: null, deliveredBodyHash: null, deliverySignature: null },
-    });
-    const store = memoryE6Store({ [purchaseId]: rec });
-    setE6StoreForTests(store);
+    setTradeDisputeStoreForTests(
+      memoryTradeDisputeStore([
+        disputeLeg({
+          tradeId: "0x" + "7".repeat(64),
+          side: "payer",
+          payer: "0x0000000000000000000000000000000000000bbb",
+          receiver: PAY_TO,
+          paymentInfoOperator: "0x0000000000000000000000000000000000000aaa",
+          commitment: "f1".repeat(32),
+          paymentTx: "0x" + "8".repeat(64),
+          acceptedAt: "2026-06-01T12:00:00.000Z",
+        }),
+      ]),
+    );
 
     const seller = await fetchSellerOpsFromDb(PAY_TO);
     assert.equal(seller.revenue.measurementSettledCount, 2);
@@ -159,7 +257,7 @@ if (!TEST_DB) {
     assert.equal(other.l1.inconclusive, 0);
     assert.equal(other.l1.awaitingReread, 0);
 
-    setE6StoreForTests(null);
+    setTradeDisputeStoreForTests(null);
 
     const deliveries: { type: string; headers: Record<string, string>; host: string; ip?: string }[] = [];
     const publicUrl = "https://hooks.example.com/vet402";
@@ -256,8 +354,10 @@ if (!TEST_DB) {
     const { sql } = await import("drizzle-orm");
     const { fetchSellerOpsFromDb } = await import("@/lib/dashboard/ops-data");
     const { buildSellerCard } = await import("@/lib/dashboard/ops-card");
-    const { memoryE6Store, setE6StoreForTests } = await import("@/lib/observatory/e6-store");
-    const { mergeE6Record } = await import("@/lib/observatory/e6-record");
+    const { memoryTradeDisputeStore, setTradeDisputeStoreForTests } = await import(
+      "@/lib/observatory/trade-dispute-store"
+    );
+    const { setE6ChainReaderForTests } = await import("@/lib/observatory/e6-chain-reader");
     const { resourceId, endpointHash, payeeId } = await import("@/lib/ids/canonical");
 
     const db = getDb()!;
@@ -292,48 +392,271 @@ if (!TEST_DB) {
       return (Array.isArray(row) ? row[0] : row.rows?.[0])!.id;
     };
 
-    const sellerPurchaseId = await insertPurchase(sellerEp, SELLER);
-    const otherPurchaseId = await insertPurchase(otherEp, OTHER);
+    await insertPurchase(sellerEp, SELLER);
+    await insertPurchase(otherEp, OTHER);
 
-    const matchedBody = "0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef";
-    const sellerNoStage = mergeE6Record(null, {
-      purchaseId: sellerPurchaseId,
-      payer: { paymentTx: "0xaa", receivedBodyHash: matchedBody, state: "settled" },
-      seller: { paymentVerified: null, deliveredBodyHash: matchedBody, deliverySignature: null },
-    });
-    const otherDispute = mergeE6Record(null, {
-      purchaseId: otherPurchaseId,
-      payer: { paymentTx: "0xbb", receivedBodyHash: null, state: "settled" },
-      seller: { paymentVerified: null, deliveredBodyHash: null, deliverySignature: null },
-    });
+    const op = "0x0000000000000000000000000000000000000abc";
+    const bodyHash = "a".repeat(64);
+    const tOk = "0x" + "1".repeat(64);
+    const tOther = "0x" + "2".repeat(64);
+    const tDispute = "0x" + "3".repeat(64);
+  const baseLeg = {
+      chain: "eip155:84532",
+      payer: "0x0000000000000000000000000000000000000ccc",
+      receiver: SELLER,
+      paymentInfoOperator: op,
+      acceptedAt: "2026-06-01T12:00:00.000Z",
+    };
 
-    setE6StoreForTests(memoryE6Store({ [sellerPurchaseId]: sellerNoStage, [otherPurchaseId]: otherDispute }));
+    const txToTrade = new Map([
+      ["0x" + "4".repeat(64), tOk],
+      ["0x" + "6".repeat(64), tDispute],
+    ]);
+    let hashForValidate = "";
+    setE6ChainReaderForTests(
+      mergeReader({
+        async readPaymentState() {
+          return { collected: true, capturable: "1", refundable: "0" };
+        },
+        async getPaymentInfoHash() {
+          return hashForValidate;
+        },
+        async getEscrowCall(txHash) {
+          const tid = txToTrade.get(txHash.toLowerCase());
+          if (!tid) return "rejected";
+          hashForValidate = tid;
+          return {
+            from: baseLeg.payer,
+            selector: AUTH_CAPTURE_AUTHORIZE_SELECTOR.toLowerCase(),
+            input: ESCROW_AUTH_INPUT,
+          };
+        },
+        async getTxFacts(txHash) {
+          const tid = txToTrade.get(txHash.toLowerCase());
+          if (!tid) return "not_found";
+          return {
+            from: baseLeg.payer,
+            to: "0xf96815976523e00e65be8f34ca5e64b4f41eb19c",
+            status: "success",
+            input: "0x",
+          };
+        },
+        async getLatestBlockTimestamp() {
+          return Math.floor(Date.now() / 1000);
+        },
+        async paymentTxPaysTo() {
+          return true;
+        },
+      }),
+    );
+
+    setTradeDisputeStoreForTests(
+      memoryTradeDisputeStore([
+        disputeLeg({
+          tradeId: tOk,
+          side: "seller",
+          payer: baseLeg.payer,
+          receiver: baseLeg.receiver,
+          paymentInfoOperator: baseLeg.paymentInfoOperator,
+          acceptedAt: baseLeg.acceptedAt,
+          deliveredBodySha256: bodyHash,
+          commitment: "c1".repeat(32),
+          paymentTx: "0x" + "4".repeat(64),
+        }),
+        disputeLeg({
+          tradeId: tOk,
+          side: "payer",
+          payer: baseLeg.payer,
+          receiver: baseLeg.receiver,
+          paymentInfoOperator: baseLeg.paymentInfoOperator,
+          acceptedAt: baseLeg.acceptedAt,
+          receivedBodySha256: bodyHash,
+          commitment: "c2".repeat(32),
+          paymentTx: "0x" + "4".repeat(64),
+        }),
+        disputeLeg({
+          tradeId: tOther,
+          side: "payer",
+          payer: baseLeg.payer,
+          receiver: OTHER,
+          paymentInfoOperator: baseLeg.paymentInfoOperator,
+          acceptedAt: baseLeg.acceptedAt,
+          commitment: "c3".repeat(32),
+          paymentTx: "0x" + "5".repeat(64),
+        }),
+        disputeLeg({
+          tradeId: tDispute,
+          side: "seller",
+          payer: baseLeg.payer,
+          receiver: baseLeg.receiver,
+          paymentInfoOperator: baseLeg.paymentInfoOperator,
+          acceptedAt: baseLeg.acceptedAt,
+          commitment: "c4".repeat(32),
+          paymentTx: "0x" + "6".repeat(64),
+        }),
+        disputeLeg({
+          tradeId: tDispute,
+          side: "payer",
+          payer: baseLeg.payer,
+          receiver: baseLeg.receiver,
+          paymentInfoOperator: baseLeg.paymentInfoOperator,
+          acceptedAt: baseLeg.acceptedAt,
+          receivedBodySha256: bodyHash,
+          commitment: "c5".repeat(32),
+          paymentTx: "0x" + "6".repeat(64),
+        }),
+      ]),
+    );
     try {
       let raw = await fetchSellerOpsFromDb(SELLER);
-      assert.equal(raw.disputes.recordsPresent, 1);
-      assert.equal(raw.disputes.disputeCount, 0);
+      assert.equal(raw.disputes.recordsPresent, 2);
+      assert.equal(raw.disputes.disputeCount, 2);
       let card = buildSellerCard(raw);
-      assert.equal(card.disputes.state, "empty");
-
-      const disputePurchaseId = await insertPurchase(sellerEp, SELLER);
-      const sellerDispute = mergeE6Record(null, {
-        purchaseId: disputePurchaseId,
-        payer: { paymentTx: "0xcc", receivedBodyHash: null, state: "settled" },
-        seller: { paymentVerified: null, deliveredBodyHash: null, deliverySignature: null },
-      });
-      setE6StoreForTests(
-        memoryE6Store({
-          [sellerPurchaseId]: sellerNoStage,
-          [otherPurchaseId]: otherDispute,
-          [disputePurchaseId]: sellerDispute,
-        }),
-      );
-      raw = await fetchSellerOpsFromDb(SELLER);
-      assert.equal(raw.disputes.disputeCount, 1);
-      card = buildSellerCard(raw);
       assert.equal(card.disputes.state, "has_data");
     } finally {
-      setE6StoreForTests(null);
+      setTradeDisputeStoreForTests(null);
+      setE6ChainReaderForTests(null);
+    }
+  });
+
+  test("[p2d] ops seller dispute count with bilateral claims", async () => {
+    const { getDb } = await import("@/lib/db/client");
+    const { sql } = await import("drizzle-orm");
+    const { fetchSellerOpsFromDb } = await import("@/lib/dashboard/ops-data");
+    const { memoryTradeDisputeStore, setTradeDisputeStoreForTests } = await import(
+      "@/lib/observatory/trade-dispute-store"
+    );
+    const { setE6ChainReaderForTests } = await import("@/lib/observatory/e6-chain-reader");
+
+    const db = getDb()!;
+    await db.execute(sql`TRUNCATE x402_l1_purchases, x402_endpoints RESTART IDENTITY CASCADE`);
+
+    const SELLER = "0x4444444444444444444444444444444444444444";
+    const op = "0x0000000000000000000000000000000000000def";
+    const tradeId = "0x" + "7".repeat(64);
+    const bodyHash = "b".repeat(64);
+    const payTx = "0x" + "8".repeat(64);
+    const baseLeg = {
+      chain: "eip155:84532",
+      payer: "0x0000000000000000000000000000000000000ddd",
+      receiver: SELLER,
+      paymentInfoOperator: op,
+      acceptedAt: "2026-06-02T12:00:00.000Z",
+    };
+
+    setE6ChainReaderForTests(null);
+    setTradeDisputeStoreForTests(
+      memoryTradeDisputeStore([
+        disputeLeg({
+          tradeId,
+          side: "seller",
+          payer: baseLeg.payer,
+          receiver: baseLeg.receiver,
+          paymentInfoOperator: baseLeg.paymentInfoOperator,
+          commitment: "f1".repeat(32),
+          paymentTx: payTx,
+          acceptedAt: baseLeg.acceptedAt,
+        }),
+        disputeLeg({
+          tradeId,
+          side: "payer",
+          payer: baseLeg.payer,
+          receiver: baseLeg.receiver,
+          paymentInfoOperator: baseLeg.paymentInfoOperator,
+          receivedBodySha256: bodyHash,
+          commitment: "f2".repeat(32),
+          paymentTx: payTx,
+          acceptedAt: baseLeg.acceptedAt,
+        }),
+      ]),
+    );
+    try {
+      const raw = await fetchSellerOpsFromDb(SELLER);
+      assert.equal(raw.disputes.recordsPresent, 1);
+      assert.equal(raw.disputes.disputeCount, 1);
+    } finally {
+      setTradeDisputeStoreForTests(null);
+      setE6ChainReaderForTests(null);
+    }
+  });
+
+  test("[p2d] ops seller dispute counting capped at dispute purchase limit", async () => {
+    const { getDb } = await import("@/lib/db/client");
+    const { sql } = await import("drizzle-orm");
+    const { fetchSellerOpsFromDb, setDisputePurchaseLimitForTests } = await import(
+      "@/lib/dashboard/ops-data"
+    );
+    const { memoryTradeDisputeStore, setTradeDisputeStoreForTests } = await import(
+      "@/lib/observatory/trade-dispute-store"
+    );
+    const { setE6ChainReaderForTests } = await import("@/lib/observatory/e6-chain-reader");
+
+    setE6ChainReaderForTests(
+      mergeReader({
+        async readPaymentState() {
+          return { collected: true, capturable: "1", refundable: "0" };
+        },
+      async getPaymentInfoHash() {
+        return "0x" + "1".repeat(64);
+      },
+      async getEscrowCall() {
+        return "rejected";
+      },
+      async getTxFacts() {
+        return "not_found";
+      },
+      async getLatestBlockTimestamp() {
+        return Math.floor(Date.now() / 1000);
+      },
+      async paymentTxPaysTo() {
+        return true;
+      },
+      }),
+    );
+
+    const SELLER = "0x5555555555555555555555555555555555555555";
+    const op = "0x0000000000000000000000000000000000000fed";
+    const legs: TradeDisputeLegRow[] = [];
+    for (let i = 0; i < 5; i++) {
+      const tradeId = `0x${(i + 1).toString(16).padStart(64, "0")}`;
+      const payTx = `0x${(i + 0x11).toString(16).padStart(64, "0")}`;
+      const acceptedAt = `2026-06-0${i + 1}T12:00:00.000Z`;
+      const shared = {
+        payer: "0x0000000000000000000000000000000000000ccc",
+        receiver: SELLER,
+        paymentInfoOperator: op,
+        acceptedAt,
+      };
+      legs.push(
+        disputeLeg({
+          tradeId,
+          side: "seller",
+          ...shared,
+          deliveredBodySha256: "c".repeat(64),
+          commitment: `s${i}`.repeat(16),
+          paymentTx: payTx,
+        }),
+        disputeLeg({
+          tradeId,
+          side: "payer",
+          ...shared,
+          receivedBodySha256: "d".repeat(64),
+          commitment: `p${i}`.repeat(16),
+          paymentTx: payTx,
+        }),
+      );
+    }
+
+    setDisputePurchaseLimitForTests(2);
+    setTradeDisputeStoreForTests(memoryTradeDisputeStore(legs));
+    try {
+      const raw = await fetchSellerOpsFromDb(SELLER);
+      assert.equal(raw.disputes.recordsPresent, 2);
+      assert.equal(raw.disputes.disputeCount, 2);
+    } finally {
+      setDisputePurchaseLimitForTests(null);
+      setTradeDisputeStoreForTests(null);
+      setE6ChainReaderForTests(null);
     }
   });
 
@@ -343,8 +666,9 @@ if (!TEST_DB) {
     const { fetchSellerOpsFromDb, setDisputePurchaseLimitForTests } = await import(
       "@/lib/dashboard/ops-data"
     );
-    const { memoryE6Store, setE6StoreForTests } = await import("@/lib/observatory/e6-store");
-    const { mergeE6Record } = await import("@/lib/observatory/e6-record");
+    const { memoryTradeDisputeStore, setTradeDisputeStoreForTests } = await import(
+      "@/lib/observatory/trade-dispute-store"
+    );
     const { resourceId, endpointHash, payeeId } = await import("@/lib/ids/canonical");
 
     const db = getDb()!;
@@ -378,15 +702,24 @@ if (!TEST_DB) {
       assert.equal(out.disputes.purchaseIdsChecked, 2);
       assert.equal(out.disputes.truncated, true);
 
-      const rec = mergeE6Record(null, {
-        purchaseId: oldestId,
-        payer: { paymentTx: "0x1", receivedBodyHash: null, state: "settled" },
-        seller: { paymentVerified: null, deliveredBodyHash: null, deliverySignature: null },
-      });
-      setE6StoreForTests(memoryE6Store({ [oldestId]: rec }));
+      const op = "0x0000000000000000000000000000000000000def";
+      setTradeDisputeStoreForTests(
+        memoryTradeDisputeStore([
+          disputeLeg({
+            tradeId: "0x" + "9".repeat(64),
+            side: "seller",
+            payer: "0x0000000000000000000000000000000000000ddd",
+            receiver: WALLET,
+            paymentInfoOperator: op,
+            commitment: "e1".repeat(32),
+            paymentTx: "0x" + "9".repeat(64),
+            acceptedAt: "2026-02-01T00:00:00.000Z",
+          }),
+        ]),
+      );
 
       out = await fetchSellerOpsFromDb(WALLET);
-      assert.equal(out.disputes.recordsPresent, 0);
+      assert.equal(out.disputes.recordsPresent, 1);
       assert.equal(out.disputes.truncated, true);
 
       setDisputePurchaseLimitForTests(3);
@@ -396,7 +729,7 @@ if (!TEST_DB) {
       assert.equal(out.disputes.recordsPresent, 1);
     } finally {
       setDisputePurchaseLimitForTests(null);
-      setE6StoreForTests(null);
+      setTradeDisputeStoreForTests(null);
     }
   });
 }

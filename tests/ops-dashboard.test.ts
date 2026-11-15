@@ -3,6 +3,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { encodeFunctionData, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { deliveredRates } from "@/lib/observatory/delivered-rates";
 import { p2PartyAccessMessage } from "@/lib/observatory/p2-party-verify";
@@ -20,11 +21,42 @@ import {
   verifySellerDashboardAccess,
 } from "@/lib/dashboard/seller-access";
 import {
+  countPublicTradeDisputes,
   loadBuyerCard,
   loadSellerCard,
   setDisputePurchaseLimitForTests,
   setSellerOpsLoaderForTests,
 } from "@/lib/dashboard/ops-data";
+import {
+  AUTH_CAPTURE_AUTHORIZE_SELECTOR,
+  AUTH_CAPTURE_ESCROW_ABI,
+  setE6ChainReaderForTests,
+} from "@/lib/observatory/e6-chain-reader";
+
+const ESCROW_AUTH_INPUT = encodeFunctionData({
+  abi: AUTH_CAPTURE_ESCROW_ABI,
+  functionName: "authorize",
+  args: [
+    {
+      operator: "0x0000000000000000000000000000000000000fed" as Hex,
+      payer: "0x0000000000000000000000000000000000000ccc" as Hex,
+      receiver: "0x5555555555555555555555555555555555555555" as Hex,
+      token: "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as Hex,
+      maxAmount: 1_000_000n,
+      preApprovalExpiry: 1,
+      authorizationExpiry: 2,
+      refundExpiry: 3,
+      minFeeBps: 0,
+      maxFeeBps: 100,
+      feeReceiver: "0x0000000000000000000000000000000000000000" as Hex,
+      salt: 1n,
+    },
+    1_000_000n,
+    "0x036CbD53842c5426634e7929541eC2318f3dCF7e" as Hex,
+    "0x",
+  ],
+});
+import type { TradeDisputeLegRow } from "@/lib/observatory/trade-dispute-store";
 import { dispatchOpsDigest } from "@/lib/dashboard/ops-notify";
 import { renderOpsDigestEmailDraft } from "@/lib/dashboard/ops-email";
 import {
@@ -156,7 +188,10 @@ test("seller disputes empty copy when truncated", () => {
     reputation: { pass: 0, fail: 0, withdrawn: 0, unverified: 0 },
   });
   assert.equal(card.disputes.noRecordsMessage, sellerDisputesNoRecordsMessage(true, 3));
-  assert.equal(card.disputes.noRecordsMessage, "No trade disputes among the latest 3 purchases");
+  assert.equal(
+    card.disputes.noRecordsMessage,
+    "No trades with records signed by both sides among the latest 3 purchases",
+  );
   assert.equal(card.disputes.checkedLine, "Checked the latest 3 purchases for this wallet");
   assert.equal(
     card.disputes.truncatedNote,
@@ -294,6 +329,96 @@ test("loadBuyerCard keeps key usage, reported payments, and vet402 measurement a
   assert.doesNotMatch(paySurface(cardMeasure), /(?:^|[^0-9])6(?:[^0-9]|$)/);
 });
 
+test("[p2d] countPublicTradeDisputes counts bilateral current claims", async () => {
+  const SELLER_W = "0x4444444444444444444444444444444444444444";
+  const op = "0x0000000000000000000000000000000000000def";
+  const tradeId = "0x" + "7".repeat(64);
+  const payTx = "0x" + "8".repeat(64);
+  const shared = {
+    chain: "eip155:84532" as const,
+    payer: "0x0000000000000000000000000000000000000ddd",
+    receiver: SELLER_W,
+    paymentInfoOperator: op,
+    paymentTx: payTx,
+    delivery: "none",
+    sellerReceiptCommitment: null,
+    sellerReceiptSignature: null,
+    sellerReceiptIssued: null,
+    issued: "2026-06-02T12:00:00.000Z",
+  };
+  const legs: TradeDisputeLegRow[] = [
+    {
+      tradeId,
+      side: "seller",
+      ...shared,
+      signer: SELLER_W,
+      paymentSeen: "yes",
+      deliveredBodySha256: null,
+      receivedBodySha256: null,
+      commitment: "f1".repeat(32),
+      acceptedAt: "2026-06-02T12:00:00.000Z",
+    },
+    {
+      tradeId,
+      side: "payer",
+      ...shared,
+      signer: shared.payer,
+      paymentSeen: null,
+      deliveredBodySha256: null,
+      receivedBodySha256: null,
+      commitment: "f2".repeat(32),
+      acceptedAt: "2026-06-02T12:00:00.000Z",
+    },
+  ];
+  assert.equal(await countPublicTradeDisputes(legs), 1);
+  assert.equal(await countPublicTradeDisputes(legs.slice(0, 1)), 0);
+});
+
+test("[p2d] countPublicTradeDisputes respects dispute purchase limit", async () => {
+  const SELLER = "0x5555555555555555555555555555555555555555";
+  const op = "0x0000000000000000000000000000000000000fed";
+  const legs: TradeDisputeLegRow[] = [];
+  for (let i = 0; i < 3; i++) {
+    const tradeId = `0x${(i + 1).toString(16).padStart(64, "0")}`;
+    const payTx = `0x${(i + 0x11).toString(16).padStart(64, "0")}`;
+    const base = {
+      chain: "eip155:84532" as const,
+      payer: "0x0000000000000000000000000000000000000ccc",
+      receiver: SELLER,
+      paymentInfoOperator: op,
+      paymentTx: payTx,
+      delivery: "none",
+      sellerReceiptCommitment: null,
+      sellerReceiptSignature: null,
+      sellerReceiptIssued: null,
+      issued: `2026-06-0${i + 1}T12:00:00.000Z`,
+      acceptedAt: `2026-06-0${i + 1}T12:00:00.000Z`,
+    };
+    legs.push({
+      tradeId,
+      side: "seller",
+      ...base,
+      signer: SELLER,
+      paymentSeen: "yes",
+      deliveredBodySha256: null,
+      receivedBodySha256: null,
+      commitment: `s${i}`.repeat(16),
+    });
+    legs.push({
+      tradeId,
+      side: "payer",
+      ...base,
+      signer: base.payer,
+      paymentSeen: null,
+      deliveredBodySha256: null,
+      receivedBodySha256: null,
+      commitment: `p${i}`.repeat(16),
+    });
+  }
+  const count = await countPublicTradeDisputes(legs, null, 2);
+  assert.equal(count, 2);
+});
+
 test("sellerDisputesTruncatedNote: fixed copy when not truncated", () => {
   assert.equal(sellerDisputesTruncatedNote(false, 5), null);
   const notTrunc = buildSellerCard({
@@ -385,7 +510,7 @@ test("verifySellerDashboardAccess: valid payTo signature only", async () => {
     kind: "payto_signature",
     wallet: SELLER_KEY_A.address,
     signature: await SELLER_KEY_A.signMessage({
-      message: p2PartyAccessMessage({ purchaseId: "x", party: "seller", issued }),
+      message: p2PartyAccessMessage({ tradeId: "0x" + "a".repeat(64), party: "seller", issued }),
     }),
     issued,
   });
@@ -546,6 +671,14 @@ function publicEnglishSurface(file: string, src: string): string {
   }
   return chunks.join("\n");
 }
+
+test("seller ops P2 section labels records signed by both sides", () => {
+  const src = readFileSync("src/app/dashboard/seller/seller-ops-client.tsx", "utf8");
+  assert.match(src, /Trade records signed by both sides/);
+  assert.match(src, /Signed by both sides/);
+  assert.doesNotMatch(src, /<dt className="dash-caption">Disputes<\/dt>/);
+  assert.doesNotMatch(src, />Trade disputes</);
+});
 
 test("public English guard on new dashboard ops files", () => {
   const roots = [

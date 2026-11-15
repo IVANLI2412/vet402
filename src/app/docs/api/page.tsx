@@ -605,6 +605,25 @@ api.example.com,521e929e-…,api.example.com/v1/x,delivered,,,,,2026-09-29T00:02
   },
   {
     method: "GET",
+    path: "/api/v1/observatory/disputes?tradeId=0x…",
+    note: "Draft. Public JSON for one x402 auth-capture trade on Base Sepolia. tradeId is the payment info hash (0x plus 64 hex). purchaseId is rejected. vet402 lists each side's signed claim and chain facts at a fixed block on each GET. vet402 does not assign blame. The response lists the signer wallet of each claim and the payer, receiver, and operator read from the authorize call. No response bodies or headers. Key-less. Rate limited per IP.",
+    response: `HTTP 200 with tradeId, draft, recordKind claims_and_chain_facts, claims (current and history per side), chainFacts, anchor, and note. HTTP 404 when no claim exists.`,
+  },
+  {
+    method: "POST",
+    path: "/api/v1/observatory/disputes/trade",
+    note: "Draft. Submit or view one payer or seller claim. action submit signs the vet402 trade claim v1 text with EIP-191. Base Sepolia testnet. Submit validates the authorize tx on chain and accepts a signature from paymentInfo.payer or paymentInfo.receiver and refuses other wallets. Optional sellerReceipt on the payer claim. action view returns the current claim commitment and body hash for a verified party. Key-less. Rate limited per IP.",
+    request: `{ "action": "submit", "side": "seller", "tradeId": "0x…", "chain": "eip155:84532", "paymentTx": "0x…", "paymentSeen": "yes|no", "delivery": "none|delivered", "deliveredBodySha256": "<64hex|none>", "signature": "0x…", "issued": "<RFC3339>" }`,
+    response: `HTTP 201 on accept. HTTP 400 invalid_seller_receipt when the delivery receipt fails checks. HTTP 422 not_a_party when the tx fails validation, or payment_tx_not_found when the payment tx is missing on chain. HTTP 429 write_limit_reached. HTTP 409 already_recorded or stale_claim on history rules.`,
+  },
+  {
+    method: "GET",
+    path: "/api/v1/observatory/disputes/day?day=YYYY-MM-DD",
+    note: "Draft. One UTC day of E6 trade dispute commitments and the chained root hash. Key-less. Rate limited per IP.",
+    response: `HTTP 200 with day, payload, rootHash, prevRoot, and sealed.`,
+  },
+  {
+    method: "GET",
     path: "/api/v1/observatory/live",
     note: "Server-sent events for new L0 probes and L1 purchases. The stream closes after about 55 seconds and a client reconnects with Last-Event-ID. Key-less. 10 connections per minute per IP.",
     response: `text/event-stream. Event names are probe and purchase.`,

@@ -128,7 +128,7 @@ function SellerCardView({ card }: { card: SellerCard }) {
       </section>
 
       <section className="dash-card space-y-4">
-        <h3 className="text-[1.0625rem] font-semibold text-zinc-900">Trade disputes</h3>
+        <h3 className="text-[1.0625rem] font-semibold text-zinc-900">Trade records signed by both sides</h3>
         <p className="text-[0.84375rem] text-zinc-600">{card.disputes.checkedLine}</p>
         {card.disputes.state === "empty" ? (
           card.disputes.noRecordsMessage && (
@@ -137,7 +137,7 @@ function SellerCardView({ card }: { card: SellerCard }) {
         ) : (
           <dl className="grid gap-4 sm:grid-cols-2">
             <div>
-              <dt className="dash-caption">Disputes</dt>
+              <dt className="dash-caption">Signed by both sides</dt>
               <dd className="mt-1 font-semibold tabular-nums">{card.disputes.disputeCount}</dd>
             </div>
             <div>

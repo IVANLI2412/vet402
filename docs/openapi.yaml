@@ -2966,26 +2966,89 @@ paths:
         "429": { description: Rate limited }
         "503": { description: Store unavailable }
 
+  /api/v1/observatory/disputes/day:
+    get:
+      operationId: getTradeDisputeDay
+      tags: [Observatory]
+      summary: "Draft: E6 trade dispute day root"
+      description: Draft. One UTC day of trade dispute leg commitments and the chained root hash.
+      security: []
+      parameters:
+        - in: query
+          name: day
+          required: true
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: day, payload, rootHash, prevRoot, sealed
+        "400": { description: "`invalid_request`" }
+        "429": { description: "`rate_limited`" }
+        "503": { description: "`disputes_unavailable`" }
+
+  /api/v1/observatory/disputes/trade:
+    post:
+      operationId: submitTradeDisputeLeg
+      tags: [Observatory]
+      summary: "Draft: submit or view one trade dispute leg"
+      description: |
+        Draft on Base Sepolia. action submit signs the vet402 trade claim v1 text
+        with EIP-191. vet402 reads the authorize tx on chain, checks the payment
+        info hash against tradeId, and accepts only paymentInfo.payer or
+        paymentInfo.receiver as signer. Optional sellerReceipt on the payer claim.
+        action view returns the current claim commitment and body hash for a
+        verified party. vet402 does not publish fault stages on this path.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        "200": { description: Party view for action view }
+        "201": { description: Leg accepted on submit }
+        "400":
+          description: |
+            `invalid_request`, `invalid_json`, `invalid_signature`, `signature_expired`,
+            `invalid_seller_receipt`, or `unsupported_chain`
+        "403": { description: "`unverified`" }
+        "409": { description: "`already_recorded` or `stale_claim`" }
+        "413": { description: "`payload_too_large`" }
+        "422": { description: "`not_a_party` or `payment_tx_not_found`" }
+        "429": { description: "`write_limit_reached` or `rate_limited`" }
+        "503": { description: "`chain_unavailable` or `disputes_unavailable`" }
+
   /api/v1/observatory/disputes:
     get:
       operationId: getTradeDispute
       tags: [Observatory]
-      summary: Public E6 trade dispute stage for one purchase id (P2)
+      summary: "Draft: public E6 trade dispute JSON for one trade id (P2)"
       description: |
-        Returns the disagreement stage for one purchase. vet402 does not publish
-        response bodies or headers here. Measurement disputes stay on POST.
+        Draft on Base Sepolia. tradeId is the auth-capture payment info hash
+        (0x plus 64 lowercase hex). purchaseId is rejected. vet402 lists each
+        side signed claim and chain facts at a fixed block on each GET. vet402
+        does not decide who is at fault. The response lists the signer wallet
+        of each claim and the payer, receiver, and operator read from the
+        authorize call. No response bodies or headers. Endpoint measurement
+        disputes stay on POST.
       security: []
       parameters:
         - in: query
-          name: purchaseId
+          name: tradeId
           required: true
-          schema: { type: string, maxLength: 64 }
+          schema: { type: string, pattern: "^0x[0-9a-f]{64}$" }
       responses:
         "200":
-          description: Stage and delivery confirmation flag only
+          description: tradeId, draft, recordKind, claims, chainFacts, anchor, note
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  chainFacts:
+                    $ref: "#/components/schemas/TradeDisputeChainFacts"
         "400": { description: "`invalid_request`" }
         "404": { description: "`not_found`" }
-        "429": { description: Rate limited }
+        "429": { description: "`rate_limited`" }
         "503": { description: "`disputes_unavailable`" }
     post:
       operationId: submitDispute
@@ -4747,6 +4810,42 @@ components:
         pattern: "^0x[a-fA-F0-9]{40}$"
 
   schemas:
+    TradeDisputeChainFactsNamedTx:
+      type: object
+      required: [hash, match]
+      properties:
+        hash: { type: string, pattern: "^0x[0-9a-f]{64}$" }
+        match: { type: string, enum: [matched, unmatched, unavailable] }
+    TradeDisputeChainFacts:
+      type: object
+      required: [status, namedTxs]
+      properties:
+        status: { type: string, enum: [matched, unmatched, unavailable] }
+        readAtBlock: { type: string, nullable: true }
+        namedTxs:
+          type: array
+          items: { $ref: "#/components/schemas/TradeDisputeChainFactsNamedTx" }
+        authorizeTx:
+          type: object
+          nullable: true
+          properties:
+            hash: { type: string }
+            blockNumber: { type: integer }
+            blockTimestamp: { type: integer }
+            status: { type: string, enum: [success, reverted] }
+        paymentInfo:
+          type: object
+          nullable: true
+          properties:
+            operator: { type: string }
+            payer: { type: string }
+            receiver: { type: string }
+            token: { type: string }
+            maxAmount: { type: string }
+        amount: { type: string, nullable: true }
+        paymentState:
+          type: object
+          nullable: true
     L0PublishedVerdict:
       type: string
       description: |
@@ -6702,6 +6801,15 @@ components:
             - contributions_unavailable
             - requests_unavailable
             - disputes_unavailable
+            # 2026-11-15 P2c: trade dispute legs (view uniform 403, body cap, write caps, seller receipt).
+            - unverified
+            - payload_too_large
+            - write_limit_reached
+            - invalid_seller_receipt
+            - already_recorded
+            - stale_claim
+            - payment_tx_not_found
+            - not_a_party
             - waitlist_unavailable
             # --- observatory reads ---
             - invalid_days

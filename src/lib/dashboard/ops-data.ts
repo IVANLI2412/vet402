@@ -5,8 +5,8 @@ import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { isMissingSchemaError } from "@/lib/db/pg-errors";
 import { decisionUsageDaily, x402Endpoints, x402L1Purchases, x402Payments } from "@/lib/db/schema";
-import { getE6Store } from "@/lib/observatory/e6-store";
-import { e6PublicStage } from "@/lib/observatory/e6-record";
+import { getE6ChainReader } from "@/lib/observatory/e6-chain-reader";
+import { getTradeDisputeStore, splitCurrentAndHistory, type TradeDisputeLegRow } from "@/lib/observatory/trade-dispute-store";
 import { isP2LiveComplete } from "@/lib/observatory/p2-live";
 import {
   MIN_CONSECUTIVE_FAILS_TO_PUBLISH,
@@ -32,6 +32,7 @@ import {
 
 const BUYER_USAGE_DAYS = 30;
 export const DISPUTE_PURCHASE_LIMIT = 1000;
+const PUBLIC_READ_CHAIN = "eip155:84532";
 
 let disputePurchaseLimitForTests: number | null = null;
 
@@ -47,6 +48,50 @@ function effectiveDisputePurchaseLimit(): number {
 }
 
 const PAID_STATUS_SQL = PAID_ATTEMPT_STATUSES.map((s) => `'${s}'`).join(", ");
+function latestLegAcceptedAt(bucket: {
+  payer: TradeDisputeLegRow | null;
+  seller: TradeDisputeLegRow | null;
+}): number {
+  const a = bucket.payer ? Date.parse(bucket.payer.acceptedAt) : 0;
+  const b = bucket.seller ? Date.parse(bucket.seller.acceptedAt) : 0;
+  return Math.max(a, b);
+}
+
+function tradeBucketsFromLegs(
+  legs: TradeDisputeLegRow[],
+): Map<string, { payer: TradeDisputeLegRow[]; seller: TradeDisputeLegRow[] }> {
+  const byTrade = new Map<string, { payer: TradeDisputeLegRow[]; seller: TradeDisputeLegRow[] }>();
+  for (const leg of legs) {
+    let bucket = byTrade.get(leg.tradeId);
+    if (!bucket) {
+      bucket = { payer: [], seller: [] };
+      byTrade.set(leg.tradeId, bucket);
+    }
+    if (leg.side === "payer") bucket.payer.push(leg);
+    else bucket.seller.push(leg);
+  }
+  return byTrade;
+}
+
+/** 両側が今の主張を持つ取引の本数（売り手 ops カード用）。 */
+export async function countPublicTradeDisputes(
+  legs: TradeDisputeLegRow[],
+  _reader: unknown = null,
+  disputeLimit: number = effectiveDisputePurchaseLimit(),
+): Promise<number> {
+  void _reader;
+  const byTrade = tradeBucketsFromLegs(legs);
+  const tradesToCount = [...byTrade.entries()]
+    .map(([tradeId, bucket]) => {
+      const payer = splitCurrentAndHistory(bucket.payer).current;
+      const seller = splitCurrentAndHistory(bucket.seller).current;
+      return { tradeId, payer, seller, at: latestLegAcceptedAt({ payer, seller }) };
+    })
+    .filter((t) => t.payer && t.seller)
+    .sort((a, b) => b.at - a.at)
+    .slice(0, disputeLimit);
+  return tradesToCount.length;
+}
 
 function sumUsdcUnits(rows: { amount: string | null }[]): string {
   let total = 0n;
@@ -187,6 +232,7 @@ export async function fetchSellerOpsFromDb(wallet: string): Promise<SellerOpsRaw
       recordsPresent: 0,
       disputeCount: 0,
       p2Live: isP2LiveComplete(),
+      p2Unavailable: false,
     },
     reputation: { pass: 0, fail: 0, withdrawn: 0, unverified: 0 },
   };
@@ -249,16 +295,28 @@ export async function fetchSellerOpsFromDb(wallet: string): Promise<SellerOpsRaw
     const purchaseTruncated = purchaseRowsRaw.length > disputeLimit;
     const purchaseRows = purchaseTruncated ? purchaseRowsRaw.slice(0, disputeLimit) : purchaseRowsRaw;
 
-    const store = getE6Store();
+    const tdStore = getTradeDisputeStore();
     let recordsPresent = 0;
     let disputeCount = 0;
-    if (store) {
-      for (const row of purchaseRows) {
-        const rec = await store.get(String(row.id));
-        if (!rec) continue;
-        recordsPresent++;
-        if (e6PublicStage(rec) !== null) disputeCount++;
+    let p2Unavailable = !tdStore;
+  if (tdStore) {
+      let legs: TradeDisputeLegRow[];
+      try {
+        legs = await tdStore.listByReceiver(w, disputeLimit * 2);
+      } catch (error) {
+        if ((error as { code?: string }).code === "disputes_unavailable") {
+          p2Unavailable = true;
+          legs = [];
+        } else {
+          throw error;
+        }
       }
+      const byTrade = tradeBucketsFromLegs(legs);
+      const reader = getE6ChainReader(PUBLIC_READ_CHAIN);
+      for (const [, bucket] of byTrade) {
+        if (bucket.payer.length > 0 || bucket.seller.length > 0) recordsPresent++;
+      }
+      disputeCount = await countPublicTradeDisputes(legs, reader, disputeLimit);
     }
 
     const repRaw = await db.execute(sql`
@@ -313,6 +371,7 @@ export async function fetchSellerOpsFromDb(wallet: string): Promise<SellerOpsRaw
         recordsPresent,
         disputeCount,
         p2Live: isP2LiveComplete(),
+        p2Unavailable,
       },
       reputation,
     };

@@ -5,8 +5,6 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { e6PublicStage, emptyPayerLeg, emptySellerLeg, type E6Record } from "@/lib/observatory/e6-record";
-import { e4OutcomeForStage } from "@/lib/observatory/trade-dispute";
 import { OBSERVATORY_VOCABULARY } from "@/lib/observatory/vocabulary";
 import { GATEWAY_NOT_CHARGED_EXPIRED } from "@/lib/observatory/arc-gateway-words";
 import { PAYER_UNFUNDED_WINDOWS } from "@/lib/observatory/delivery";
@@ -103,19 +101,12 @@ test("rule h: no_402 and unknown", () => {
   assert.equal(purchaseStageOf(row({ status: "novel_status" })), "unknown");
 });
 
-test("not_delivered matches e6PublicStage for paid not delivered", () => {
-  const rec: E6Record = {
-    purchaseId: "p",
-    payer: { ...emptyPayerLeg(), paymentTx: "0xabc", state: null },
-    seller: emptySellerLeg(),
-    updatedAt: "2026-01-01T00:00:00Z",
-  };
-  assert.equal(NOT_DELIVERED_STAGE, e6PublicStage(rec));
-});
-
-test("inconclusive stage name matches e4OutcomeForStage", () => {
-  assert.equal(e4OutcomeForStage("not_delivered", false), INCONCLUSIVE_STAGE);
-  assert.equal(e4OutcomeForStage("content_changed", false), INCONCLUSIVE_STAGE);
+test("P2 public claims JSON shape omits fault stages", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/observatory/trade-dispute-judge.ts"), "utf8");
+  assert.ok(!src.includes("tradeDisputePublic"));
+  const disputeTs = readFileSync(join(process.cwd(), "src/lib/observatory/trade-dispute.ts"), "utf8");
+  assert.ok(!disputeTs.includes("E6_STAGE_DEFINITIONS"));
+  assert.ok(disputeTs.includes('recordKind: "claims_and_chain_facts"'));
 });
 
 test("vocabulary carries settle_claimed settled delivered inconclusive", () => {

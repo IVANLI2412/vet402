@@ -75,6 +75,7 @@ export type SellerDisputesSection = {
   recordsPresent: number;
   disputeCount: number;
   p2Live: boolean;
+  p2Unavailable: boolean;
   note: string | null;
   truncatedNote: string | null;
   checkedLine: string;
@@ -137,9 +138,9 @@ export function sellerDisputesNoRecordsMessage(
   purchaseIdsChecked: number,
 ): string {
   if (truncated) {
-    return `No trade disputes among the latest ${purchaseIdsChecked} purchases`;
+    return `No trades with records signed by both sides among the latest ${purchaseIdsChecked} purchases`;
   }
-  return "No trade disputes on record";
+  return "No trades with records signed by both sides";
 }
 
 export function sellerDisputesTruncatedNote(
@@ -241,6 +242,7 @@ export function buildSellerCard(input: {
     recordsPresent: number;
     disputeCount: number;
     p2Live: boolean;
+    p2Unavailable?: boolean;
   };
   reputation: { pass: number; fail: number; withdrawn: number; unverified: number };
 }): SellerCard {
@@ -278,9 +280,12 @@ export function buildSellerCard(input: {
       recordsPresent: input.disputes.recordsPresent,
       disputeCount: input.disputes.disputeCount,
       p2Live: input.disputes.p2Live,
-      note: input.disputes.p2Live
-        ? null
-        : "Trade dispute records are draft until the public dispute flow is live.",
+      p2Unavailable: input.disputes.p2Unavailable === true,
+      note: input.disputes.p2Unavailable
+        ? "vet402 cannot read trade dispute records right now."
+        : input.disputes.p2Live
+          ? null
+          : "vet402 keeps trade dispute records in draft until the public dispute flow is live.",
       truncatedNote: sellerDisputesTruncatedNote(input.disputes.truncated, purchaseIdsChecked),
       checkedLine: sellerDisputesCheckedLine(purchaseIdsChecked),
       noRecordsMessage: disputesEmpty

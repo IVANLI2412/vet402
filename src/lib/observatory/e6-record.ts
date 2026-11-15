@@ -74,17 +74,6 @@ export function e6DeliveryConfirmed(record: E6Record): boolean {
 
 export type E6PublicStage = "not_paid" | "not_delivered" | "content_changed" | null;
 
-/** 公開してよい段の語（3.4）。vet402 は軍配を上げない。 */
-export function e6PublicStage(record: E6Record): E6PublicStage {
-  if (!record.payer.paymentTx) return "not_paid";
-  if (!record.seller.deliveredBodyHash && !record.payer.receivedBodyHash) return "not_delivered";
-  const p = record.payer.receivedBodyHash;
-  const s = record.seller.deliveredBodyHash;
-  if (p && s && p !== s) return "content_changed";
-  if (!s && record.payer.paymentTx) return "not_delivered";
-  return null;
-}
-
 export function e6SidePresent(record: E6Record): { payer: boolean; seller: boolean } {
   return {
     payer: legPresent(record.payer, ["paymentTx", "receivedBodyHash", "state"]),

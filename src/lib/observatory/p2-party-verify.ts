@@ -7,6 +7,7 @@ import { isValidIssuedAt, SIGNING_DOMAIN } from "@/lib/verify-message";
 
 const ADDRESS_RE = /^0x[a-fA-F0-9]{40}$/;
 const SIGNATURE_RE = /^0x[a-fA-F0-9]{130}$/;
+const ISSUED_WINDOW_MS = 10 * 60_000;
 
 export type P2PartyProof =
   | {
@@ -23,44 +24,74 @@ export type P2PartyProof =
 
 export type P2PartyVerification =
   | { ok: true; method: "payto_signature" }
-  | { ok: false; reason: "unverified" | "dns_txt_not_implemented" | "invalid_signature" | "wallet_mismatch" };
+  | { ok: false; reason: "unverified" | "dns_txt_not_implemented" | "signature_expired" | "invalid_signature" };
 
-export function p2PartyAccessMessage(input: { purchaseId: string; party: "payer" | "seller"; issued: string }): string {
+export function p2PartyAccessMessage(input: { tradeId: string; party: "payer" | "seller"; issued: string }): string {
   return [
     `${SIGNING_DOMAIN} trade dispute view`,
     `domain: ${SIGNING_DOMAIN}`,
-    `purchase_id: ${input.purchaseId}`,
+    `trade_id: ${input.tradeId.toLowerCase()}`,
     `party: ${input.party}`,
     `issued: ${input.issued}`,
-    "This signature does not move funds. It only proves I am allowed to see my own E6 proof on this purchase.",
+    "This signature does not move funds.",
   ].join("\n");
+}
+
+export function issuedWithinFreshnessWindow(issued: string): boolean {
+  if (!isValidIssuedAt(issued)) return false;
+  return Math.abs(Date.now() - Date.parse(issued)) <= ISSUED_WINDOW_MS;
 }
 
 export async function verifyP2PartyAccess(
   party: "payer" | "seller",
-  purchaseId: string,
+  tradeId: string,
   proof: P2PartyProof,
-  expected: { payerWallet: string; sellerPayTo: string },
+  stored: { payer: string; receiver: string } | null,
 ): Promise<P2PartyVerification> {
-  if (proof.kind === "host_dns_txt") {
+  const raw = proof as unknown;
+  if (typeof raw !== "object" || raw === null) {
+    return { ok: false, reason: "invalid_signature" };
+  }
+  const kind = (raw as { kind?: unknown }).kind;
+  if (kind !== "payto_signature" && kind !== "host_dns_txt") {
+    return { ok: false, reason: "invalid_signature" };
+  }
+  if (kind === "host_dns_txt") {
     return { ok: false, reason: "dns_txt_not_implemented" };
   }
-  const want = party === "payer" ? expected.payerWallet.toLowerCase() : expected.sellerPayTo.toLowerCase();
-  const wallet = proof.wallet.toLowerCase();
-  if (!ADDRESS_RE.test(wallet) || wallet !== want) {
-    return { ok: false, reason: "wallet_mismatch" };
+  const payto = raw as { kind: "payto_signature"; wallet: unknown; signature: unknown; issued: unknown };
+  const walletStr = typeof payto.wallet === "string" ? payto.wallet : "";
+  const signatureStr = typeof payto.signature === "string" ? payto.signature : "";
+  const issuedStr = typeof payto.issued === "string" ? payto.issued : "";
+  if (!SIGNATURE_RE.test(signatureStr) || !isValidIssuedAt(issuedStr)) {
+    return { ok: false, reason: "unverified" };
   }
-  if (!SIGNATURE_RE.test(proof.signature) || !isValidIssuedAt(proof.issued)) {
-    return { ok: false, reason: "invalid_signature" };
+  if (!issuedWithinFreshnessWindow(issuedStr)) {
+    return { ok: false, reason: "signature_expired" };
   }
+  const wallet = walletStr.toLowerCase();
+  if (!ADDRESS_RE.test(wallet)) {
+    return { ok: false, reason: "unverified" };
+  }
+  let sigOk: boolean;
   try {
-    const ok = await verifyMessage({
+    sigOk = await verifyMessage({
       address: wallet as Hex,
-      message: p2PartyAccessMessage({ purchaseId, party, issued: proof.issued }),
-      signature: proof.signature as Hex,
+      message: p2PartyAccessMessage({ tradeId, party, issued: issuedStr }),
+      signature: signatureStr as Hex,
     });
-    return ok ? { ok: true, method: "payto_signature" } : { ok: false, reason: "invalid_signature" };
   } catch {
-    return { ok: false, reason: "invalid_signature" };
+    return { ok: false, reason: "unverified" };
   }
+  if (!sigOk) {
+    return { ok: false, reason: "unverified" };
+  }
+  if (!stored) {
+    return { ok: false, reason: "unverified" };
+  }
+  const want = party === "payer" ? stored.payer.toLowerCase() : stored.receiver.toLowerCase();
+  if (wallet !== want) {
+    return { ok: false, reason: "unverified" };
+  }
+  return { ok: true, method: "payto_signature" };
 }
