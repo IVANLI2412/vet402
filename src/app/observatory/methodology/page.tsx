@@ -63,6 +63,7 @@ import { MEASUREMENT_PAYERS } from "@/lib/settlements/measurement-payers";
 import { SELLER_NAMED_TX_NOT_FOUND_AFTER_DAYS, SELLER_NAMED_TX_NOT_FOUND_MIN_DAYS } from "@/lib/sellers/fix-modes";
 import { BASE_DECLARED_QUERY_SINCE_LABEL, queryUnsentUntilSentence, utcSecondsLabel } from "@/lib/observatory/request-query";
 import { DELIVERY_VALUE_DEFINITIONS, DELIVERY_VALUES_SOURCE_NOTE } from "@/lib/observatory/delivery-values";
+import { DELIVERY_CSV_BODY_BYTES_NOTE, DELIVERY_CSV_HEADER_NOTES, DELIVERY_CSV_WHOSE_PURCHASES } from "@/lib/observatory/delivery-export";
 import { RETEST_L2_STALE_AFTER_DAYS } from "@/lib/observatory/retest-sellers-sql";
 import { DECLARED_BODY_SENT_SINCE } from "@/lib/observatory/request-body";
 import { PAYER_FUNDS_GATE_SINCE } from "@/lib/observatory/payer-balance-history";
@@ -1051,6 +1052,7 @@ export default async function ObservatoryMethodologyPage() {
           <code>days</code> window. The two are cached on separate
           schedules. A correction can change a row between the two reads.
         </p>
+        <p className="doc-p">{DELIVERY_CSV_WHOSE_PURCHASES}</p>
         <ul className="doc-ul">
           {(["delivered", "no_body_observed", "not_established"] as const).map((k) => (
             <li key={k}>
@@ -1060,7 +1062,7 @@ export default async function ObservatoryMethodologyPage() {
         </ul>
         <p className="doc-p">
           Source for the three labels: {DELIVERY_VALUES_SOURCE_NOTE}. Raw columns on each row (
-          <code>http_status_paid</code>, <code>payload_non_empty</code>, <code>held_reason</code>,{" "}
+          <code>http_status_paid</code>, <code>body_bytes</code>, <code>payload_non_empty</code>, <code>held_reason</code>,{" "}
           <code>tx_hash</code>, <code>buyer</code>, <code>payer</code>) stay in the file so anyone can
           re-count. <code>observed_at</code> is the stored attempt time plus <code>latency_ms</code>,
           rounded up to the millisecond. <code>latency_ms</code> runs from the start of the purchase to
@@ -1071,6 +1073,12 @@ export default async function ObservatoryMethodologyPage() {
           as the ledger export. A row can change later when a settlement is corrected, and each such change
           is listed at <code>/api/v1/observatory/corrections</code>.
         </p>
+        <p className="doc-p">{DELIVERY_CSV_BODY_BYTES_NOTE}</p>
+        <ul className="doc-ul">
+          {(["x-vet402-buyer", "x-vet402-as-of", "x-vet402-generated-at"] as const).map((h) => (
+            <li key={h}>{DELIVERY_CSV_HEADER_NOTES[h]}</li>
+          ))}
+        </ul>
         <p className="doc-p">
           <strong>What changed on 2026-08-23, and what is still open.</strong> Until that date,{" "}
           <code>settled</code> meant only that the seller had asserted success in its own{" "}

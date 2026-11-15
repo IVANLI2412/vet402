@@ -266,6 +266,7 @@ test("DELIVERY_CSV_COLUMNS の順は delivery-export の正典", () => {
       "delivery",
       "delivery_reason",
       "http_status_paid",
+      "body_bytes",
       "payload_non_empty",
       "held_reason",
       "tx_hash",

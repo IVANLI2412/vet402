@@ -20,7 +20,7 @@ import { DECISION_RULES_TEXT, METHOD_LIMIT_TEXT, VERDICT_DOCS } from "@/lib/deci
 import { DECISION_RULES_VERSION } from "@/lib/decision/rules";
 import { REASON_CODES, EFFECT_LABEL, type SellerCanFix } from "@/lib/decision/reason-codes";
 import { DELIVERY_VALUE_DEFINITIONS } from "@/lib/observatory/delivery-values";
-import { DELIVERY_CSV_COLUMNS } from "@/lib/observatory/delivery-export";
+import { DELIVERY_CSV_BODY_BYTES_NOTE, DELIVERY_CSV_COLUMNS, DELIVERY_CSV_HEADER_NOTES, DELIVERY_CSV_WHOSE_PURCHASES } from "@/lib/observatory/delivery-export";
 
 // 2026-09-29.3（監査 6 周目）: 売り手の側で直せるかの語（表の列）。
 const SELLER_FIX_LABEL: Record<SellerCanFix, string> = { yes: "Yes", partly: "Partly", no: "No", "n/a": "—" };
@@ -504,8 +504,8 @@ api.example.com,521e929e-…,api.example.com/v1/x,delivered,,,,,2026-09-29T00:02
   {
     method: "GET",
     path: "/api/v1/observatory/delivery.csv",
-    note: `One row per settled purchase, with the three delivery values and the raw fields beside them. days follows the same rules as the ledger export (1 to 366, default 90, canonical 308, invalid_query and invalid_days otherwise). Key-less. 6 requests per minute per IP. Columns in order: ${DELIVERY_CSV_COLUMNS.join(", ")}. ${DELIVERY_VALUE_DEFINITIONS.delivered} ${DELIVERY_VALUE_DEFINITIONS.no_body_observed} ${DELIVERY_VALUE_DEFINITIONS.not_established} Definitions: https://vet402.com/observatory/methodology#delivery-values`,
-    response: `${DELIVERY_CSV_COLUMNS.join(",")}\n521e929e-…,2026-09-29T00:02:29Z,1200,2026-09-29T00:02:30.200Z,api.example.com/v1/x,eip155:8453,delivered,,200,true,,0x…,vet402,0x…`,
+    note: `One row per settled purchase, with the three delivery values and the raw fields beside them. days follows the same rules as the ledger export (1 to 366, default 90, canonical 308, invalid_query and invalid_days otherwise). Key-less. 6 requests per minute per IP. Columns in order: ${DELIVERY_CSV_COLUMNS.join(", ")}. ${DELIVERY_VALUE_DEFINITIONS.delivered} ${DELIVERY_VALUE_DEFINITIONS.no_body_observed} ${DELIVERY_VALUE_DEFINITIONS.not_established} ${DELIVERY_CSV_BODY_BYTES_NOTE} ${DELIVERY_CSV_WHOSE_PURCHASES} ${DELIVERY_CSV_HEADER_NOTES["x-vet402-buyer"]} ${DELIVERY_CSV_HEADER_NOTES["x-vet402-as-of"]} ${DELIVERY_CSV_HEADER_NOTES["x-vet402-generated-at"]} Definitions: https://vet402.com/observatory/methodology#delivery-values`,
+    response: `${DELIVERY_CSV_COLUMNS.join(",")}\n521e929e-…,2026-09-29T00:02:29Z,1200,2026-09-29T00:02:30.200Z,api.example.com/v1/x,eip155:8453,delivered,,200,5120,true,,0x…,vet402,0x…`,
   },
   {
     method: "GET",

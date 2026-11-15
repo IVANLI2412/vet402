@@ -1142,10 +1142,21 @@ paths:
         `observed_at` (the stored attempt time plus `latency_ms`, rounded up
         to the millisecond), `resource_key`, `network`, `delivery`,
         `delivery_reason` (blank on `delivered`), `http_status_paid`,
+        `body_bytes` (a column since 2026-11-16. The paid response body size
+        vet402 read, recorded since 2026-09-29, `0` for an empty body, blank
+        when not on record. A body over the 262144-byte read cap shows 262144,
+        the read cap, not the full size),
         `payload_non_empty` (`true`, `false`, or blank), `held_reason`,
         `tx_hash`, `buyer` (always `vet402`), `payer` (vet402's paying wallet
         on that row). Definitions travel in `x-vet402-column-notes`. The
         methodology is at `https://vet402.com/observatory/methodology#delivery-values`.
+
+        Every row is a purchase vet402 made with its own wallets, so the
+        rates describe vet402's own purchases, not every buyer of the seller.
+        Response headers since 2026-11-16: `x-vet402-buyer` (always `vet402`),
+        `x-vet402-as-of` (the latest `attempted_at` among the rows in the
+        file, in UTC, blank when the file has no rows) and
+        `x-vet402-generated-at` (when the server built the file, in UTC).
       security: []
       parameters:
         - in: query

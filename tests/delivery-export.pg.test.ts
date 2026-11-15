@@ -215,4 +215,119 @@ if (!TEST_DB) {
     const deliveryIds = new Set(dLines.slice(1).map((l) => l.split(",")[purchaseIdxD]));
     assert.deepEqual(deliveryIds, settledIds);
   });
+
+  // 2026-11-16（x402#3226 の要望）: body_bytes・x-vet402-buyer・x-vet402-as-of・x-vet402-generated-at。
+  test("body_bytes は http_status_paid の隣・空は 0・記録なしは空欄、ヘッダ 3 つ、既定の export は不変", async () => {
+    const { getDb } = await import("@/lib/db/client");
+    const schema = await import("@/lib/db/schema");
+    const { sql } = await import("drizzle-orm");
+    const db = getDb()!;
+    await db.execute(sql`TRUNCATE x402_endpoints, x402_l0_probes, x402_l1_purchases`);
+    const [ep] = await db
+      .insert(schema.x402Endpoints)
+      .values({
+        resourceKey: "body-bytes.example/api",
+        resourceUrl: "https://body-bytes.example/api",
+        network: "eip155:8453",
+        method: "GET",
+        payTo: `0x${"c".repeat(40)}`,
+      })
+      .returning();
+    const base = Math.floor((Date.now() - 3 * 24 * 60 * 60 * 1000) / 1000) * 1000;
+    const at = (minutes: number) => new Date(base + minutes * 60_000);
+    let seq = 0;
+    const tx = () => `0x${(1000 + ++seq).toString(16).padStart(64, "0")}`;
+    type Seed = { meta: Record<string, unknown> | null; http: number; body: boolean | null; at: Date; status?: string };
+    const seeds: Seed[] = [
+      { meta: { phase: "paid", bodyBytes: 5120 }, http: 200, body: true, at: at(0) },
+      { meta: { phase: "paid", bodyBytes: 0 }, http: 200, body: false, at: at(1) },
+      { meta: { phase: "paid" }, http: 200, body: true, at: at(2) },
+      { meta: null, http: 500, body: null, at: at(3) },
+      { meta: { phase: "paid", bodyBytes: "12" }, http: 200, body: true, at: at(4) },
+      { meta: { phase: "paid", bodyBytes: 262144, bodyTruncated: true }, http: 200, body: true, at: at(5) },
+      // 窓の外と settled でない行は as-of に入れない。
+      { meta: { phase: "paid", bodyBytes: 7 }, http: 200, body: true, at: at(60), status: "settle_failed" },
+    ];
+    for (const s of seeds) {
+      const status = s.status ?? "settled";
+      await db.insert(schema.x402L1Purchases).values({
+        endpointId: ep.id,
+        status,
+        httpStatusPaid: s.http,
+        txHash: status === "settled" ? tx() : null,
+        attemptedAt: s.at,
+        network: "eip155:8453",
+        spentUnits: "1000",
+        amountUnits: "1000",
+        latencyMs: 100,
+        payloadNonEmpty: s.body,
+        rawResponseMeta: s.meta,
+      });
+    }
+    await db.insert(schema.x402L1Purchases).values({
+      endpointId: ep.id,
+      status: "settled",
+      httpStatusPaid: 200,
+      txHash: tx(),
+      attemptedAt: new Date(Date.now() - 100 * 24 * 60 * 60 * 1000),
+      network: "eip155:8453",
+      spentUnits: "1000",
+      amountUnits: "1000",
+      payloadNonEmpty: true,
+      rawResponseMeta: { phase: "paid", bodyBytes: 1 },
+    });
+
+    const before = Date.now();
+    const { GET } = await import("@/app/api/v1/observatory/delivery.csv/route");
+    const res = await GET(
+      new NextRequest("https://vet402.com/api/v1/observatory/delivery.csv?days=90", {
+        headers: { "x-forwarded-for": "203.0.113.61" },
+      }),
+    );
+    assert.equal(res.status, 200);
+    const [header, ...lines] = (await res.text()).trim().split("\n");
+    const cols = header!.split(",");
+    assert.equal(cols.indexOf("body_bytes"), cols.indexOf("http_status_paid") + 1, "body_bytes は http_status_paid の隣");
+    assert.deepEqual(cols, [...DELIVERY_CSV_COLUMNS]);
+    const iBytes = cols.indexOf("body_bytes");
+    assert.deepEqual(
+      lines.map((l) => l.split(",")[iBytes]),
+      ["5120", "0", "", "", "", "262144"],
+      "記録の数・空は 0・記録なしと数でない値は空欄・上限で頭打ち",
+    );
+    assert.ok(lines.every((l) => !l.startsWith("#")), "CSV に注釈行は入れない");
+
+    assert.equal(res.headers.get("x-vet402-buyer"), "vet402");
+    const asOf = at(5).toISOString().replace(/\.\d{3}Z$/, "Z");
+    assert.equal(res.headers.get("x-vet402-as-of"), asOf, "ファイルに入った行の attempted_at の最大");
+    const generated = res.headers.get("x-vet402-generated-at");
+    assert.match(generated ?? "", /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/);
+    assert.ok(Date.parse(generated!) >= before - 1000 && Date.parse(generated!) <= Date.now() + 1000);
+
+    // 行が無い窓: as-of は空・buyer と generated-at はある。
+    const empty = await GET(
+      new NextRequest("https://vet402.com/api/v1/observatory/delivery.csv?days=1", {
+        headers: { "x-forwarded-for": "203.0.113.62" },
+      }),
+    );
+    assert.equal(empty.status, 200);
+    assert.equal(empty.headers.get("x-vet402-as-of"), "");
+    assert.equal(empty.headers.get("x-vet402-buyer"), "vet402");
+    assert.ok(empty.headers.get("x-vet402-generated-at"));
+
+    // 既定の export.csv: 見出しは凍結の 19 列のまま・新しい列もヘッダも無い。
+    const ledger = await import("@/app/api/v1/observatory/export.csv/route");
+    const rE = await ledger.GET(
+      new NextRequest("https://vet402.com/api/v1/observatory/export.csv?days=90", {
+        headers: { "x-forwarded-for": "203.0.113.63" },
+      }),
+    );
+    assert.equal(rE.status, 200);
+    const eHeader = (await rE.text()).split("\n")[0];
+    assert.equal(eHeader, EXPORT_CSV_COLUMNS.join(","));
+    assert.equal(EXPORT_CSV_COLUMNS.length, 19);
+    assert.ok(!eHeader!.includes("body_bytes"));
+    assert.equal(rE.headers.get("x-vet402-buyer"), null);
+    assert.equal(rE.headers.get("x-vet402-as-of"), null);
+  });
 }

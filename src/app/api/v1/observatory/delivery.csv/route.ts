@@ -6,7 +6,9 @@ import { acquireExportSlot, exportBusyResponse, rejectUnknownQuery } from "@/lib
 import { withNoindex } from "@/lib/api/public-read-robots";
 import {
   buildDeliveryCsvBody,
+  DELIVERY_CSV_BUYER,
   DELIVERY_CSV_COLUMN_NOTES,
+  deliveryCsvAsOf,
   loadDeliveryExportRows,
   resolveObservatoryExportDays,
 } from "@/lib/observatory/delivery-export";
@@ -55,6 +57,8 @@ export async function GET(request: NextRequest) {
   try {
     const { rows, truncated } = await loadDeliveryExportRows(db, days);
     const body = buildDeliveryCsvBody(rows);
+    // 2026-11-16（x402#3226 の要望）: 誰の購入か・いつまでの行か・いつ作ったかをヘッダで運ぶ（CSV に注釈行は入れない）。
+    const generatedAt = new Date().toISOString();
     return new NextResponse(body, {
       headers: {
         ...shared,
@@ -62,7 +66,10 @@ export async function GET(request: NextRequest) {
         "content-disposition": `attachment; filename="vet402-delivery-${days}d.csv"`,
         "x-vet402-truncated": truncated ? "true" : "false",
         "x-vet402-license": "CC-BY-4.0",
-        "x-vet402-retrieved-at": new Date().toISOString(),
+        "x-vet402-retrieved-at": generatedAt,
+        "x-vet402-generated-at": generatedAt,
+        "x-vet402-as-of": deliveryCsvAsOf(rows),
+        "x-vet402-buyer": DELIVERY_CSV_BUYER,
         "x-vet402-rows": String(rows.length),
         "x-vet402-window-days": String(days),
         "x-vet402-column-notes": DELIVERY_CSV_COLUMN_NOTES,

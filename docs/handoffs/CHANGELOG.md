@@ -13,6 +13,14 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-16 delivery.csv: body size, whose purchases, and as-of headers
+
+- `GET /api/v1/observatory/delivery.csv` has a `body_bytes` column next to `http_status_paid`. It is the size of the paid response body vet402 read (`raw_response_meta.bodyBytes`, recorded since 2026-09-29), `0` for an empty body, blank when the row has no record. A body over the 262144-byte read cap shows 262144, the read cap, not the full size.
+- New response headers: `x-vet402-buyer: vet402`, `x-vet402-as-of` (the latest `attempted_at` among the rows in the file, blank when there are none) and `x-vet402-generated-at`. The CSV body carries no comment line.
+- The methodology section `#delivery-values` says every row is a purchase vet402 made with its own wallets, so the rates describe vet402's own purchases, not every buyer of the seller. /docs/api and the methodology render the header meanings from one constant.
+- The frozen ledger export `GET /api/v1/observatory/export.csv` is unchanged.
+- Tests: `tests/delivery-csv-1116.test.ts`, `tests/delivery-export.pg.test.ts` (body_bytes and the three headers).
+
 ## 2026-11-15 delivery.csv: the three delivery values beside the raw ledger fields
 
 - Added `GET /api/v1/observatory/delivery.csv` (settled rows only) with columns for the three delivery values (`delivered`, `no_body_observed`, `not_established`), `delivery_reason`, `observed_at`, and raw fields (`http_status_paid`, `payload_non_empty`, `held_reason`, `tx_hash`, `buyer`, `payer`). Logic lives in `src/lib/observatory/delivery-values.ts` and `src/lib/observatory/delivery-export.ts`.
