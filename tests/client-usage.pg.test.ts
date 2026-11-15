@@ -71,11 +71,12 @@ if (!TEST_DB) {
     const RID = String(listed.resource_id);
     const OBS = String(listed.id);
     const UNKNOWN_RID = "d".repeat(64);
-    const seedDecision = () =>
-      decisionCache.set(`${OBS}|payer|-|0|0|0`, {
-        result: { recommendation: "ALLOW", reason_codes: ["l0_pass"], facts: {}, evidence: [], rules_version: "test", degraded: false } as never,
-        expiresAt: Date.now() + 60_000,
-      });
+    const seedDecision = () => {
+      const result = { recommendation: "ALLOW", reason_codes: ["l0_pass"], facts: {}, evidence: [], rules_version: "test", degraded: false } as never;
+      decisionCache.set(`${OBS}|payer|-|0|0|0`, { result, expiresAt: Date.now() + 60_000 });
+      // 2026-11-15（wave2 U3）: 鍵なしは skipScore で引くのでキーに |noscore が入る。同じ判定本体を撒く。
+      decisionCache.set(`${OBS}|payer|-|0|0|noscore|0`, { result, expiresAt: Date.now() + 60_000 });
+    };
 
     const today = new Date().toISOString().slice(0, 10);
     let ipSeq = 0;

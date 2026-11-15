@@ -2204,6 +2204,27 @@ claims:
     check: null
     why_unverifiable: "ルートの定義。根拠は src/app/api/v1/endpoints/[endpointId]/payees/route.ts。"
     verified_at: 2026-10-21
+  - id: llms_judgments_daily_json
+    surface: public/llms.txt
+    quote: "`: daily judgments JSON (`index.json`, `index-"
+    means: "GET /api/v1/judgments/{file} は index.json・index-{00..ff}.json・{resource_id}.json の日次判定 JSON を鍵なしで公開する。IP 枠は無く、CDN は次の UTC 日までキャッシュされる（CC-BY-4.0）。"
+    check: null
+    why_unverifiable: "CDN とプロセスキャッシュの方針は公開 GET の 1 式では検査しきれない。tests/judgments-cdn-1115.test.ts が route の Cache-Control・ヘッダ・シャード先読み・本文の score 欠落を固定する。"
+    verified_at: 2026-11-15
+  - id: api_daily_judgments_card
+    surface: src/app/docs/api/page.tsx
+    quote: "Daily judgments: one JSON per active listing, built once per UTC day from the same payer decision as key-less /decision (no score, no caller_policy). Key-less, no IP cap, CDN cache until the next UTC day. Files: index.json, index-{00..ff}.json, {resource_id}.json. CC-BY-4.0. See #judgments."
+    means: "API リファレンスが述べる日次 judgments の契約（active 行ごとに UTC 日次で 1 JSON・鍵なし /decision と同じ payer 記録・score と caller_policy なし・IP 枠なし・次の UTC 日まで CDN キャッシュ）"
+    check: null
+    why_unverifiable: "キー無しの静的 JSON で、カナリアの 1 式では CDN とプロセスキャッシュの意味を全部検査できない。tests/judgments-cdn-1115.test.ts が固定する。"
+    verified_at: 2026-11-15
+  - id: api_daily_judgments_section
+    surface: src/app/docs/api/page.tsx
+    quote: "Daily judgments (CDN JSON)"
+    means: "docs/api の judgments 節見出し。日次の判定 JSON を CDN で配る窓口を指す。"
+    check: null
+    why_unverifiable: "見出しの記述で公開 GET の数値ではない。本文の契約は tests/judgments-cdn-1115.test.ts と api_daily_judgments_card が指す。"
+    verified_at: 2026-11-15
   - id: withdrawn_left_out_of_public_l0_fail
     surface: src/lib/observatory/l0-verdict.ts
     quote: "Withdrawn from the catalog. This route is absent from a complete fetch of the public discovery catalog, so it is left out of the public L0 fail count."

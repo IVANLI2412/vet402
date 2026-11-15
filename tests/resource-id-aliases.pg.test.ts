@@ -51,11 +51,12 @@ if (!TEST_DB) {
     const blockId = await obs("https://api.exa.ai/search");
     const allowId = await obs("https://api.exa.ai/contents");
     const queryId = await obs("https://q.example/x?a=1&b=2");
-    const seed = (observatoryId: string, recommendation: string) =>
-      decisionCache.set(`${observatoryId}|payer|-|0|0|0`, {
-        result: { recommendation, reason_codes: recommendation === "BLOCK" ? ["l0_fail"] : ["l0_pass"], facts: {}, evidence: [], rules_version: "test", degraded: false } as never,
-        expiresAt: Date.now() + 60_000,
-      });
+    const seed = (observatoryId: string, recommendation: string) => {
+      const result = { recommendation, reason_codes: recommendation === "BLOCK" ? ["l0_fail"] : ["l0_pass"], facts: {}, evidence: [], rules_version: "test", degraded: false } as never;
+      decisionCache.set(`${observatoryId}|payer|-|0|0|0`, { result, expiresAt: Date.now() + 60_000 });
+      // 2026-11-15（wave2 U3）: 鍵なしは skipScore で引くのでキーに |noscore が入る。同じ判定本体を撒く。
+      decisionCache.set(`${observatoryId}|payer|-|0|0|noscore|0`, { result, expiresAt: Date.now() + 60_000 });
+    };
 
     let ip = 0;
     const call = async (rid: string, query = "") => {

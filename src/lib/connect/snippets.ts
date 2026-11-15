@@ -34,13 +34,16 @@ export type ConnectChoice = {
   note?: string;
 };
 
+import { keylessDecisionPerMinute } from "@/lib/api/keyless-limits";
+
 const SAMPLE_URL = "https://api.example.com/v1/quote";
+const KEYLESS_DECISION = keylessDecisionPerMinute();
 
 const BUY: ConnectStack[] = [
   {
     stack: "curl",
     intro:
-      "Look up the URL, then read the decision for its resource_id. Needs jq. Works without a key at 10 requests a minute. When RESOURCE_ID is null, vet402 has no record of the URL.",
+      `Look up the URL, then read the decision for its resource_id. Needs jq. Works without a key at ${KEYLESS_DECISION} requests a minute. When RESOURCE_ID is null, vet402 has no record of the URL.`,
     code: [
       `RESOURCE_ID=$(curl -s --get --data-urlencode "q=${SAMPLE_URL}" https://vet402.com/api/v1/resolve | jq -r .resource.resource_id)`,
       `curl -s "https://vet402.com/api/v1/resources/$RESOURCE_ID/decision?role=payer"`,
@@ -65,7 +68,7 @@ const BUY: ConnectStack[] = [
   },
   {
     stack: "Python",
-    intro: "pip install httpx. No key needed at 10 requests a minute.",
+    intro: `pip install httpx. No key needed at ${KEYLESS_DECISION} requests a minute.`,
     code: [
       `import httpx`,
       `url = "${SAMPLE_URL}"`,
@@ -150,7 +153,7 @@ export const CONNECT_CHOICES: ConnectChoice[] = [
     label: "I buy",
     summary: "Your agent pays x402 sellers. Read what vet402 saw when it paid the same URL before your agent signs.",
     steps: [
-      "A free API key. Reads of a decision also work without one at 10 requests a minute.",
+      `A free API key. Reads of a decision also work without one at ${KEYLESS_DECISION} requests a minute.`,
       "Pick your stack below.",
       "Copy the snippet into your agent.",
     ],

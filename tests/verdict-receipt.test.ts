@@ -141,6 +141,8 @@ beforeEach(() => {
   __setDbForTests(fakeDb());
   decisionCache.clear();
   decisionCache.set(`${OBS_ID}|payer|-|0|0|0`, { result: SEEDED as never, expiresAt: Date.now() + 60_000 });
+  // 2026-11-15（wave2 U3）: 鍵なしは skipScore で引くのでキーに |noscore が入る。同じ判定本体を撒く。
+  decisionCache.set(`${OBS_ID}|payer|-|0|0|noscore|0`, { result: SEEDED as never, expiresAt: Date.now() + 60_000 });
 });
 
 afterEach(() => {

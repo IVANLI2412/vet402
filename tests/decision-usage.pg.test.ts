@@ -126,6 +126,8 @@ if (!TEST_DB) {
     const seed = (obs: string) => {
       const result = { recommendation: "ALLOW", reason_codes: ["l0_pass"], facts: {}, evidence: [], rules_version: "test", degraded: false };
       decisionCache.set(`${obs}|payer|-|0|0|0`, { result: result as never, expiresAt: Date.now() + 60_000 });
+      // 2026-11-15（wave2 U3）: 鍵なしは skipScore で引くのでキーに |noscore が入る。同じ判定本体を撒く。
+      decisionCache.set(`${obs}|payer|-|0|0|noscore|0`, { result: result as never, expiresAt: Date.now() + 60_000 });
     };
     const payerRaw = "0x" + "ab".repeat(20);
     const payerId = payeeId("eip155:8453", payerRaw);

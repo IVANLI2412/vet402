@@ -10,7 +10,7 @@ import DocsToc, { type TocItem } from "@/components/docs/DocsToc";
 import { TableScroll } from "@/components/site/TableScroll";
 import { WideColumn } from "@/components/site/WideColumn";
 import { SITE_URL } from "@/lib/site-url";
-import { KEYLESS_READ_STOP, PAYMENT_PROOF_RPC_TIMEOUT_MS, keylessDecisionPerMinute, keylessDiagnosePerMinute, keylessPaymentProofPerMinute, keylessRatesSentence, keylessResolvePerMinute } from "@/lib/api/keyless-limits";
+import { DECISION_KEYLESS_LIMIT_SINCE, KEYLESS_READ_STOP, PAYMENT_PROOF_RPC_TIMEOUT_MS, keylessDecisionPerMinute, keylessDiagnosePerMinute, keylessPaymentProofPerMinute, keylessRatesSentence, keylessResolvePerMinute } from "@/lib/api/keyless-limits";
 import { pageMetadata, breadcrumbJsonLd, webApiJsonLd } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/util/json-ld";
 import { buildMonth } from "@/lib/build-month";
@@ -292,7 +292,7 @@ const endpoints: Endpoint[] = [
     path: "/api/v1/resources/:resourceId/decision?role=payer|payee&payer=…&caller_dialect=v1|v2&allow_without_l1=false&amount_usd=…&max_per_tx_usd=1&min_l1_deliveries=0&require_vet402_allow=true",
     note: (
       <>
-        {"The ledger column l2_schema stores match, mismatch, no_declaration, or not_checked. The decision document and the facts document store conform, mismatch, undeclared, or not_checked. conform is written when the re-read L2 value (l2_reading) of the latest delivery is match. mismatch is written when that re-read value is mismatch. An older mismatch row with no recorded reason is re-read first, and a cut body reads not_checked. In the other cases the decision word is not_checked when the current declaration names output (a required key or an example property), or when the purchase row of the latest delivery recorded a declaration and its re-read value is not_checked, and undeclared when neither holds. The canonical integration since 2026-09-02 (spec §8.3 / §9.1) — 1 unit per call with a key, or key-less at 10/min per IP with the same body (since 2026-09-07; 429 rate_limited when the window is spent; Idempotency-Key and customer allow/block lists apply to keyed calls only). role=payer (default) answers \"what did vet402 record when it paid this URL in the last 30 days?\" from L0 liveness, L1 settle-through and L2 conformance. An ALLOW can carry l2_undeclared: the listing declared no output to compare with. role=payee answers \"should this seller serve this payer?\" and requires payer. facts and recommendation always arrive in the same document; the transitional score is left out of the body unless you pass include_score=1 (0 or 1; anything else is 400 invalid_include_score), and then it carries superseded_by: \"recommendation\" and is not the basis of the recommendation. facts.l1.last_attempt_at is when we last attempted an L1 purchase against this resource (ISO 8601 UTC, null before the first attempt) — distinct from observed_at, which is when we last paid. spending_halted is vet402's own spending halt: a fact about the measurer, not the seller, and while it is true the L1 facts here are not today's observation. not_attempted_reason (spending_halted | no_eligible_accept) qualifies the reason code l1_not_attempted; it is null for the other ways an attempt ends before the signature, which are published per attempt in the decision ledger rather than summarised here. " + DECISION_RULES_TEXT + " " + METHOD_LIMIT_TEXT + " verified_terms (since 2026-09-29, role=payer) carries the terms vet402 actually paid on the last purchase whose delivery it confirmed: pay_to, asset, amount (base units, 6 decimals), network, scheme, protocol and verified_at, or null when nothing was ever delivered, and null on XRPL until the issuer is recorded (a currency code alone cannot tell RLUSD from a look-alike). 0x addresses are lowercase. Compare it with the 402 you received before you pay: if the 402's payTo, asset, network or scheme differ from verified_terms, or its amount is higher, do not pay. An ALLOW is the fact that these terms delivered; it is not a guarantee for a different recipient or a higher price. Each row of evidence[] names the ledger it was observed in: evidence[].source is vet402 for our own L0\u2013L2 record (the row carries purchase_id and a public receipt URL), and subgraph for a row read from The Graph's x402 subgraph. This route emits vet402 rows; "}
+        {`The ledger column l2_schema stores match, mismatch, no_declaration, or not_checked. The decision document and the facts document store conform, mismatch, undeclared, or not_checked. conform is written when the re-read L2 value (l2_reading) of the latest delivery is match. mismatch is written when that re-read value is mismatch. An older mismatch row with no recorded reason is re-read first, and a cut body reads not_checked. In the other cases the decision word is not_checked when the current declaration names output (a required key or an example property), or when the purchase row of the latest delivery recorded a declaration and its re-read value is not_checked, and undeclared when neither holds. The canonical integration since 2026-09-02 (spec §8.3 / §9.1) — 1 unit per call with a key, or key-less with the same body (since 2026-09-07, at ${keylessDecisionPerMinute()}/min per IP since ${DECISION_KEYLESS_LIMIT_SINCE}; 429 rate_limited when the window is spent; Idempotency-Key and customer allow/block lists apply to keyed calls only). role=payer (default) answers "what did vet402 record when it paid this URL in the last 30 days?" from L0 liveness, L1 settle-through and L2 conformance. An ALLOW can carry l2_undeclared: the listing declared no output to compare with. role=payee answers "should this seller serve this payer?" and requires payer. facts and recommendation always arrive in the same document; the transitional score is left out of the body unless you pass include_score=1 (0 or 1; anything else is 400 invalid_include_score), and then it carries superseded_by: "recommendation" and is not the basis of the recommendation. facts.l1.last_attempt_at is when we last attempted an L1 purchase against this resource (ISO 8601 UTC, null before the first attempt) — distinct from observed_at, which is when we last paid. spending_halted is vet402's own spending halt: a fact about the measurer, not the seller, and while it is true the L1 facts here are not today's observation. not_attempted_reason (spending_halted | no_eligible_accept) qualifies the reason code l1_not_attempted; it is null for the other ways an attempt ends before the signature, which are published per attempt in the decision ledger rather than summarised here. ${DECISION_RULES_TEXT} ${METHOD_LIMIT_TEXT} verified_terms (since 2026-09-29, role=payer) carries the terms vet402 actually paid on the last purchase whose delivery it confirmed: pay_to, asset, amount (base units, 6 decimals), network, scheme, protocol and verified_at, or null when nothing was ever delivered, and null on XRPL until the issuer is recorded (a currency code alone cannot tell RLUSD from a look-alike). 0x addresses are lowercase. Compare it with the 402 you received before you pay: if the 402's payTo, asset, network or scheme differ from verified_terms, or its amount is higher, do not pay. An ALLOW is the fact that these terms delivered; it is not a guarantee for a different recipient or a higher price. Each row of evidence[] names the ledger it was observed in: evidence[].source is vet402 for our own L0–L2 record (the row carries purchase_id and a public receipt URL), and subgraph for a row read from The Graph's x402 subgraph. This route emits vet402 rows; `}
         the subgraph rows are added to the same array by the{" "}
         <a
           href="https://github.com/kzmttkc/vet402/blob/main/SKILL.md"
@@ -424,6 +424,20 @@ const endpoints: Endpoint[] = [
     note: "The /sellers classification, as CSV — no key, 6/min, cached up to 15 minutes, served noindex like the page. One row per active Base listing (records opened for a seller's re-test request included), classified by its latest purchase row with the same function /sellers uses; counting rows by outcome gives the page's totals. Columns: host, endpoint_id, resource_key, outcome (delivered | pending | seller | vet402 | unsorted | not_bought | not_tried), fix_mode, side_label, confirmed_seller, held_reason, latest_attempted_at, latest_status, latest_network, latest_http_status_paid, purchase_id (the ledger export's purchase_id), in_ledger_export, attribution_review (under_review on seller rows, whose attribution is under review). Definitions in the x-vet402-column-notes header, retrieval time in x-vet402-retrieved-at. Since 2026-09-29.",
     response: `host,endpoint_id,resource_key,outcome,fix_mode,side_label,confirmed_seller,held_reason,latest_attempted_at,latest_status,latest_network,latest_http_status_paid,purchase_id,in_ledger_export,attribution_review
 api.example.com,521e929e-…,api.example.com/v1/x,delivered,,,,,2026-09-29T00:02:29Z,settled,eip155:8453,200,c4d4b20f-…,true,`,
+  },
+  {
+    method: "GET",
+    path: "/api/v1/judgments/:file",
+    note: "Daily judgments: one JSON per active listing, built once per UTC day from the same payer decision as key-less /decision (no score, no caller_policy). Key-less, no IP cap, CDN cache until the next UTC day. Files: index.json, index-{00..ff}.json, {resource_id}.json. CC-BY-4.0. See #judgments.",
+    response: `{
+  "judgment_day": "2026-11-15",
+  "subject": { "type": "resource", "id": "9a7e…" },
+  "role": "payer",
+  "recommendation": "ALLOW",
+  "reason_codes": ["l0_pass", "l1_delivered"],
+  "live": "https://vet402.com/api/v1/resources/9a7e…/decision?role=payer",
+  "note": "Built once per UTC day from the same record as the key-less decision. Call live for the answer as of now."
+}`,
   },
   {
     method: "GET",
@@ -917,7 +931,7 @@ export default async function ApiDocsPage() {
         {/* 2026-09-29 敵対的監査（初見の開発者）: Quickstart の 1 番目が「受領証を読む」で、
             製品の本題（払う前に聞く）へ鍵なしで届く経路は /llms.txt にしか書いていなかった。
             resolve → decision の 2 本を先頭に置く。例の URL は 2026-09-29 に本番で
-            resolve → decision（鍵なし・200・RateLimit-Limit: 10）を確認済み。 */}
+            resolve → decision（鍵なし・200・RateLimit-Limit は当時の枠の値。現在の /decision 鍵なし枠は keylessDecisionPerMinute()）を確認済み。 */}
         <div>
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-brand-lift">
             1 &mdash; Should my agent pay this URL? Resolve it, then ask (no key)
@@ -1171,7 +1185,7 @@ console.log(payee.score, payee.recommendation, payee.dataDepth);`}
         <p className="text-[0.84375rem] text-brand">
           <code>getDecision</code> and <code>resolve</code> work with no key. Leave{" "}
           <code>apiKey</code> unset and the client sends no <code>Authorization</code> header:{" "}
-          <code>getDecision</code> is then key-less at 10 requests per minute per IP (429{" "}
+          <code>getDecision</code> is then key-less at {keylessDecisionPerMinute()} requests per minute per IP (429{" "}
           <code>rate_limited</code> beyond), and <code>resolve</code> at 60. With a key,{" "}
           <code>getDecision</code> spends 1 unit of your monthly quota per call. The score calls
           above (<code>getWalletScore</code>, <code>getPayeeScore</code>) do need a key; without one
@@ -1181,7 +1195,7 @@ console.log(payee.score, payee.recommendation, payee.dataDepth);`}
           label="TypeScript: resolve a URL and read its decision with @vet402/sdk, no key"
           code={`import { createVouchClient } from "@vet402/sdk";
 
-const vouch = createVouchClient({}); // no apiKey: key-less, 10/min per IP
+const vouch = createVouchClient({}); // no apiKey: key-less, ${keylessDecisionPerMinute()}/min per IP
 
 const { resource } = await vouch.resolve("https://api.exa.ai/search");
 if (!resource?.resource_id) throw new Error("not in the vet402 catalog");
@@ -1199,7 +1213,7 @@ console.log(d.recommendation, d.reason_codes);`}
           label="TypeScript: gate a payment on the resource decision"
           code={`import { createVouchClient } from "@vet402/sdk";
 
-const vouch = createVouchClient({}); // no apiKey: key-less, 10/min per IP
+const vouch = createVouchClient({}); // no apiKey: key-less, ${keylessDecisionPerMinute()}/min per IP
 
 const { resource } = await vouch.resolve("https://api.exa.ai/search");
 if (!resource?.resource_id) throw new Error("not in the vet402 catalog");
@@ -1293,7 +1307,7 @@ app.use("/api/paid", createExpressGate({
             server.tool 呼び出しと README の表に合わせる。 */}
         <p className="text-[0.84375rem] text-brand">
           <code>VOUCH_API_KEY</code> is optional. Without it the two <code>/decision</code> tools
-          work key-less (10/min per IP) and the five score and attest tools answer{" "}
+          work key-less ({keylessDecisionPerMinute()}/min per IP) and the five score and attest tools answer{" "}
           <code>missing_api_key</code>; with one, created at <code>/dashboard/keys</code>, those
           five work too. <code>VOUCH_API_URL</code> is optional and defaults to the hosted API. The
           seven tools: <code>check_resource_decision</code> and <code>pay_if_trusted</code> (the{" "}
@@ -1473,6 +1487,20 @@ app.use("/api/paid", createExpressGate({
           burst behaviour was nowhere — a synchronous gate needs both to size a
           deployment. Values are read from the code (auth.ts PLAN_LIMITS,
           ip-rate-limit call sites), not asserted. */}
+      <section id="judgments" className="scroll-mt-32 space-y-3">
+        <h2 className="sec-head">Daily judgments (CDN JSON)</h2>
+        <p className="text-[0.84375rem] text-brand">
+          <code>GET /api/v1/judgments/&#123;file&#125;</code> publishes one JSON judgment per active
+          listing in the catalog, built once per UTC day from the same payer record as key-less{" "}
+          <code>/decision</code> (no score, no caller_policy). There is no IP rate limit on this path.
+          Responses cache at the CDN until the next UTC midnight. A document whose <code>spending_halted</code> or{" "}
+          <code>degraded</code> is true caches for 5 minutes instead. Start at{" "}
+          <code>/api/v1/judgments/index.json</code>, follow a shard in <code>index-&#123;xx&#125;.json</code>,
+          then open <code>&#123;resource_id&#125;.json</code>. Each document carries <code>live</code> for the
+          answer as of now. License CC-BY-4.0.
+        </p>
+      </section>
+
       <section id="rate-limits" className="scroll-mt-32 space-y-3">
         <h2 className="sec-head">Rate limits</h2>
         <p className="text-[0.84375rem] text-brand">
@@ -1509,7 +1537,7 @@ app.use("/api/paid", createExpressGate({
             carry your key spend units: each score call (agent, wallet, payee), each{" "}
             <code>/decision</code> sent with a key, and the other keyed routes in the reference
             below are 1 unit per call (a batch of N is N). Key-less calls spend no monthly
-            units: <code>/decision</code> without a key (10/min per IP), <code>/resolve</code>{" "}
+            units: <code>/decision</code> without a key ({keylessDecisionPerMinute()}/min per IP), <code>/resolve</code>{" "}
             (60/min per IP), and the observatory and accuracy reads each have their own per-IP
             window instead.
           </li>

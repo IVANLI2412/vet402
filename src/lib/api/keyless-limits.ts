@@ -4,7 +4,9 @@
  * /decision は DECISION_KEYLESS_READ が "0" のとき 401 に戻る（env.ts）。
  * 公開文は「いま開いている」と「旗で止まる」の両方を言う。
  */
-export const DECISION_KEYLESS_LIMIT = 10;
+export const DECISION_KEYLESS_LIMIT = 60;
+/** DECISION_KEYLESS_LIMIT が今の値になった日（2026-09-07〜11-14 は 10）。公開文の「since」はここから作る。 */
+export const DECISION_KEYLESS_LIMIT_SINCE = "2026-11-15";
 export const DECISION_KEYLESS_WINDOW_MS = 60_000;
 
 /** /resolve が publicRateLimit に渡す回数。窓は 60 秒。 */

@@ -19,6 +19,7 @@ import { __setDbForTests } from "@/lib/db/client";
 import { ipRateLimits } from "@/lib/db/schema";
 import { decisionCache } from "@/lib/decision/cache";
 import { GET } from "@/app/api/v1/resources/[resourceId]/decision/route";
+import { DECISION_KEYLESS_LIMIT } from "@/lib/api/keyless-limits";
 
 const RID = "a".repeat(64);
 const UNKNOWN_RID = "b".repeat(64);
@@ -122,6 +123,22 @@ beforeEach(() => {
   decisionCache.clear();
   // decide() のキー: `${observatoryId}|payer|${dialect ?? "-"}|${allowWithoutL1}|${operatorBlacklist}|${halted}`
   decisionCache.set(`${OBS_ID}|payer|-|0|0|0`, { result: SEEDED_RESULT, expiresAt: Date.now() + 60_000 });
+  // 2026-11-15（wave2 U3）: 鍵なしは skipScore で引くので、キーに |noscore が入る。同じ判定本体を種に撒く。
+  decisionCache.set(`${OBS_ID}|payer|-|0|0|noscore|0`, { result: SEEDED_RESULT, expiresAt: Date.now() + 60_000 });
+});
+
+test("鍵なしは skipScore（受取人スコアの外の RPC を読まない）・鍵ありは従来どおり score を読む経路", async () => {
+  decisionCache.clear();
+  const keylessMarker = { ...SEEDED_RESULT, rules_version: "keyless-noscore" };
+  const keyedMarker = { ...SEEDED_RESULT, rules_version: "keyed-with-score" };
+  decisionCache.set(`${OBS_ID}|payer|-|0|0|noscore|0`, { result: keylessMarker, expiresAt: Date.now() + 60_000 });
+  decisionCache.set(`${OBS_ID}|payer|-|0|0|0`, { result: keyedMarker, expiresAt: Date.now() + 60_000 });
+  const anon = await call(RID);
+  assert.equal(anon.status, 200);
+  assert.equal((await anon.json()).rules_version, "keyless-noscore", "鍵なしが skipScore 無しのキーを引いた");
+  const keyed = await call(RID, { key: DEV_KEY });
+  assert.equal(keyed.status, 200);
+  assert.equal((await keyed.json()).rules_version, "keyed-with-score", "鍵ありの挙動が変わった");
 });
 
 afterEach(() => {
@@ -140,15 +157,15 @@ test("(a) 鍵なしでも 200・本文は鍵ありと同一（recommendation / f
   const anonBody = JSON.parse(anonText);
   assert.equal(anonBody.recommendation, "ALLOW");
   assert.ok(anonBody.facts && Array.isArray(anonBody.evidence), "facts / evidence が落ちている");
-  assert.equal(anon.headers.get("RateLimit-Limit"), "10", "枠の天井を線上に出す");
+  assert.equal(anon.headers.get("RateLimit-Limit"), String(DECISION_KEYLESS_LIMIT), "枠の天井を線上に出す");
 
   const keyed = await call(RID, { key: DEV_KEY });
   assert.equal(keyed.status, 200);
   assert.deepEqual(anonBody, await keyed.json(), "鍵の有無で本文が変わってはいけない");
 });
 
-test("(b) 同一 IP の 11 回目は 429・Retry-After 付き・語彙は rate_limited", async () => {
-  for (let i = 1; i <= 10; i++) {
+test(`(b) 同一 IP の ${DECISION_KEYLESS_LIMIT + 1} 回目は 429・Retry-After 付き・語彙は rate_limited`, async () => {
+  for (let i = 1; i <= DECISION_KEYLESS_LIMIT; i++) {
     const res = await call(RID);
     assert.equal(res.status, 200, `${i} 回目が ${res.status}`);
   }
@@ -160,7 +177,7 @@ test("(b) 同一 IP の 11 回目は 429・Retry-After 付き・語彙は rate_l
 });
 
 test("(c) 別 IP のバケツは独立（全員同じバケツにしない）", async () => {
-  for (let i = 0; i < 10; i++) await call(RID, { ip: "203.0.113.10" });
+  for (let i = 0; i < DECISION_KEYLESS_LIMIT; i++) await call(RID, { ip: "203.0.113.10" });
   assert.equal((await call(RID, { ip: "203.0.113.10" })).status, 429);
   const other = await call(RID, { ip: "198.51.100.7" });
   assert.equal(other.status, 200, await other.text());
@@ -208,25 +225,25 @@ test("間違った鍵は匿名扱いに落ちず 401 のまま（顧客の WL/BL
 // 早期 return でも枠のヘッダを付け、消費した 1 回分を戻す。
 
 test("(g) 鍵なしの 404 not_found にも RateLimit-* ヘッダが付き、IP 枠は消費されない（鍵ありの refund と同じ規則）", async () => {
-  for (let i = 1; i <= 10; i++) {
+  for (let i = 1; i <= DECISION_KEYLESS_LIMIT; i++) {
     const res = await call(UNKNOWN_RID);
     assert.equal(res.status, 404, `${i} 回目が ${res.status}`);
-    assert.equal(res.headers.get("RateLimit-Limit"), "10", `${i} 回目の 404 に枠の天井が無い`);
+    assert.equal(res.headers.get("RateLimit-Limit"), String(DECISION_KEYLESS_LIMIT), `${i} 回目の 404 に枠の天井が無い`);
     assert.ok(res.headers.get("RateLimit-Remaining") !== null, `${i} 回目の 404 に残数が無い`);
   }
-  // 404 を 10 回踏んでも枠は戻っているので、11 回目の本物の照会は 200。
+  // 404 を上限回踏んでも枠は戻っているので、次の本物の照会は 200。
   const real = await call(RID);
   assert.equal(real.status, 200, `404 が枠を消費している: ${await real.text()}`);
 });
 
 test("(h) 鍵なしの 400 invalid_resource_id にも RateLimit-* ヘッダが付き、IP 枠は消費されない", async () => {
-  for (let i = 1; i <= 10; i++) {
+  for (let i = 1; i <= DECISION_KEYLESS_LIMIT; i++) {
     const res = await call("not-a-resource-id");
     assert.equal(res.status, 400, `${i} 回目が ${res.status}`);
     const body = (await res.json()) as { error: string; message?: string };
     assert.equal(body.error, "invalid_resource_id");
     assert.match(body.message ?? "", /\/api\/v1\/resolve/, "次の一手（resolve）を本文に出す");
-    assert.equal(res.headers.get("RateLimit-Limit"), "10", `${i} 回目の 400 に枠の天井が無い`);
+    assert.equal(res.headers.get("RateLimit-Limit"), String(DECISION_KEYLESS_LIMIT), `${i} 回目の 400 に枠の天井が無い`);
   }
   const real = await call(RID);
   assert.equal(real.status, 200, `400 が枠を消費している: ${await real.text()}`);

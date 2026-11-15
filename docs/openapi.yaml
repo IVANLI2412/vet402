@@ -1364,6 +1364,44 @@ paths:
         "503":
           description: Store unavailable
 
+  /api/v1/judgments/{file}:
+    get:
+      operationId: getJudgmentFile
+      tags: [Observatory]
+      summary: Daily key-less judgments as JSON (CDN-cached, no query params)
+      description: |
+        One JSON file per active listing in the catalog, built once per UTC day from the same
+        payer decision record as `GET /api/v1/resources/{resourceId}/decision` without a
+        key (no score, no caller_policy). Key-less with no per-IP rate limit on this path.
+        Process cache and CDN `Cache-Control`: `public, max-age=300, s-maxage` until the
+        next UTC midnight (at least 300 seconds, at most 86400), `stale-while-revalidate=86400`.
+        A document whose `spending_halted` or `degraded` is true is not kept for the day:
+        it is rebuilt on the next read and caches for 300 seconds (`s-maxage=300`).
+        License CC-BY-4.0 (`x-vet402-license`, `Link` rel=license and rel=describedby).
+        Files: `index.json` (shard index, no database read), `index-{00..ff}.json` (listing
+        for one hex prefix with `href` per resource), `{resource_id}.json` (the judgment).
+        A `{resource_id}.json` request checks the shard listing first so random ids do not hit
+        the database. Unknown query parameters return 400 `invalid_query`. Missing files return
+        404 `not_found`. Database or cache failure returns 503 `judgments_unavailable` with
+        `Cache-Control: no-store`. `x-vet402-judgment-day` names the UTC day of the snapshot.
+        Call `live` on each document for the answer as of now.
+      security: []
+      parameters:
+        - in: path
+          name: file
+          required: true
+          schema: { type: string }
+          description: "`index.json`, `index-{two lowercase hex digits}.json`, or `{64 lowercase hex}.json`."
+      responses:
+        "200":
+          description: Judgment index, shard listing, or one judgment document
+        "400":
+          description: Unknown query parameter (`invalid_query`)
+        "404":
+          description: Unknown file name or resource not on today's shard (`not_found`)
+        "503":
+          description: Judgments unavailable (`judgments_unavailable`)
+
   /api/v1/graph/payto/{address}:
     get:
       operationId: getPayToGraph
@@ -2432,7 +2470,10 @@ paths:
         purchased from, or whose last delivery is older than 30 days. Send `Idempotency-Key` to retry without spending a
         second rate-limit unit. 1 unit per call.
         Key-less reads (AQ-053, 2026-09-07): with no `Authorization` header
-        the same body is returned under a per-IP window of 10/min
+        the same body is returned under a per-IP window of 60/min
+        (since 2026-11-15, 10/min before). Without a key the transitional
+        `score` is not read, so `include_score=1` returns `score: null`
+        (since 2026-11-15). The recommendation does not use it.
         (`rate_limited` on 429, `RateLimit-*` headers on the wire);
         `Idempotency-Key` and customer allow/block lists apply only to keyed
         calls. A present-but-invalid key is still 401, never anonymous.

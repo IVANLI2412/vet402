@@ -13,6 +13,14 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-15 U3: daily judgments JSON at the CDN and key-less /decision at 60 a minute
+
+- What: vet402 adds `GET /api/v1/judgments/{file}` for daily judgment JSON (index, hex shards, one document per active listing), built once per UTC day from the same payer decision as key-less `/decision` without score or caller_policy. vet402 raises the key-less `/decision` limit to 60 requests per minute per IP and updates public copy, OpenAPI, llms.txt, and llms-full.txt.
+- Why: vet402 serves a daily judgment bundle cached at the CDN so agents can read judgments without spending the key-less decision IP window. Database reads do not grow with call volume: an id missing from the day's shard listing answers 404 before any judgment is built, and each shard and each judgment is built at most once per UTC day. The operator blacklist applies the same way as on key-less `/decision`.
+- Tests: `tests/judgments-cdn-1115.test.ts`, `tests/judgments-build.pg.test.ts`, `tests/keyless-decision-limit-60-1115.test.ts`, updates to `tests/decision-keyless-read.test.ts` (limit read from `DECISION_KEYLESS_LIMIT`), plus `docs/claims.yaml` entries for `tests/claims-registry.test.ts`.
+- Fix (review): a judgment whose `spending_halted` or `degraded` is true is not kept in the daily cache and answers with `s-maxage=300`. Nested fields of the judgment are copied through an allowlist built from the DecisionResult types, so a key those types do not have is dropped at any depth. Key-less `/decision` no longer reads the transitional payee score (`skipScore`), so a key-less `include_score=1` returns `score: null`. The recommendation does not change. Keyed calls are unchanged. The public docs date the 60 a minute limit from 2026-11-15 (10 a minute from 2026-09-07).
+- Tests (fix): `tests/judgments-cdn-1115.test.ts` (nested allowlist, transient judgments), `tests/keyless-decision-limit-60-1115.test.ts` (since date, score does not change the decision, skipScore only for key-less), `tests/decision-keyless-read.test.ts` (key-less reads the noscore entry, keyed does not).
+- Impact: Keyed plan monthly limits (Free 1,000, Pro 50,000, Scale 500,000 a month) and prices are unchanged. export.csv is unchanged. Reading judgment JSON does not count toward usage.
 ## 2026-11-15 wave2 index: Bazaar quality read time, seller called vs delivered, snapshot catalogs, settlement index on state
 
 - What: vet402 adds `quality_observed_at` and `bazaar_curated` on Bazaar catalog sync, a seller page section comparing CDP Bazaar call counts with vet402 delivered rate, snapshot-only catalog counts for PayAI and Rail402 discovery, `settlementIndex.byChain` on the state API, Tempo held copy on chain pages, and `coverage7dDefinition` on state.

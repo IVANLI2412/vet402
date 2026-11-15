@@ -228,9 +228,20 @@ export async function GET(request: NextRequest, context: RouteContext) {
     // 独立レビュー（中）: 数える単位は鍵ではなく鍵の持ち主（1 人が 10 本まで鍵を持てる）。
     const ownerId = caller.kind === "keyed" ? caller.ctx.ownerId : undefined;
     const callerMaterial = lookupCallerMaterial({ apiKeyId, ownerId, headers: request.headers });
+    // 2026-11-15（wave2 U3）: 鍵なしでは移行期の受取人スコア（判定に使わない・外の RPC へ出る）を読まない（skipScore）。
+    // 判定（recommendation・reason_codes・facts）は score を材料にしないので変わらない。鍵なしの include_score=1 は score: null。
+    // 鍵ありは従来どおり（skipScore を渡さない）。
     const result =
       roleRaw === "payer"
-        ? await decide({ role: "payer", observatoryId: ref.observatory_id, callerDialect: dialectRaw ?? undefined, allowWithoutL1, operatorBlacklist, callerMaterial })
+        ? await decide({
+            role: "payer",
+            observatoryId: ref.observatory_id,
+            callerDialect: dialectRaw ?? undefined,
+            allowWithoutL1,
+            operatorBlacklist,
+            callerMaterial,
+            ...(caller.kind === "keyless" ? { skipScore: true } : {}),
+          })
         : await decide({ role: "payee", observatoryId: ref.observatory_id, payerId: payerId!, operatorBlacklist, callerMaterial });
     if (!result) return fail(caller, 404, "not_found");
     // 2026-09-02: §12 の SLO（p95 < 200ms・キャッシュヒット）はサーバ内時間で測る。東京からの

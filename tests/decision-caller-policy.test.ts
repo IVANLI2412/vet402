@@ -116,6 +116,8 @@ function call(query: string, opts: { rid?: string; key?: string; ip?: string } =
 function seed(result: Record<string, unknown>) {
   decisionCache.clear();
   decisionCache.set(`${OBS_ID}|payer|-|0|0|0`, { result, expiresAt: Date.now() + 60_000 });
+  // 2026-11-15（wave2 U3）: 鍵なしは skipScore で引くので、キーに |noscore が入る。同じ判定本体を撒く。
+  decisionCache.set(`${OBS_ID}|payer|-|0|0|noscore|0`, { result, expiresAt: Date.now() + 60_000 });
 }
 
 const savedEnv: Record<string, string | undefined> = {};

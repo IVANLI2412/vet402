@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { keylessDecisionPerMinute } from "@/lib/api/keyless-limits";
 import { reasonCodeDocOf } from "@/lib/decision/reason-codes";
 import { blockReasonCodes } from "@/lib/decision/rules";
 
@@ -288,7 +289,7 @@ export default function DecisionAnswer({
         {state.kind === "loading" ? (
           <>asking… · {full}</>
         ) : state.kind === "rate_limited" ? (
-          <>the key-less limit (10 per minute) is used up; try again in a minute · {full}</>
+          <>the key-less limit ({keylessDecisionPerMinute()} per minute) is used up; try again in a minute · {full}</>
         ) : (
           <>
             {state.kind === "error" && <>could not be read just now · </>}
