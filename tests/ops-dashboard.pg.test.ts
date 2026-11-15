@@ -508,10 +508,10 @@ if (!TEST_DB) {
       ]),
     );
     try {
-      let raw = await fetchSellerOpsFromDb(SELLER);
+      const raw = await fetchSellerOpsFromDb(SELLER);
       assert.equal(raw.disputes.recordsPresent, 2);
       assert.equal(raw.disputes.disputeCount, 2);
-      let card = buildSellerCard(raw);
+      const card = buildSellerCard(raw);
       assert.equal(card.disputes.state, "has_data");
     } finally {
       setTradeDisputeStoreForTests(null);
