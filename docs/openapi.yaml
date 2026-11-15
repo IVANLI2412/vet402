@@ -4972,6 +4972,76 @@ components:
         note: { type: string }
         handlerMicros: { type: number }
 
+    ReasonEvidenceRef:
+      type: object
+      description: Typed link to a purchase row, chain transaction, content hash, or observatory record.
+      required: [kind, id, url]
+      properties:
+        kind:
+          type: string
+          enum: [purchase, tx, response_hash, declaration_hash, diff_hash, record]
+        id:
+          type: string
+          nullable: true
+        url:
+          type: string
+          nullable: true
+
+    ReasonExplanation:
+      type: object
+      description: One reason code with its English sentence, verdict effect, recommendation cap, and evidence links.
+      required: [code, text, effect, max_recommendation, evidence_status, evidence]
+      properties:
+        code: { type: string }
+        text:
+          type: string
+          description: One English sentence for this reason code.
+        effect:
+          type: string
+          enum: [sets_block, caps_at_warn, none]
+        max_recommendation:
+          type: string
+          enum: [ALLOW, WARN, BLOCK]
+          description: The best verdict this reason alone would allow.
+        evidence_status:
+          type: string
+          enum: [linked, record, none]
+        evidence:
+          type: array
+          items: { $ref: "#/components/schemas/ReasonEvidenceRef" }
+
+    EvidenceAge:
+      type: object
+      description: Last delivery timing from paid tests with a freshness tier, recommendation cap, and readable summary.
+      required:
+        [
+          last_delivered_at,
+          days_since_last_delivery,
+          last_paid_test_at,
+          tier,
+          max_recommendation,
+          waived_by_caller,
+          fresh_within_days,
+          stale_after_days,
+          text,
+        ]
+      properties:
+        last_delivered_at: { type: string, format: date-time, nullable: true }
+        days_since_last_delivery: { type: number, nullable: true }
+        last_paid_test_at: { type: string, format: date-time, nullable: true }
+        tier:
+          type: string
+          enum: [fresh, aging, stale, none]
+        max_recommendation:
+          type: string
+          enum: [ALLOW, WARN]
+        waived_by_caller: { type: boolean }
+        fresh_within_days: { type: integer, description: "Day count through which delivery reads as fresh tier (7)." }
+        stale_after_days: { type: integer, description: "Day count after which delivery reads as stale and caps at WARN (30)." }
+        text:
+          type: string
+          description: One English sentence with the delivery date and days since.
+
     DecisionReasonCode:
       type: string
       description: >-
@@ -4993,6 +5063,11 @@ components:
         (since 2026-09-29.3), and is never the basis of `recommendation`.
       required: [subject, role, payer, recommendation, reason_codes, facts, spending_halted, not_attempted_reason, freshness, l1_basis, verified_terms, evidence, degraded, policy, rules_version, registry, scoredAt, cacheExpiresAt, disclaimer]
       properties:
+        evidence_age:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/EvidenceAge"
+          description: Since 2026-11-15, last delivery age from a paid test for role payer, first in the JSON object, null for role payee.
         subject:
           type: object
           description: The Resource decided on (§5 ids plus the observatory uuid).
@@ -5095,6 +5170,10 @@ components:
             seller could answer vet402 differently from other buyers; other
             buyers' settlements show that they paid, not that they received,
             so the decision cannot detect this.
+        reasons:
+          type: array
+          items: { $ref: "#/components/schemas/ReasonExplanation" }
+          description: Since 2026-11-15, entries mirroring reason_codes with an English sentence, verdict effect, and purchase or hash links when the record names them.
         facts:
           description: >-
             L0–L2 measurement records — SellerFacts for role=payer,

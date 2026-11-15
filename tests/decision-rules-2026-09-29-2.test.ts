@@ -456,7 +456,7 @@ const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 test("本番経路（decide.ts）は l1Timeline を判定へ渡し、loadSellerFacts が作る", () => {
   const decide = read("src/lib/decision/decide.ts");
   assert.match(decide, /l1Timeline: loaded\.l1Timeline/);
-  assert.match(decide, /l1_basis: l1BasisOf\(f, options\)/);
+  assert.match(decide, /const l1_basis = l1BasisOf\(f, options\)/);
   const facts = read("src/lib/decision/seller-facts.ts");
   assert.match(facts, /const l1Timeline = l1TimelineOf\(factsInput\)/);
   assert.match(facts, /l1Timeline,/);

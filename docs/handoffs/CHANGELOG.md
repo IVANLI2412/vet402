@@ -13,6 +13,12 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-15 Verdict reasons: one sentence, effect and evidence per reason code, and the age of the last delivery first
+
+- vet402 adds reason-text.ts with one English sentence per reason code, reason-explain.ts with effect, evidence links and evidence_age tiers (fresh within 7 days, aging through 30, stale after 30, none without delivery).
+- The decision API and check_x402_seller put evidence_age first and reasons after reason_codes with purchase, transaction and hash references when the record names them.
+- Tests: tests/decision-reason-explain-1115.test.ts.
+
 ## 2026-11-14 /x402/refunds: where a 4xx can count on the seller's side
 
 - On /x402/refunds, vet402 now says settled 4xx calls are held out of delivered rates, and that /sellers can put a settled Base 400 or 422 with a structured input validation error for declared input on the seller's side after seller-side failures on two UTC days (S1-1 `seller_fixable_input`). Numbers unchanged.

@@ -25,6 +25,7 @@ import { rowsOf } from "@/lib/settlements/upsert";
 import { l2EvidenceOf, loadSellerFacts, type SellerFactsLoaded } from "./seller-facts";
 import { loadBuyerFacts } from "./buyer-facts";
 import { decidePayer, decidePayee, l1BasisOf, DECISION_RULES_VERSION, type L1Basis, type Recommendation, type PayerOptions } from "./rules";
+import { evidenceAgeOf, explainReasons, type EvidenceAge, type ReasonExplanation } from "./reason-explain";
 import { isSpendingHalted } from "@/lib/observatory/kill-switch";
 import { assertEvidenceContract, vet402Evidence } from "./evidence";
 import type { BuyerFacts, Evidence, Freshness, NotAttemptedReason, SellerFacts, VerifiedTerms } from "./types";
@@ -47,11 +48,14 @@ export type DecisionSubject = {
 export type RegistryStatus = { status: "anchored" | "pending" | "off"; tx_hash: string | null };
 
 export type DecisionResult = {
+  /** 最後の配達の鮮度（role=payer）。先頭キーに置く。payee は null。 */
+  evidence_age: EvidenceAge | null;
   subject: DecisionSubject;
   role: "payer" | "payee";
   payer: string | null;
   recommendation: Recommendation;
   reason_codes: string[];
+  reasons: ReasonExplanation[];
   facts: SellerFacts | BuyerFacts;
   /**
    * 2026-09-05: vet402 自身が L1 の支出を止めているか（runtime_flags.l1_spending_halt）。
@@ -196,12 +200,26 @@ export function buildDecision(input: BuildInput): DecisionResult {
     if (l2Evidence) evidence.push(l2Evidence);
     // 配る直前に 1 回だけ検査する（源を名乗らない行・合算した行を外へ出さない）。
     assertEvidenceContract(evidence);
+    const l1_basis = l1BasisOf(f, options);
+    const evidence_age = evidenceAgeOf(l1_basis, { reason_codes: d.reason_codes });
+    const reasons = explainReasons({
+      codes: d.reason_codes,
+      role: "payer",
+      basis: l1_basis,
+      observatoryId: input.subject.observatory_id,
+      verifiedTerms: input.verifiedTerms ?? null,
+      l2: f.l2,
+      // l2EvidenceOf と同じ読み方: 省略（undefined）のときだけ last_purchase_id。null は「L2 を決めた購入が無い」で、別の購入を付けない。
+      l2PurchaseId: input.l2PurchaseId === undefined ? f.l1.last_purchase_id : input.l2PurchaseId,
+    });
     return {
+      evidence_age,
       ...base,
       role: "payer",
       payer: null,
       recommendation: d.recommendation,
       reason_codes: d.reason_codes,
+      reasons,
       facts: f,
       // 下位コードは `l1_not_attempted` が実際に載っているときだけ。既に試行がある
       // 相手に「停止していたから」を付けると、我々の都合で過去の記録を塗り替えることになる。
@@ -209,7 +227,7 @@ export function buildDecision(input: BuildInput): DecisionResult {
         ? input.notAttemptedReason ?? null
         : null,
       freshness: { l0: f.l0.observed_at, l1: f.l1.observed_at, l2: f.l2.observed_at },
-      l1_basis: l1BasisOf(f, options),
+      l1_basis,
       verified_terms: input.verifiedTerms ?? null,
       evidence,
       score: input.score ? { ...input.score, deprecated: true, superseded_by: "recommendation", note: DECISION_SCORE_NOTE } : null,
@@ -219,12 +237,23 @@ export function buildDecision(input: BuildInput): DecisionResult {
     };
   }
   const d = decidePayee(input.facts, { now, operatorBlacklist: input.operatorBlacklist });
+  const reasons = explainReasons({
+    codes: d.reason_codes,
+    role: "payee",
+    basis: null,
+    observatoryId: input.subject.observatory_id,
+    verifiedTerms: null,
+    l2: null,
+    l2PurchaseId: null,
+  });
   return {
+    evidence_age: null,
     ...base,
     role: "payee",
     payer: input.payer,
     recommendation: d.recommendation,
     reason_codes: d.reason_codes,
+    reasons,
     facts: input.facts,
     // role=payee の facts は買い手の記録なので、L1 未実施の概念が無い。
     not_attempted_reason: null,

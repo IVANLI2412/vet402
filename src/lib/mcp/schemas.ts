@@ -91,13 +91,48 @@ export const verifiedTermsSchema = z
   })
   .strict();
 
+export const reasonEvidenceRefSchema = z
+  .object({
+    kind: z.enum(["purchase", "tx", "response_hash", "declaration_hash", "diff_hash", "record"]),
+    id: z.string().nullable(),
+    url: z.string().nullable(),
+  })
+  .strict();
+
+export const reasonExplanationSchema = z
+  .object({
+    code: z.string(),
+    text: z.string(),
+    effect: z.enum(["sets_block", "caps_at_warn", "none"]),
+    max_recommendation: z.enum(["ALLOW", "WARN", "BLOCK"]),
+    evidence_status: z.enum(["linked", "record", "none"]),
+    evidence: z.array(reasonEvidenceRefSchema),
+  })
+  .strict();
+
+export const evidenceAgeSchema = z
+  .object({
+    last_delivered_at: z.string().nullable(),
+    days_since_last_delivery: z.number().nullable(),
+    last_paid_test_at: z.string().nullable(),
+    tier: z.enum(["fresh", "aging", "stale", "none"]),
+    max_recommendation: z.enum(["ALLOW", "WARN"]),
+    waived_by_caller: z.boolean(),
+    fresh_within_days: z.literal(7),
+    stale_after_days: z.number(),
+    text: z.string(),
+  })
+  .strict();
+
 export const checkSellerOutput = z
   .object({
+    evidence_age: evidenceAgeSchema.nullable(),
     canonical_url: z.string().nullable(),
     method: z.string().nullable(),
     not_in_catalog: z.boolean(),
     recommendation: z.enum(["ALLOW", "WARN", "BLOCK"]).nullable(),
     reason_codes: z.array(z.string()),
+    reasons: z.array(reasonExplanationSchema),
     delivery: z
       .object({
         paid_attempts: z.number().int(),

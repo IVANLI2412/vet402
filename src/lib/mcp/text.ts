@@ -34,7 +34,9 @@ export const TOOL_TEXT = {
       "verified_terms holds the payTo, amount and network of the last purchase where content came back, so they can be set against the terms of a 402 response. " +
       "Its amount is in 6-decimal ledger units: multiply it by 10^12 on BNB Chain and by 10 on Stellar before comparing it with a 402. " +
       "When method is left out, GET is looked up first and then POST. " +
-      "A URL that vet402 has no record of comes back with not_in_catalog set to true, up to five other listings on the same host, and the catalogs vet402 reads.",
+      "A URL that vet402 has no record of comes back with not_in_catalog set to true, up to five other listings on the same host, and the catalogs vet402 reads. " +
+      "evidence_age comes first and states the date and age of the last delivery from a paid test, and an answer can be no better than WARN when that delivery is older than 30 days or there is none, unless the caller passed allow_without_l1. " +
+      "reasons holds one English sentence per reason code, its effect on the answer, and references to purchases, transactions or response hashes when the record names them, with evidence_status none when nothing in the record can be pointed to.",
   },
   check_my_x402_endpoint: {
     title: "Check my x402 endpoint",

@@ -158,11 +158,13 @@ export async function checkSeller(deps: CheckSellerDeps, input: { url: string; m
     const same = (resolved.endpoints ?? []).filter((e) => host !== null && hostnameOf(e.canonical_url) === host).slice(0, 5);
     return fitBudget<CheckSellerOutput>(
       {
+        evidence_age: null,
         canonical_url: null,
         method: method ?? null,
         not_in_catalog: true,
         recommendation: null,
         reason_codes: [],
+        reasons: [],
         delivery: null,
         l0_status: null,
         verified_terms: null,
@@ -188,48 +190,59 @@ export async function checkSeller(deps: CheckSellerDeps, input: { url: string; m
   const facts = decision.facts as SellerFacts;
   const vt = decision.verified_terms;
   const purchases = await deps.l1Purchases(resource.observatory_id);
-  return fitBudget<CheckSellerOutput>(
-    {
-      canonical_url: resource.canonical_url,
-      method: resource.method,
-      not_in_catalog: false,
-      recommendation: decision.recommendation,
-      reason_codes: [...decision.reason_codes],
-      delivery: {
-        paid_attempts: facts.l1.n_attempts,
-        delivered: facts.l1.n_delivered,
-        settled_not_delivered: decision.l1_basis?.n_paid_undelivered ?? 0,
-        last_attempt_at: facts.l1.last_attempt_at,
-        window_days: L1_WINDOW_DAYS,
-      },
-      l0_status: facts.l0.status,
-      verified_terms: vt
-        ? {
-            purchase_id: vt.purchase_id,
-            pay_to: vt.pay_to,
-            asset: vt.asset,
-            amount: vt.amount,
-            decimals: vt.decimals,
-            network: vt.network,
-            scheme: vt.scheme,
-            protocol: vt.protocol,
-            verified_at: vt.verified_at,
-          }
-        : null,
-      spending_halted: decision.spending_halted,
-      freshness: { l0: decision.freshness.l0, l1: decision.freshness.l1, l2: decision.freshness.l2 },
-      l1_purchases: purchases.slice(0, 5).map(copyPurchase),
-      same_host_listings: [],
-      listing_sources: [],
-      note: null,
-      record_url: recordUrlOf(resource.observatory_id),
-      method_url: METHOD_URL,
-      // 判定は 5 分キャッシュされる。キャッシュから返した文書に「今」を付けない（判定を作った時刻）。
-      as_of: decision.scoredAt,
-      truncated: false,
+  const out: CheckSellerOutput = {
+    evidence_age: decision.evidence_age ?? null,
+    canonical_url: resource.canonical_url,
+    method: resource.method,
+    not_in_catalog: false,
+    recommendation: decision.recommendation,
+    reason_codes: [...decision.reason_codes],
+    reasons: decision.reasons.map((r) => ({
+      code: r.code,
+      text: r.text,
+      effect: r.effect,
+      max_recommendation: r.max_recommendation,
+      evidence_status: r.evidence_status,
+      evidence: r.evidence.map((e) => ({ kind: e.kind, id: e.id, url: e.url })),
+    })),
+    delivery: {
+      paid_attempts: facts.l1.n_attempts,
+      delivered: facts.l1.n_delivered,
+      settled_not_delivered: decision.l1_basis?.n_paid_undelivered ?? 0,
+      last_attempt_at: facts.l1.last_attempt_at,
+      window_days: L1_WINDOW_DAYS,
     },
-    ["l1_purchases", "reason_codes"],
-  );
+    l0_status: facts.l0.status,
+    verified_terms: vt
+      ? {
+          purchase_id: vt.purchase_id,
+          pay_to: vt.pay_to,
+          asset: vt.asset,
+          amount: vt.amount,
+          decimals: vt.decimals,
+          network: vt.network,
+          scheme: vt.scheme,
+          protocol: vt.protocol,
+          verified_at: vt.verified_at,
+        }
+      : null,
+    spending_halted: decision.spending_halted,
+    freshness: { l0: decision.freshness.l0, l1: decision.freshness.l1, l2: decision.freshness.l2 },
+    l1_purchases: purchases.slice(0, 5).map(copyPurchase),
+    same_host_listings: [],
+    listing_sources: [],
+    note: null,
+    record_url: recordUrlOf(resource.observatory_id),
+    method_url: METHOD_URL,
+    // 判定は 5 分キャッシュされる。キャッシュから返した文書に「今」を付けない（判定を作った時刻）。
+    as_of: decision.scoredAt,
+    truncated: false,
+  };
+  fitBudget(out, ["reasons"]);
+  if (Buffer.byteLength(JSON.stringify(out), "utf8") > MAX_STRUCTURED_BYTES) {
+    fitBudget(out, ["l1_purchases", "reason_codes"]);
+  }
+  return out;
 }
 
 function copyPurchase(p: L1PurchaseOut): L1PurchaseOut {
