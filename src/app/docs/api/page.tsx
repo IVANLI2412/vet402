@@ -19,6 +19,8 @@ import { inviteRequired } from "@/lib/dashboard/signup-core";
 import { DECISION_RULES_TEXT, METHOD_LIMIT_TEXT, VERDICT_DOCS } from "@/lib/decision/rules-text";
 import { DECISION_RULES_VERSION } from "@/lib/decision/rules";
 import { REASON_CODES, EFFECT_LABEL, type SellerCanFix } from "@/lib/decision/reason-codes";
+import { DELIVERY_VALUE_DEFINITIONS } from "@/lib/observatory/delivery-values";
+import { DELIVERY_CSV_COLUMNS } from "@/lib/observatory/delivery-export";
 
 // 2026-09-29.3（監査 6 周目）: 売り手の側で直せるかの語（表の列）。
 const SELLER_FIX_LABEL: Record<SellerCanFix, string> = { yes: "Yes", partly: "Partly", no: "No", "n/a": "—" };
@@ -498,6 +500,12 @@ api.example.com,521e929e-…,api.example.com/v1/x,delivered,,,,,2026-09-29T00:02
     path: "/api/v1/observatory/export.csv",
     note: "Paid-attempt ledger as CSV. days is an integer from 1 to 366; without it the window is the last 90 days. The ledger starts at 2026-08-14T09:54:31Z, so from 2026-11-12T09:54:31Z the default window no longer reaches its first rows; ask for days=366 to read the whole ledger. A non-canonical days value answers 308 to the canonical query. Another query parameter, or days given twice, answers 400 invalid_query. Output stops at 50000 rows and sets x-vet402-truncated. A cell whose text starts with =, +, -, @, a tab, or a carriage return is written with a leading apostrophe. Key-less. 6 requests per minute per IP. Columns in order: attempted_at, resource_key, network, status, amount_units, spent_units, tx_hash, http_status_paid, latency_ms, l2_schema, held_reason, request_body, request_body_sha256, settlement_source, request_query, request_query_sha256, confirmed_units, purchase_id, l2_reading.",
     response: `attempted_at,resource_key,network,status,amount_units,spent_units,tx_hash,...`,
+  },
+  {
+    method: "GET",
+    path: "/api/v1/observatory/delivery.csv",
+    note: `One row per settled purchase, with the three delivery values and the raw fields beside them. days follows the same rules as the ledger export (1 to 366, default 90, canonical 308, invalid_query and invalid_days otherwise). Key-less. 6 requests per minute per IP. Columns in order: ${DELIVERY_CSV_COLUMNS.join(", ")}. ${DELIVERY_VALUE_DEFINITIONS.delivered} ${DELIVERY_VALUE_DEFINITIONS.no_body_observed} ${DELIVERY_VALUE_DEFINITIONS.not_established} Definitions: https://vet402.com/observatory/methodology#delivery-values`,
+    response: `${DELIVERY_CSV_COLUMNS.join(",")}\n521e929e-…,2026-09-29T00:02:29Z,1200,2026-09-29T00:02:30.200Z,api.example.com/v1/x,eip155:8453,delivered,,200,true,,0x…,vet402,0x…`,
   },
   {
     method: "GET",

@@ -41,7 +41,7 @@ test("開けた 6 本の読み取りは応答に X-Robots-Tag: noindex を付け
   process.env.PROXY_HEADER_SOURCE = "generic";
   process.env.APP_ENV = "test";
   try {
-    const [{ GET: state }, { GET: history }, { GET: l1 }, { GET: l0 }, { GET: accuracy }, { GET: census }] =
+    const [{ GET: state }, { GET: history }, { GET: l1 }, { GET: l0 }, { GET: accuracy }, { GET: census }, { GET: delivery }] =
       await Promise.all([
         import("@/app/api/v1/observatory/state/route"),
         import("@/app/api/v1/observatory/history/route"),
@@ -49,6 +49,7 @@ test("開けた 6 本の読み取りは応答に X-Robots-Tag: noindex を付け
         import("@/app/api/v1/observatory/l0/export.csv/route"),
         import("@/app/api/v1/accuracy/route"),
         import("@/app/api/v1/census/summary/route"),
+        import("@/app/api/v1/observatory/delivery.csv/route"),
       ]);
     const call = (path: string, ip: string, get: (req: NextRequest) => Promise<Response> | Response) =>
       Promise.resolve(get(new NextRequest(`http://localhost${path}`, { headers: { "x-real-ip": ip } })));
@@ -59,6 +60,7 @@ test("開けた 6 本の読み取りは応答に X-Robots-Tag: noindex を付け
       ["/api/v1/observatory/l0/export.csv", l0],
       ["/api/v1/accuracy", accuracy],
       ["/api/v1/census/summary", census],
+      ["/api/v1/observatory/delivery.csv", delivery],
     ];
     for (const [i, [path, get]] of cases.entries()) {
       const res = await call(path, `198.51.100.${10 + i}`, get);

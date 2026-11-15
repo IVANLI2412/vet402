@@ -1112,6 +1112,60 @@ paths:
         "503":
           description: Observatory store unavailable, or another export is running (`export_busy`, with `Retry-After`)
 
+  /api/v1/observatory/delivery.csv:
+    get:
+      operationId: exportObservatoryDeliveryCsv
+      tags: [Observatory]
+      summary: Settled rows with the three delivery values (CSV)
+      description: |
+        One row per `settled` purchase in the time window, with the three
+        delivery values discussed for x402 buyers (`delivered`,
+        `no_body_observed`, `not_established`) plus the raw ledger fields
+        needed to re-count them. The population is `settled` rows only. The
+        three values sum to the `settled` rows in the file, and `delivered`
+        uses the same rule as `l1.delivered` on `/api/v1/observatory/state`.
+        The counts are not expected to equal the state totals. State counts
+        the whole ledger, not the `days` window. The file can stop at 50,000
+        rows. The two are cached on separate schedules. A correction can
+        change a row between the two reads. The frozen ledger export at
+        `/api/v1/observatory/export.csv` is unchanged.
+
+        `days` follows the same rules as the ledger export. It is a decimal
+        integer. A value outside 1..366 or with leading zeros is answered with a 308 to
+        the canonical `?days=` (`90.5` or `1e2` are 400 `invalid_days`). Any
+        other query parameter, or `days` given twice, is 400 `invalid_query`.
+        Output truncates at 50,000 rows (`x-vet402-truncated`). IP-throttled to
+        6/min. Reads the store one export at a time across all callers (503
+        `export_busy` with `Retry-After`).
+
+        Columns, in order: `purchase_id`, `attempted_at`, `latency_ms`,
+        `observed_at` (the stored attempt time plus `latency_ms`, rounded up
+        to the millisecond), `resource_key`, `network`, `delivery`,
+        `delivery_reason` (blank on `delivered`), `http_status_paid`,
+        `payload_non_empty` (`true`, `false`, or blank), `held_reason`,
+        `tx_hash`, `buyer` (always `vet402`), `payer` (vet402's paying wallet
+        on that row). Definitions travel in `x-vet402-column-notes`. The
+        methodology is at `https://vet402.com/observatory/methodology#delivery-values`.
+      security: []
+      parameters:
+        - in: query
+          name: days
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 366, default: 90 }
+      responses:
+        "200":
+          description: CSV, oldest settled row first
+          content:
+            text/csv: {}
+        "308":
+          description: Redirect to the canonical `?days=` (out of 1..366 or leading zeros)
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "429":
+          description: Rate limited
+        "503":
+          description: Observatory store unavailable, or another export is running (`export_busy`, with `Retry-After`)
+
   /api/v1/observatory/l0/export.csv:
     get:
       operationId: exportObservatoryL0Latest

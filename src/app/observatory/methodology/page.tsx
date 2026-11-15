@@ -62,6 +62,7 @@ import { TableScroll } from "@/components/site/TableScroll";
 import { MEASUREMENT_PAYERS } from "@/lib/settlements/measurement-payers";
 import { SELLER_NAMED_TX_NOT_FOUND_AFTER_DAYS, SELLER_NAMED_TX_NOT_FOUND_MIN_DAYS } from "@/lib/sellers/fix-modes";
 import { BASE_DECLARED_QUERY_SINCE_LABEL, queryUnsentUntilSentence, utcSecondsLabel } from "@/lib/observatory/request-query";
+import { DELIVERY_VALUE_DEFINITIONS, DELIVERY_VALUES_SOURCE_NOTE } from "@/lib/observatory/delivery-values";
 import { RETEST_L2_STALE_AFTER_DAYS } from "@/lib/observatory/retest-sellers-sql";
 import { DECLARED_BODY_SENT_SINCE } from "@/lib/observatory/request-body";
 import { PAYER_FUNDS_GATE_SINCE } from "@/lib/observatory/payer-balance-history";
@@ -1035,6 +1036,40 @@ export default async function ObservatoryMethodologyPage() {
           <code>5xx</code>), a <code>202</code>, an empty body, or no recorded answer. Until 2026-09-04 just{" "}
           <code>settled</code> was published, which let an endpoint whose every paid request
           answered <code>400</code> read as a full settle-through record.
+        </p>
+        <h3 className="doc-p font-semibold" id="delivery-values">
+          Delivery values on settled rows (since 2026-11-15)
+        </h3>
+        <p className="doc-p">
+          Beside the frozen ledger export at <code>/api/v1/observatory/export.csv</code>, vet402
+          publishes <code>GET /api/v1/observatory/delivery.csv</code> for <code>settled</code> rows in
+          the same <code>days</code> window. Each row gets exactly one of three delivery values, so the
+          three counts sum to the rows in the file. The file stops at 50,000 rows and then sets{" "}
+          <code>x-vet402-truncated</code> to <code>true</code>. <code>delivered</code> uses the same
+          rule as <code>l1.delivered</code> on <code>/api/v1/observatory/state</code>. The counts are not
+          expected to equal the state totals. State counts the whole ledger, not the{" "}
+          <code>days</code> window. The two are cached on separate
+          schedules. A correction can change a row between the two reads.
+        </p>
+        <ul className="doc-ul">
+          {(["delivered", "no_body_observed", "not_established"] as const).map((k) => (
+            <li key={k}>
+              <code>{k}</code>: {DELIVERY_VALUE_DEFINITIONS[k].replace(/^[^:]+:\s*/, "")}
+            </li>
+          ))}
+        </ul>
+        <p className="doc-p">
+          Source for the three labels: {DELIVERY_VALUES_SOURCE_NOTE}. Raw columns on each row (
+          <code>http_status_paid</code>, <code>payload_non_empty</code>, <code>held_reason</code>,{" "}
+          <code>tx_hash</code>, <code>buyer</code>, <code>payer</code>) stay in the file so anyone can
+          re-count. <code>observed_at</code> is the stored attempt time plus <code>latency_ms</code>,
+          rounded up to the millisecond. <code>latency_ms</code> runs from the start of the purchase to
+          the end of reading the paid response, or to the point where vet402 stopped reading a body
+          over its size cap. The attempt time is stored partway through, so{" "}
+          <code>observed_at</code> normally falls after that end. <code>observed_at</code> is blank
+          when <code>latency_ms</code> is blank. <code>attempted_at</code> in this file is cut to the second, the same format
+          as the ledger export. A row can change later when a settlement is corrected, and each such change
+          is listed at <code>/api/v1/observatory/corrections</code>.
         </p>
         <p className="doc-p">
           <strong>What changed on 2026-08-23, and what is still open.</strong> Until that date,{" "}

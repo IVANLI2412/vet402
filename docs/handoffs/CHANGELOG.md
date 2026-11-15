@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-15 delivery.csv: the three delivery values beside the raw ledger fields
+
+- Added `GET /api/v1/observatory/delivery.csv` (settled rows only) with columns for the three delivery values (`delivered`, `no_body_observed`, `not_established`), `delivery_reason`, `observed_at`, and raw fields (`http_status_paid`, `payload_non_empty`, `held_reason`, `tx_hash`, `buyer`, `payer`). Logic lives in `src/lib/observatory/delivery-values.ts` and `src/lib/observatory/delivery-export.ts`.
+- The three definitions live in one constant (`DELIVERY_VALUE_DEFINITIONS`) that /docs/api, the methodology section `#delivery-values` and the `x-vet402-column-notes` header all render. The source is named as the definition discussed in x402-foundation/x402#3226.
+- `delivery.csv` is in the robots allow list and the Freshness table (`s-maxage=3600`, `stale-while-revalidate=7200`), like the ledger export.
+- The frozen ledger export `GET /api/v1/observatory/export.csv` is unchanged (columns, headers, and cache keys).
+- Tests: `tests/delivery-values.test.ts`, `tests/delivery-export.pg.test.ts`.
 ## 2026-11-15 J1: binary output declarations and answer checks on stored bodies (internal)
 
 - What: vet402 adds binary media type extraction and `checkL2Binary` in `l2-check.ts` (additive only). vet402 adds `src/lib/observatory/answer-check/` judges on stored purchase bodies without new network calls or purchases, and `checkedPurchaseShare` for the share of settled purchases with a checked answer over 30 days. vet402 adds tests for binary L2 and answer checks.

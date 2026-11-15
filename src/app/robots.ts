@@ -39,12 +39,13 @@ const PROBE402_ALLOW = ["/", "/api/v1/observatory/", "/api/v1/census/"];
 // 2026-10-26: 鍵なし・キャッシュ済みの読み取りだけを * と AI クローラに開ける。
 // 最長一致で、この Allow が Disallow /api/ に勝つ。パスの前方一致で配下を開けない
 // （/api/v1/observatory/ は endpoints・live・subscribe・watch まで開くので名指しにする）。
-// state 900s、history と export.csv 3600s、l0/export.csv 900s、accuracy 600s、census/summary 300s。
+// state 900s、history と export.csv と delivery.csv 3600s、l0/export.csv 900s、accuracy 600s、census/summary 300s。
 // いずれも s-maxage 付き。書き込み、鍵、個別 decision、売り手 CSV、/api/health は閉じたまま。
 export const PUBLIC_READ_ALLOWS = [
   "/api/v1/observatory/state",
   "/api/v1/observatory/history",
   "/api/v1/observatory/export.csv",
+  "/api/v1/observatory/delivery.csv",
   "/api/v1/observatory/l0/export.csv",
   "/api/v1/accuracy",
   "/api/v1/census/summary",
