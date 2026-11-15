@@ -41,14 +41,14 @@ export type DeliveryCsvColumn = (typeof DELIVERY_CSV_COLUMNS)[number];
 
 /** body_bytes の意味（公開文・列の説明ヘッダ・methodology・/docs/api がこの 1 か所を読む）。 */
 export const DELIVERY_CSV_BODY_BYTES_NOTE =
-  `body_bytes is the size in bytes of the paid response body vet402 read, 0 for an empty body, blank when the row has no record of it (rows before 2026-09-29 and lanes that do not store it). A body over the ${L1_PAID_BODY_CAP_BYTES}-byte read cap shows ${L1_PAID_BODY_CAP_BYTES}, the read cap, not the full size.`;
+  `body_bytes is the size in bytes of the paid response body vet402 read, 0 for an empty body, blank when the row has no record of it (rows before 2026-09-29 and lanes that do not store it). A body over the ${L1_PAID_BODY_CAP_BYTES}-byte read cap shows ${L1_PAID_BODY_CAP_BYTES}, the read cap, not the full size. payload_non_empty is false when the body is empty or only whitespace, or when reading it stopped partway (a timeout or a dropped connection), and body_bytes then counts the bytes received before it stopped.`;
 
 /** CSV はコメント行を持てないので、列の意味をレスポンスヘッダで運ぶ（ASCII のみ）。 */
 export const DELIVERY_CSV_COLUMN_NOTES =
   `${DELIVERY_VALUE_DEFINITIONS.delivered} ${DELIVERY_VALUE_DEFINITIONS.no_body_observed} ${DELIVERY_VALUE_DEFINITIONS.not_established} ` +
   "observed_at is the stored attempt time plus latency_ms, rounded up to the millisecond. latency_ms runs from the start of the purchase to the end of reading the paid response, or to the point where vet402 stopped reading a body over its size cap. The attempt time is stored partway through, so observed_at normally falls after that end. observed_at is blank when latency_ms is blank. attempted_at in this file is cut to the second. " +
   "buyer is always vet402, the reporting buyer. payer is the wallet address vet402 paid from on that row. " +
-  "payload_non_empty is true, false, or blank when no record. " +
+  "payload_non_empty is true, false, or blank when no record (see body_bytes below for what counts as false). " +
   `${DELIVERY_CSV_BODY_BYTES_NOTE} ` +
   "Full column list: https://vet402.com/openapi.yaml";
 
