@@ -1460,6 +1460,22 @@ export default async function ObservatoryMethodologyPage() {
           only with the caller&rsquo;s own key.
         </p>
 
+        <h3 className="doc-p font-semibold" id="find-ranking">
+          How alternatives are ranked
+        </h3>
+        <p className="doc-p">
+          One use word is taken from the later part of the pasted URL path, dropping version
+          numbers, digits and generic terms. When the path has no such word, a host label in front of
+          the last two is used instead. Listings match that word in their URL or seller description.
+          Each needs at least one vet402 paid test in the last 30 days and a delivered rate of at
+          least 80%. Order is the 95% Wilson lower bound on the delivered share, then deliveries,
+          then the latest paid test.           The pasted URL is left out. At most three are returned. Listings with no vet402 paid test do
+          not appear as alternatives. The term matches listings that already have a paid test in the
+          window. The description is the
+          seller&apos;s text. The price is the listing price. The catalog rows carry no tags, so tags are
+          not used. GET /api/v1/find returns the same rule.
+        </p>
+
         {/* 2026-09-05 AEO: 語彙の正典は src/lib/observatory/vocabulary.ts。
             この節と DefinedTermSet JSON-LD は同じ配列から出る。上の §1–§7 は
             同じ語を散文で展開したもので、矛盾したらどちらかではなく両方直す。 */}

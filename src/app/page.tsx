@@ -15,6 +15,7 @@ import { safeJsonLd } from "@/lib/util/json-ld";
 import { getObservatoryStatsCached } from "@/lib/observatory/cached-reads";
 import { homeLedgerOf } from "@/components/site/HomeLedger";
 import { getHomeExampleCached, cardDeliveredLabel, fmt, sellerRecordParts, utc } from "@/lib/observatory/home-example";
+import { PasteCheck } from "@/components/site/home/PasteCheck";
 import s from "./home.module.css";
 
 export const metadata = pageMetadata({
@@ -238,15 +239,17 @@ export default async function Home() {
               >
                 Add to an agent that pays
               </TrackedLink>
+              {/* 貼り付けの Check が買い手の最初の一歩。トップの主な相手は買い手で、売り手入口は同じ行の文字リンクに残す（クリック数は手元に無い）。 */}
               <TrackedLink
                 href="/docs/api#packages"
                 event="lp_cta_click"
                 props={{ position: "hero_seller" }}
-                className={s.btnQuiet}
+                className={s.actionLink}
               >
                 Add to an API you sell
               </TrackedLink>
             </div>
+            <PasteCheck cls={s} />
           </div>
 
           <div className={s.heroNote}>

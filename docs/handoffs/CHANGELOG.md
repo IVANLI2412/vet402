@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-15 U1: paste a URL on the front page, see the verdict, three alternatives and one line of code
+
+- What: vet402 added `GET /api/v1/find`, pure rank and term helpers, and a paste box on `/` that calls check and find together. The first screen keeps two pill actions for the buyer path and paste Check, with the seller path as a text link. Check shows last delivered paid test from `evidence_age`, reason sentences from the check body, alternatives (including when there is no catalog row), and before-pay snippets. Find uses one term from the later part of the path (or a host label), one find-only store read (`readFindAlternatives`, cutoff and order before LIMIT) per request, and `q` trimmed to 3 through 80 characters.
+- Why: Lumière returns a verdict from a URL but not replacements or a one-line guard. The first screen should show delivery evidence, up to three better same-use listings, and one line to call check before pay without a second store read on a second path word.
+- Tests: `tests/find-rank-u1.test.ts`, `tests/find-handler-u1.test.ts`, `tests/home-paste-check-u1.test.ts`, `tests/u1-public-english.test.ts`, and with `TEST_DATABASE_URL` set `tests/find-u1.pg.test.ts` and `tests/paste-latency-u1.pg.test.ts` (20 paste checks, p50 6.2 ms on a local Postgres with 20,000 listings).
+- Impact: `export.csv` columns are unchanged. Purchases do not increase. Find uses one dedicated SQL read per HTTP request (MCP `find_x402_sellers` still uses `readFindSellers`).
+
 ## 2026-11-15 U4 fix steps on diagnose and C4 refund rate per seller (wave2 u4j4)
 
 - What: vet402 adds English one-line fix steps and free retest links on GET /api/v1/diagnose (how_to_fix per check, retest on WARN and BLOCK). vet402 indexes Base USDC transfers from seller payTo addresses back to the vet402 Base payers and shows refunds on each seller page by payTo, as amounts. For each payTo, the amount paid is the sum paid on settled purchases by the vet402 Base payers that the seller page puts on the seller's side and whose 30-day window vet402 has read. Held rows (any settled 4xx, a 202, an unconfirmed payment) are left out. The amount back is the sum of USDC sent back from that payTo to the vet402 Base payers within 30 days after one of those purchases, each transfer counted once and capped at the amount paid. The rate is back divided by paid, and there is no rate when nothing is paid. Refund transfers are counted as a number of transfers and are not tied to one purchase. A payTo shared by several listings shows the same payTo-level number on each page with a note. Operator payTo addresses and the vet402 payer wallets themselves are left out.

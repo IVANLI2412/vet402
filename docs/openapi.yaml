@@ -1745,6 +1745,101 @@ paths:
         "429": { description: Rate limited }
         "503": { description: Store unavailable }
 
+  /api/v1/find:
+    get:
+      operationId: findX402Alternatives
+      tags: [Observatory]
+      summary: Same-use x402 listings that delivered more often in the last 30 days
+      description: |
+        Key-less REST read of alternative listings for the same use as a pasted https URL
+        or a short query string. Returns up to three sellers that passed the delivery rule,
+        ranked by Wilson 95% lower bound. One find-only store read per request aggregates paid
+        attempts, applies the 80% delivered cutoff, matches the term on those listings, orders by
+        Wilson lower bound, then LIMITs before the handler ranks up to three. MCP `find_x402_sellers`
+        still uses `readFindSellers` separately. Exactly one of `url` or `q` is required. Unknown or
+        duplicate query names are 400 `invalid_query` with `allowed`. Bad `url` is 400
+        `invalid_url`. `q` must be 3 to 80 characters after trim. Missing store or read errors are
+        503 `temporarily_unavailable` (`Cache-Control: no-store`). Successful reads use the same
+        cache headers as `GET /api/v1/check`. Listings with no vet402 paid test in the window do not
+        appear as alternatives.
+      security: []
+      parameters:
+        - in: query
+          name: url
+          required: false
+          schema: { type: string, maxLength: 2048 }
+          description: The https x402 URL to match (terms taken from its path).
+        - in: query
+          name: q
+          required: false
+          schema: { type: string, minLength: 3, maxLength: 80 }
+          description: A single search term (3 to 80 characters).
+      responses:
+        "200":
+          description: Ranked alternatives with rule text and license headers.
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - basis
+                  - input
+                  - query_terms
+                  - alternatives
+                  - rule
+                  - method_url
+                  - window_days
+                  - as_of
+                  - license
+                properties:
+                  basis: { type: string, enum: [url, q] }
+                  input: { type: string }
+                  query_terms:
+                    type: array
+                    items: { type: string }
+                  alternatives:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - url
+                        - text_source
+                        - delivered_30d
+                        - paid_attempts_30d
+                        - record_url
+                      properties:
+                        url: { type: string, format: uri }
+                        seller_description: { type: string, nullable: true }
+                        text_source: { type: string, enum: [seller] }
+                        price_usd: { type: number, nullable: true }
+                        network: { type: string, nullable: true }
+                        delivered_30d: { type: integer }
+                        paid_attempts_30d: { type: integer }
+                        delivered_rate_pct: { type: number, nullable: true }
+                        last_paid_test_at: { type: string, format: date-time, nullable: true }
+                        record_url: { type: string, format: uri }
+                  rule: { type: string }
+                  method_url: { type: string, format: uri }
+                  window_days: { type: integer }
+                  as_of: { type: string, format: date-time }
+                  license: { type: string }
+        "400":
+          description: invalid_query or invalid_url.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: "#/components/schemas/ErrorResponse"
+                  - type: object
+                    properties:
+                      allowed:
+                        type: array
+                        items: { type: string }
+                      message: { type: string }
+                      documentation: { type: string, format: uri }
+        "429": { description: Rate limited }
+        "503": { description: Store unavailable }
+
   /api/v1/diagnose:
     get:
       operationId: diagnoseX402Url
