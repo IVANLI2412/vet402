@@ -156,7 +156,7 @@ export function evidenceAgeOf(
     tier = "aging";
   }
   const waived = codes.includes("l1_waived_by_operator") && (tier === "stale" || tier === "none");
-  let maxRec: EvidenceAge["max_recommendation"] =
+  const maxRec: EvidenceAge["max_recommendation"] =
     tier === "fresh" || tier === "aging" ? "ALLOW" : waived ? "ALLOW" : "WARN";
   return {
     last_delivered_at: basis.last_delivered_at,
