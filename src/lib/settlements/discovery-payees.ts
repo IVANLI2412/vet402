@@ -15,11 +15,13 @@ import { PublicKey } from "@solana/web3.js";
 import { getDb } from "@/lib/db/client";
 import { isMissingSchemaError } from "@/lib/db/pg-errors";
 import { fetchFullCatalog } from "@/lib/observatory/catalog-source";
+import { PAYAI_DISCOVERY_PUBLIC_URL } from "@/lib/observatory/listing-sources";
+import { recordSnapshotOnlyCatalog } from "@/lib/observatory/snapshot-only-catalogs";
 import { toCaip2 } from "@/lib/observatory/chains";
 import { SOLANA_MAINNET_CAIP2 } from "@/lib/observatory/sol402-payer";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 
-export const PAYAI_DISCOVERY_URL = "https://facilitator.payai.network/discovery/resources";
+export const PAYAI_DISCOVERY_URL = PAYAI_DISCOVERY_PUBLIC_URL;
 export const DISCOVERY_PAYEE_SOURCE_PAYAI = "payai_facilitator";
 /** 索引の受取人として使う鮮度。discovery から消えた受取人も、この日数は索引を続ける。 */
 export const DISCOVERY_PAYEE_FRESH_DAYS = 14;
@@ -72,6 +74,47 @@ export type DiscoveryRefreshSummary = {
   error?: string;
 };
 
+export type PayaiDiscoveryRefreshDeps = {
+  fetchCatalog?: typeof fetchFullCatalog;
+  record?: typeof recordSnapshotOnlyCatalog;
+  today?: string;
+};
+
+type PayaiDb = NonNullable<ReturnType<typeof getDb>>;
+
+export function makePayaiDiscoveryFetchRawItems(db: PayaiDb, deps: PayaiDiscoveryRefreshDeps = {}) {
+  const fetchCatalog = deps.fetchCatalog ?? fetchFullCatalog;
+  const record = deps.record ?? recordSnapshotOnlyCatalog;
+  const today = deps.today ?? new Date().toISOString().slice(0, 10);
+  return async (): Promise<{
+    items: readonly unknown[];
+    complete: boolean;
+    totalCount: number;
+  }> => {
+    try {
+      const r = await fetchCatalog({
+        baseUrl: PAYAI_DISCOVERY_URL,
+        pageLimit: 1000,
+        sleepMs: 150,
+        deadlineMs: PAYAI_FETCH_DEADLINE_MS,
+      });
+      try {
+        await record(db, "payai_discovery", r, today);
+      } catch (snapErr) {
+        logServerErrorSafe("settlements.discovery-payees.snapshot", snapErr);
+      }
+      return { items: r.items.map((i) => ({ accepts: i.rawAccepts })), complete: r.complete, totalCount: r.totalCount };
+    } catch (error) {
+      try {
+        await record(db, "payai_discovery", null, today);
+      } catch (snapErr) {
+        logServerErrorSafe("settlements.discovery-payees.snapshot", snapErr);
+      }
+      throw error;
+    }
+  };
+}
+
 /** 取れた分だけ入れる。受取人は消さない（鮮度は last_seen_at で読む側が決める）。 */
 export async function refreshDiscoveryPayees(deps: DiscoveryRefreshDeps): Promise<DiscoveryRefreshSummary> {
   const base: DiscoveryRefreshSummary = { source: deps.source, payees: 0, complete: false, totalCount: 0 };
@@ -108,19 +151,18 @@ export async function upsertDiscoveryPayees(
 }
 
 /** 本番配線: PayAI の公開 discovery → x402_discovery_payees。表が未作成なら何もしない。 */
-export async function refreshSolanaDiscoveryPayees(): Promise<DiscoveryRefreshSummary> {
+export async function refreshSolanaDiscoveryPayees(
+  deps: PayaiDiscoveryRefreshDeps = {},
+): Promise<DiscoveryRefreshSummary> {
   const db = getDb();
   if (!db) throw new Error("refreshSolanaDiscoveryPayees: DATABASE_URL is not configured");
+  const fetchCatalog = deps.fetchCatalog ?? fetchFullCatalog;
+  const record = deps.record ?? recordSnapshotOnlyCatalog;
+  const today = deps.today ?? new Date().toISOString().slice(0, 10);
   try {
     return await refreshDiscoveryPayees({
       source: DISCOVERY_PAYEE_SOURCE_PAYAI,
-      async fetchRawItems() {
-        // PayAI は 1 ページ 1000 件を返す（2026-09-15 実測: 28,655 件を 29 ページ・約 60 秒）。
-        // aux は 300 秒。この締切のあと MPP（1 リクエスト）と Circle（60 秒）が残る。
-        // 途中で止まっても、読めた payee は upsert する（last_seen_at で新しさを見る。消さない）。
-        const r = await fetchFullCatalog({ baseUrl: PAYAI_DISCOVERY_URL, pageLimit: 1000, sleepMs: 150, deadlineMs: PAYAI_FETCH_DEADLINE_MS });
-        return { items: r.items.map((i) => ({ accepts: i.rawAccepts })), complete: r.complete, totalCount: r.totalCount };
-      },
+      fetchRawItems: makePayaiDiscoveryFetchRawItems(db, { fetchCatalog, record, today }),
       upsert: (rows) => upsertDiscoveryPayees(db, rows),
     });
   } catch (error) {

@@ -233,11 +233,11 @@ test("state API keeps every existing key and adds erc8004", async (t) => {
   // 2026-11-08 変更前のトップレベルのキー（本番 /api/v1/observatory/state から写した）。
   const before = [
     "activeEndpoints", "byChain", "byChainScope", "byChainTestnetEndpoints", "byChainUnclassified", "catalogSnapshots",
-    "cdpBazaarIngestStale", "cdpBazaarLastStrongPassAt", "cite", "coverage7d", "delistedEndpoints", "disclaimer",
+    "catalogSourcesNotRead", "cdpBazaarIngestStale", "cdpBazaarLastStrongPassAt", "cite", "coverage7d", "coverage7dDefinition", "delistedEndpoints", "disclaimer",
     "eventCounts", "humanReadable", "l1", "l1Rates", "latestSnapshot", "license", "licenseUrl", "methodUndeclared",
     "methodology", "operatorEndpointsExcluded", "operatorExclusionConfigured", "publishedFail", "publishedPass",
-    "publishedPassActive", "publishedPassActiveProbeOlderThan7d", "publishedUnverified", "retrievedAt",
-    "spendingHalted", "totalEndpoints", "withdrawnFail",
+    "publishedPassActive", "publishedPassActiveProbeOlderThan7d", "publishedUnverified",     "retrievedAt",
+    "settlementIndex", "spendingHalted", "totalEndpoints", "withdrawnFail",
   ];
   for (const k of before) assert.ok(k in body, `${k} must stay`);
   assert.ok(body.erc8004, "erc8004 present");

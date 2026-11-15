@@ -41,6 +41,7 @@ import { computeCatalogDiff, type CatalogDiffEvent, type KnownEndpointState } fr
 import { CIRCLE_DISCOVERY_SOURCE } from "./listing-sources";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { writeResourceAliases } from "@/lib/resolve/aliases";
+import { writeBazaarQualityMeta } from "./catalog-bazaar-quality";
 
 export type SyncSummary = {
   snapshotDate: string;
@@ -296,6 +297,18 @@ function todayUtc(): string {
 }
 
 
+
+/**
+ * Bazaar の quality の取得時刻と curated を書く（catalog-bazaar-quality.ts）。列が無ければ向こうが警告 1 行で飛ばす。
+ * それ以外の失敗もログだけにし、目録の同期（既存の列の書き込みは済んでいる）を落とさない。
+ */
+async function writeQualityMetaSafe(db: Db, items: readonly ParsedCatalogItem[], at: Date): Promise<void> {
+  try {
+    await writeBazaarQualityMeta(db, items, at);
+  } catch (error) {
+    logServerErrorSafe("observatory.catalog-sync.quality_meta", error);
+  }
+}
 
 export async function syncCatalog(
   options: {
@@ -587,14 +600,18 @@ export async function syncCatalog(
     upserted += chunk.length;
   };
 
+  /** quality の列をこの回に書いた項目（取得時刻と curated を後で生の SQL で書く・catalog-bazaar-quality.ts）。 */
+  const qualityWritten: ParsedCatalogItem[] = [];
   for (let i = 0; i < ownItems.length; i += UPSERT_CHUNK) {
     const chunk = ownItems.slice(i, i + UPSERT_CHUNK);
     try {
       await upsertChunk(chunk);
+      qualityWritten.push(...chunk);
     } catch {
       for (const item of chunk) {
         try {
           await upsertChunk([item]);
+          qualityWritten.push(item);
         } catch (rowError) {
           if (isUniqueViolationError(rowError)) {
             try {
@@ -692,6 +709,7 @@ export async function syncCatalog(
         })
         .where(eq(x402Endpoints.id, row.id));
       upserted += 1;
+      qualityWritten.push(item);
       idByKey.set(item.resourceKey, row.id);
       if (prior?.resourceId && ids.resourceId && prior.resourceId !== ids.resourceId) {
         movedAliases.push({ aliasId: prior.resourceId, resourceId: ids.resourceId });
@@ -724,6 +742,7 @@ export async function syncCatalog(
   }
 
   // 兄弟が持つ行は、こちらの slice を置き換えて和を書く。スカラー（pay_to 等）は持ち主のまま。
+  if (source === CATALOG_SOURCE) await writeQualityMetaSafe(db, qualityWritten, new Date());
   const sharedUpdates: { id: string; rawAccepts: unknown; acceptsBySource: unknown; resourceKey: string; wasDelisted: boolean }[] = [];
   for (const item of sharedItems) {
     const row = siblingRows.get(item.resourceKey);
@@ -1190,13 +1209,16 @@ export async function upsertCatalogCursorPage(
     return true;
   };
 
+  const qualityWritten: ParsedCatalogItem[] = [];
   if (ownItems.length > 0) {
     try {
       await upsertOwn(ownItems);
+      qualityWritten.push(...ownItems);
     } catch {
       for (const item of ownItems) {
         try {
           await upsertOwn([item]);
+          qualityWritten.push(item);
         } catch (rowError) {
           if (isUniqueViolationError(rowError)) {
             try {
@@ -1258,6 +1280,7 @@ export async function upsertCatalogCursorPage(
         })
         .where(eq(x402Endpoints.id, row.id));
       upserted++;
+      qualityWritten.push(item);
       if (row.resourceId && ids.resourceId && row.resourceId !== ids.resourceId) {
         movedAliases.push({ aliasId: row.resourceId, resourceId: ids.resourceId });
       }
@@ -1265,6 +1288,8 @@ export async function upsertCatalogCursorPage(
       skip(item.resourceKey, rowError);
     }
   }
+
+  await writeQualityMetaSafe(db, qualityWritten, ctx.now);
 
   // イベント（行は今回より前からある。新しい行にイベントは無い）。
   const idByKey = new Map<string, string>();

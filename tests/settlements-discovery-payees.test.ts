@@ -109,6 +109,34 @@ test("取り込み: 取得が失敗したら upsert せず、理由つきで返�
   assert.match(summary.error ?? "", /503/);
 });
 
+test("PayAI catalog fetch records null snapshot before surfacing failure", async () => {
+  const recordedList: Array<{ source: string; result: unknown; day: string }> = [];
+  const { makePayaiDiscoveryFetchRawItems, refreshDiscoveryPayees, DISCOVERY_PAYEE_SOURCE_PAYAI } = await import(
+    "@/lib/settlements/discovery-payees",
+  );
+  const fetchRawItems = makePayaiDiscoveryFetchRawItems({} as never, {
+    today: "2026-11-15",
+    async fetchCatalog() {
+      throw new Error("network down");
+    },
+    async record(_db, source, result, day) {
+      recordedList.push({ source, result, day });
+    },
+  });
+  const summary = await refreshDiscoveryPayees({
+    source: DISCOVERY_PAYEE_SOURCE_PAYAI,
+    fetchRawItems,
+    async upsert() {
+      return 0;
+    },
+  });
+  assert.equal(summary.error, "network down");
+  assert.equal(recordedList.length, 1);
+  assert.equal(recordedList[0]?.source, "payai_discovery");
+  assert.equal(recordedList[0]?.result, null);
+  assert.equal(recordedList[0]?.day, "2026-11-15");
+});
+
 test("PayAI の取得には締切があり、Circle の記録が残る余地がある", () => {
   const src = readFileSync("src/lib/settlements/discovery-payees.ts", "utf8");
   assert.equal(PAYAI_FETCH_DEADLINE_MS, 90_000);

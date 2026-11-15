@@ -27,6 +27,28 @@ export const MPP_DIRECTORY_PUBLIC_URL = "https://mpp.dev/api/services";
 /** Circle の x402 discovery。x402_endpoints.source に入る値。 */
 export const CIRCLE_DISCOVERY_SOURCE = "circle_discovery";
 
+/** PayAI facilitator discovery（索引の受取人と snapshot の件数写し）。 */
+export const PAYAI_DISCOVERY_PUBLIC_URL = "https://facilitator.payai.network/discovery/resources";
+
+/** Rail402 discovery（Stellar・snapshot の件数写しだけ）。 */
+export const RAIL402_DISCOVERY_URL = "https://mainnet.rail402.dev/discovery/resources";
+
+/** 件数の写しだけ。x402_endpoints には入れない・L0/L1 の対象ではない。 */
+export const SNAPSHOT_ONLY_SOURCES = [
+  { source: "payai_discovery", name: "PayAI facilitator discovery", url: PAYAI_DISCOVERY_PUBLIC_URL },
+  { source: "rail402_discovery", name: "Rail402 discovery (Stellar)", url: RAIL402_DISCOVERY_URL },
+] as const;
+
+export const CATALOG_SOURCES_NOT_READ = [
+  {
+    source: "x402scan_resources",
+    name: "x402scan resources",
+    url: "https://www.x402scan.com/api/x402/resources",
+    reason: "paid_read",
+    note: "Each read of this list costs USD 0.01 over x402. vet402 does not pay for catalog reads.",
+  },
+] as const;
+
 /** Circle の公開目録。limit の上限は 200（circle-discovery.ts）。 */
 export const CIRCLE_DISCOVERY_URL = "https://api.circle.com/v2/x402/discovery/resources";
 

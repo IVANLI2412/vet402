@@ -112,6 +112,7 @@ function parseMppEndpointPrepared(svc: Record<string, unknown>, ep: Record<strin
     // 形も Bazaar の input/output 宣言と違う）。宣言スキーマ無し＝L2 は no_declaration。
     declaredSchema: null,
     qualityCalls30d: null,
+    bazaarCurated: null,
     qualityPayers30d: null,
     qualityLastCalledAt: null,
     rawAccepts: [

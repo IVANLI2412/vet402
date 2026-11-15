@@ -621,6 +621,10 @@ export const x402Endpoints = pgTable(
     qualityCalls30d: bigint("quality_calls_30d", { mode: "number" }),
     qualityPayers30d: bigint("quality_payers_30d", { mode: "number" }),
     qualityLastCalledAt: timestamp("quality_last_called_at", { withTimezone: true }),
+    // quality_observed_at（vet402 が Bazaar の目録からこの行の quality を読んだ時刻）と bazaar_curated（Bazaar の curated）は
+    // **ここに宣言しない**（2026-11-15 第2波 index）。drizzle は insert と select() にこの表の全列を並べるので、宣言すると
+    // scripts/sql/2026-11-15-bazaar-quality-observed.sql を当てる前の本番で、この表への全部の書き込みと全列の読み取りが落ちる。
+    // 2 列は src/lib/observatory/catalog-bazaar-quality.ts が生の SQL で書き、列が無ければ警告 1 行で飛ばす。
     /** Full accepts[] as received — multi-payTo/multi-chain evidence, auditability. */
     rawAccepts: jsonb("raw_accepts"),
     /**

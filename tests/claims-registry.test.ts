@@ -500,6 +500,12 @@ function publicSurfaces(): string[] {
   out.push(relative(ROOT, join(ROOT, "src/lib/settlements/measurement-payers.ts")));
   // 2026-10-28: MCP の入口（/mcp）の tool の説明と出力の固定文。エージェントがそのまま読み、引用する。
   out.push(relative(ROOT, join(ROOT, "src/lib/mcp/text.ts")));
+  // 2026-11-15 wave2: state API が載せる about / 補助文（lib に置いた公開コピー）。
+  out.push(relative(ROOT, join(ROOT, "src/lib/observatory/settlement-index-status.ts")));
+  out.push(relative(ROOT, join(ROOT, "src/lib/observatory/catalog-snapshot-status.ts")));
+  out.push(relative(ROOT, join(ROOT, "src/lib/observatory/listing-sources.ts")));
+  out.push(relative(ROOT, join(ROOT, "src/lib/observatory/chain-page-words.ts")));
+  out.push(relative(ROOT, join(ROOT, "src/lib/sellers/called-vs-delivered.ts")));
   return out.sort();
 }
 

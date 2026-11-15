@@ -25,7 +25,7 @@ import { getDailyMetricsCoverage, getDailyMetricsHistory, type DailyMetricsRow }
 import { PUBLIC_READ_REVALIDATE } from "@/lib/observatory/public-read-revalidate";
 import { getAnchors } from "@/lib/observatory/anchors";
 import { CATALOG_SOURCE } from "@/lib/observatory/catalog-source";
-import { CIRCLE_DISCOVERY_SOURCE } from "@/lib/observatory/listing-sources";
+import { CIRCLE_DISCOVERY_SOURCE, SNAPSHOT_ONLY_SOURCES } from "@/lib/observatory/listing-sources";
 import { MPP_DIRECTORY_SOURCE } from "@/lib/observatory/mpp-payer";
 import { WideColumn } from "@/components/site/WideColumn";
 import { publicChainLabel } from "@/lib/observatory/chains";
@@ -57,10 +57,13 @@ const pct = formatPct1;
  * 面でも別々に出す（2026-09-19）。未知の source は id のまま出す——黙って
  * 主カタログの名前を貸さない。
  */
+const SNAPSHOT_ONLY_NAMES = Object.fromEntries(SNAPSHOT_ONLY_SOURCES.map((s) => [s.source, s.name]));
+
 function catalogSourceLabel(source: string): string {
   if (source === CATALOG_SOURCE) return "Bazaar catalog";
   if (source === MPP_DIRECTORY_SOURCE) return "MPP directory";
   if (source === CIRCLE_DISCOVERY_SOURCE) return "Circle x402 discovery";
+  if (SNAPSHOT_ONLY_NAMES[source]) return SNAPSHOT_ONLY_NAMES[source];
   return source;
 }
 
@@ -254,21 +257,35 @@ export default async function ObservatoryStatePage() {
             ) : (
               catalogSnapshots.map((s) => (
                 <span key={s.source} className="doc-asof">
-                  {catalogSourceLabel(s.source)} as of{" "}
-                  <span className="text-signal">{s.snapshotDate}</span>
+                  {catalogSourceLabel(s.source)}
+                  {s.status === "fetch_failed" ? (
+                    <>
+                      {" "}
+                      read failed on <span className="text-signal">{s.snapshotDate}</span>
+                    </>
+                  ) : s.snapshotDate ? (
+                    <>
+                      {" "}
+                      as of <span className="text-signal">{s.snapshotDate}</span>
+                    </>
+                  ) : (
+                    " (not yet read)"
+                  )}
+                  {s.snapshotOnly ? " (counted for comparison, not measured)" : ""}
                   {/* 2026-10-30（設計 v5）: Bazaar の snapshot はカーソルの周回で書く。fetchedCount はその周回で見えた行の数
                       （重複を畳んだ後）なので強い周回でも総数を下回りうる。完全さは件数ではなく周回の強弱で出す。 */}
-                  {s.source === "cdp_bazaar" && s.cursorPassCompleted === false
-                    ? " (first pass in progress — this snapshot is from the reader used before the cursor)"
-                    : s.source === "cdp_bazaar" && s.complete === true
-                    ? " (strong pass)"
-                    : s.source === "cdp_bazaar" && s.complete === false
-                      ? " (weak pass: more than 5% of pages unreadable — this catalog's figures provisional)"
-                      : s.complete === false || (s.complete === null && s.fetchedCount < s.totalCount)
-                        ? " (incomplete fetch: this catalog's figures provisional)"
-                        : s.fetchedCount < s.totalCount
-                          ? " (duplicate keys counted once)"
-                          : ""}
+                  {s.status !== "fetch_failed" &&
+                    (s.source === "cdp_bazaar" && s.cursorPassCompleted === false
+                      ? " (first pass in progress — this snapshot is from the reader used before the cursor)"
+                      : s.source === "cdp_bazaar" && s.complete === true
+                        ? " (strong pass)"
+                        : s.source === "cdp_bazaar" && s.complete === false
+                          ? " (weak pass: more than 5% of pages unreadable — this catalog's figures provisional)"
+                          : s.complete === false || (s.complete === null && s.fetchedCount < s.totalCount)
+                            ? " (incomplete fetch: this catalog's figures provisional)"
+                            : s.fetchedCount < s.totalCount
+                              ? " (duplicate keys counted once)"
+                              : "")}
                 </span>
               ))
             )}

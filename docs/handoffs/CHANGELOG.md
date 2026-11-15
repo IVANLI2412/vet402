@@ -13,6 +13,12 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-15 wave2 index: Bazaar quality read time, seller called vs delivered, snapshot catalogs, settlement index on state
+
+- What: vet402 adds `quality_observed_at` and `bazaar_curated` on Bazaar catalog sync, a seller page section comparing CDP Bazaar call counts with vet402 delivered rate, snapshot-only catalog counts for PayAI and Rail402 discovery, `settlementIndex.byChain` on the state API, Tempo held copy on chain pages, and `coverage7dDefinition` on state.
+- Tests: `tests/bazaar-quality-observed.test.ts`, `tests/bazaar-quality-observed.pg.test.ts`, `tests/called-vs-delivered.test.ts`, `tests/called-vs-delivered.pg.test.ts`, `tests/catalog-snapshot-status.test.ts`, `tests/snapshot-only-catalogs.pg.test.ts`, `tests/rail402-discovery.test.ts`, `tests/settlement-index-status.test.ts`, `tests/settlement-index-status.pg.test.ts`, `tests/chain-held-lines.test.ts`, `tests/observatory-state-wave2.test.ts`, plus updates to `tests/erc8004-match.test.ts`.
+- SQL: apply `scripts/sql/2026-11-15-bazaar-quality-observed.sql` before deploy. If the code ships first, the catalog sync keeps writing the existing columns and logs one warning line, and the seller page hides the Called and delivered section. The two columns are written with raw SQL and are not declared on the drizzle table, so other reads and writes of `x402_endpoints` do not depend on them. Tests: `tests/bazaar-quality-meta.test.ts`, `tests/bazaar-quality-missing-columns.pg.test.ts`.
+- Raw SQL parameters carry explicit casts (`::text`, `::boolean`, `::int`), because neon-http sends untyped parameters and an untyped value inside VALUES becomes text. `tests/bazaar-quality-untyped-params.pg.test.ts` runs the new raw SQL with untyped parameters.
 ## 2026-11-16 delivery.csv: body size, whose purchases, and as-of headers
 
 - `GET /api/v1/observatory/delivery.csv` has a `body_bytes` column next to `http_status_paid`. It is the size of the paid response body vet402 read (`raw_response_meta.bodyBytes`, recorded since 2026-09-29), `0` for an empty body, blank when the row has no record. A body over the 262144-byte read cap shows 262144, the read cap, not the full size.

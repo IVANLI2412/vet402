@@ -14,6 +14,9 @@ import { sellerEdgePublicOverhead } from "@/lib/seller-edge/public-overhead";
 import { deliveredRates } from "@/lib/observatory/delivered-rates";
 import { isSpendingHalted } from "@/lib/observatory/kill-switch";
 import { ERC8004_ABOUT, getErc8004MatchCached } from "@/lib/observatory/erc8004-match";
+import { publicCatalogSnapshots } from "@/lib/observatory/catalog-snapshot-status";
+import { CATALOG_SOURCES_NOT_READ } from "@/lib/observatory/listing-sources";
+import { getSettlementIndexCached } from "@/lib/observatory/settlement-index-status";
 import { withNoindex } from "@/lib/api/public-read-robots";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 
@@ -34,6 +37,13 @@ import { logServerErrorSafe } from "@/lib/util/log-safe";
 const RL_LIMIT = 30;
 const RL_WINDOW_MS = 60_000;
 const ADOPTION_BUDGET_MS = 1_500;
+const SETTLEMENT_INDEX_BUDGET_MS = 2_000;
+
+const COVERAGE7D_DEFINITION =
+  "Endpoints whose catalog record is active and that have an L0 check in the last 7 days, divided by endpoints whose catalog record is active. Operator endpoints and endpoints with source seller_retest_request or vet402_evm_lane are left out of both counts. This is the same definition as the 22.4% read on 2026-11-08.";
+
+const CATALOG_SNAPSHOTS_DISCLAIMER_SUFFIX =
+  " catalogSnapshots also lists the PayAI facilitator discovery and the Rail402 discovery, counted for comparison. Their listings are outside the measured population (no L0 check, no purchase). A source whose read failed shows status fetch_failed with null counts in place of 0. catalogSourcesNotRead lists catalogs vet402 does not read, with the reason.";
 
 // 2026-09-02 監査: 静的化された route handler が prerender から古い判定を返すのを防ぐ（09c1fa0 と同じ欠陥）。
 export const dynamic = "force-dynamic";
@@ -51,7 +61,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // 2026-11-08: the same shared data cache the HTML pages read (state-reads.ts).
-    const [{ stats, byChain, chainScope, coverage, retrievedAt }, halt, erc8004, adoption, publicApiUsage] =
+    const [{ stats, byChain, chainScope, coverage, retrievedAt }, halt, erc8004, adoption, publicApiUsage, settlementIndex] =
       await Promise.all([
       readStateAggregates(),
       // 集計とは別に、毎回読み直す。ObservatoryStats に入れると公開頁側の
@@ -68,6 +78,16 @@ export async function GET(request: NextRequest) {
         new Promise<Adoption>((resolve) => setTimeout(() => resolve({}), ADOPTION_BUDGET_MS)),
       ]).catch((): Adoption => ({})),
       readPublicClientUsage(),
+      Promise.race([
+        getSettlementIndexCached(),
+        new Promise<{ status: "unavailable"; reason: "timeout"; readAt: string }>((resolve) =>
+          setTimeout(() => resolve({ status: "unavailable", reason: "timeout", readAt: new Date().toISOString() }), SETTLEMENT_INDEX_BUDGET_MS),
+        ),
+      ]).catch((): { status: "unavailable"; reason: "timeout"; readAt: string } => ({
+        status: "unavailable",
+        reason: "timeout",
+        readAt: new Date().toISOString(),
+      })),
     ]);
     const tierInvariant = validateL1SettledTwoTier(stats.l1);
     if (!tierInvariant.ok) {
@@ -77,6 +97,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         ...stats,
+        catalogSnapshots: publicCatalogSnapshots(stats.catalogSnapshots),
+        catalogSourcesNotRead: CATALOG_SOURCES_NOT_READ,
         byChain,
         publicApiUsage,
         sellerEdgeOverhead: sellerEdgePublicOverhead(),
@@ -87,8 +109,9 @@ export async function GET(request: NextRequest) {
          * 運用の内部事情であって、引用される事実ではない。
          */
         spendingHalted: halt.halted,
-        /** Share of active listed endpoints with an L0 measurement in the last 7 days. */
+        /** Share of active catalog endpoints with an L0 measurement in the last 7 days. */
         coverage7d: coverage,
+        coverage7dDefinition: COVERAGE7D_DEFINITION,
         // The top-level totals count every listing including testnets (Base
         // Sepolia); `byChain` is mainnet-only, matching the HTML page's
         // "Mainnets only" table. State this so a consumer summing byChain and
@@ -102,12 +125,18 @@ export async function GET(request: NextRequest) {
         l1Rates: deliveredRates(stats.l1),
         adoption,
         disclaimer:
-          "Aggregate L0/L1 measurements over the public x402 discovery catalog. Catalog source: the CDP x402 Bazaar, the Circle x402 discovery, and the MPP directory (and equivalent public discovery surfaces). Discovery surfaces vet402 does not read are outside the measured population. A chain can also appear here with a small count because only part of its listings reach this catalog. Absence or a small count is a coverage limit, not a finding. Facts with denominators, not an assessment of any operator. 'unverified' means vet402 has no grounds to publish pass or fail yet, most often because the endpoint has not been probed. It does not mean dead. publishedPass counts endpoints on record whose latest L0 probe passed, including delisted endpoints, so it can exceed activeEndpoints. publishedPassActive is the part on active records, and publishedPassActiveProbeOlderThan7d is the part of that whose latest probe is more than 7 days old (a pass stands until the next probe). l1.endpointsSettled counts endpoints (active or not) with at least one settled row and is the sum of l1.endpointsSettledSellerReceipt (at least one settled row whose transaction the seller named in its settlement receipt, settlement_source=seller_claim) and l1.endpointsSettledIndexOnly (the seller returned no receipt, and every settled row's transaction was found by vet402's own settlements index, settlement_source=vet402_index, or named in a Circle Gateway batch, settlement_source=circle_gateway). l1.settled is the transfer vet402 re-read on-chain. l1.settledCircleGateway counts settled rows in a Circle Gateway batch, with no separate transfer to the payee. l1.delivered is a settled attempt whose paid request also answered HTTP 2xx other than 202 Accepted, with a non-empty body. l1.inconclusive counts paid attempts held rather than counted against the seller, split in l1.inconclusiveByReason: settled4xx (the payment settled and the paid request answered 4xx), unsettled4xx (the paid request answered a 4xx other than 402 and no settlement receipt came back, including sellers that validate a request before settling it, since 2026-09-17) and payerUnfunded (a 402 or 5xx during 2026-09-13T00:00Z to 2026-09-15T23:49Z, when vet402's own Base payer wallet had run out of USDC, since 2026-09-17). vet402 cannot always form the request a seller expects (no API key of the seller's, and a POST body only when the seller declares one), so a 4xx cannot be separated from a request vet402 itself formed wrongly, the same principle the methodology already applied to path_template URLs, extended to the body and the authentication header. l1.inconclusiveSettled is the settled part of l1.inconclusive and is out of the denominator for delivered. Settled minus delivered minus inconclusiveSettled counts settled rows that are not delivered and not inconclusive (5xx, 202 Accepted, an empty 2xx body, or no HTTP status on record), not a 4xx vet402 could have malformed. l1.settled is published at two evidence strengths whose counts sum to it. The settlement asset is " + PINNED_ASSETS_WITH_ISSUER_TEXT + ". l1.settledNonceBound re-read the one-time value stored for that purchase (the EIP-3009 authorization nonce on " + EIP3009_CHAINS_TEXT + ", a memo vet402 wrote on Solana, the indexed memo of a TIP-20 TransferWithMemo on Tempo, the hash of the signed blob on XRPL), so that transaction is the one for that purchase. Stellar is not in this count. The Stellar re-read checks payer, payee, amount and asset. l1.settledAmountPayeeOnly matched payer, payee, amount and asset and did not bind a one-time value. That tier holds rows that settled before the nonce binding shipped at 2026-09-04T12:00:00Z, and it holds Stellar rows. Rows in that tier are not demoted. vet402 does not refute a seller on evidence it does not hold. Read the weaker tier as a weaker claim, not as a finding about the seller. l1.settledTimeWindowOk counts settled rows whose settlement block time falls within -5/+15 minutes of the attempt. l1.settledTimeWindowUnknown counts settled rows with no block time on record. l1.settledLateLinked counts settled rows whose transaction the seller did not name: the paid response carried no settlement receipt, and vet402's own settlements index found the transfer afterwards (payer, payee, exact amount, time window) before the same on-chain re-read. It is a different axis from the two evidence strengths and is not part of their sum. The ledger export marks those rows settlement_source=vet402_index. l1.byChain covers every chain an L1 attempt ran on and sums to the l1 totals. Top-level totals include testnets. The top-level byChain is L0 and mainnet-only (byChainScope): it counts only network ids vet402 knows to be mainnets, byChainTestnetEndpoints counts the known testnets left out, and byChainUnclassified lists, verbatim with their counts, the network ids vet402 cannot name as either (left out of byChain rather than assumed to be mainnets), so sum(byChain) + byChainTestnetEndpoints + sum(byChainUnclassified) = totalEndpoints. l1Rates puts delivered over three denominators side by side: deliveredOfAttemptsPct is l1.delivered / l1.attempts, whose denominator includes the held attempts (l1.inconclusive) and the attempts still awaiting on-chain re-read (l1.awaitingReread). deliveredOfNotHeldPct is l1.delivered / (l1.attempts - l1.inconclusive), whose denominator still includes the awaiting rows. deliveredOfFinalOutcomePct is l1.delivered / (l1.attempts - l1.inconclusive - l1.awaitingReread), the share of attempts with a counted, final outcome that delivered. Percentages have one decimal and are null when the denominator is 0. l1.awaitingReread counts rows at settle_claimed (the seller asserted a settlement and vet402 has not yet re-read it on-chain, and the daily re-read runs at 14:00 UTC). l1.awaitingRereadOlderThan1d and l1.awaitingRereadOlderThan7d count those whose attempt is more than 1 and 7 days old, and l1.awaitingRereadOldestAttemptAt is the oldest one. A row stays there while the chain read cannot settle it either way (for example a transaction the RPC does not return yet), so a few rows wait far longer than a day. withdrawnFail counts endpoints with catalog status delisted whose newest probes would publish as fail. Those endpoints are left out of publishedFail. A pass on a delisted endpoint stays in publishedPass.",
+          "Aggregate L0/L1 measurements over the public x402 discovery catalog. Catalog source: the CDP x402 Bazaar, the Circle x402 discovery, and the MPP directory (and equivalent public discovery surfaces). Discovery surfaces vet402 does not read are outside the measured population. A chain can also appear here with a small count because only part of its listings reach this catalog. Absence or a small count is a coverage limit, not a finding. Facts with denominators, not an assessment of any operator. 'unverified' means vet402 has no grounds to publish pass or fail yet, most often because the endpoint has not been probed. It does not mean dead. publishedPass counts endpoints on record whose latest L0 probe passed, including delisted endpoints, so it can exceed activeEndpoints. publishedPassActive is the part on active records, and publishedPassActiveProbeOlderThan7d is the part of that whose latest probe is more than 7 days old (a pass stands until the next probe). l1.endpointsSettled counts endpoints (active or not) with at least one settled row and is the sum of l1.endpointsSettledSellerReceipt (at least one settled row whose transaction the seller named in its settlement receipt, settlement_source=seller_claim) and l1.endpointsSettledIndexOnly (the seller returned no receipt, and every settled row's transaction was found by vet402's own settlements index, settlement_source=vet402_index, or named in a Circle Gateway batch, settlement_source=circle_gateway). l1.settled is the transfer vet402 re-read on-chain. l1.settledCircleGateway counts settled rows in a Circle Gateway batch, with no separate transfer to the payee. l1.delivered is a settled attempt whose paid request also answered HTTP 2xx other than 202 Accepted, with a non-empty body. l1.inconclusive counts paid attempts held rather than counted against the seller, split in l1.inconclusiveByReason: settled4xx (the payment settled and the paid request answered 4xx), unsettled4xx (the paid request answered a 4xx other than 402 and no settlement receipt came back, including sellers that validate a request before settling it, since 2026-09-17) and payerUnfunded (a 402 or 5xx during 2026-09-13T00:00Z to 2026-09-15T23:49Z, when vet402's own Base payer wallet had run out of USDC, since 2026-09-17). vet402 cannot always form the request a seller expects (no API key of the seller's, and a POST body only when the seller declares one), so a 4xx cannot be separated from a request vet402 itself formed wrongly, the same principle the methodology already applied to path_template URLs, extended to the body and the authentication header. l1.inconclusiveSettled is the settled part of l1.inconclusive and is out of the denominator for delivered. Settled minus delivered minus inconclusiveSettled counts settled rows that are not delivered and not inconclusive (5xx, 202 Accepted, an empty 2xx body, or no HTTP status on record), not a 4xx vet402 could have malformed. l1.settled is published at two evidence strengths whose counts sum to it. The settlement asset is " +
+          PINNED_ASSETS_WITH_ISSUER_TEXT +
+          ". l1.settledNonceBound re-read the one-time value stored for that purchase (the EIP-3009 authorization nonce on " +
+          EIP3009_CHAINS_TEXT +
+          ", a memo vet402 wrote on Solana, the indexed memo of a TIP-20 TransferWithMemo on Tempo, the hash of the signed blob on XRPL), so that transaction is the one for that purchase. Stellar is not in this count. The Stellar re-read checks payer, payee, amount and asset. l1.settledAmountPayeeOnly matched payer, payee, amount and asset and did not bind a one-time value. That tier holds rows that settled before the nonce binding shipped at 2026-09-04T12:00:00Z, and it holds Stellar rows. Rows in that tier are not demoted. vet402 does not refute a seller on evidence it does not hold. Read the weaker tier as a weaker claim, not as a finding about the seller. l1.settledTimeWindowOk counts settled rows whose settlement block time falls within -5/+15 minutes of the attempt. l1.settledTimeWindowUnknown counts settled rows with no block time on record. l1.settledLateLinked counts settled rows whose transaction the seller did not name: the paid response carried no settlement receipt, and vet402's own settlements index found the transfer afterwards (payer, payee, exact amount, time window) before the same on-chain re-read. It is a different axis from the two evidence strengths and is not part of their sum. The ledger export marks those rows settlement_source=vet402_index. l1.byChain covers every chain an L1 attempt ran on and sums to the l1 totals. Top-level totals include testnets. The top-level byChain is L0 and mainnet-only (byChainScope): it counts only network ids vet402 knows to be mainnets, byChainTestnetEndpoints counts the known testnets left out, and byChainUnclassified lists, verbatim with their counts, the network ids vet402 cannot name as either (left out of byChain rather than assumed to be mainnets), so sum(byChain) + byChainTestnetEndpoints + sum(byChainUnclassified) = totalEndpoints. l1Rates puts delivered over three denominators side by side: deliveredOfAttemptsPct is l1.delivered / l1.attempts, whose denominator includes the held attempts (l1.inconclusive) and the attempts still awaiting on-chain re-read (l1.awaitingReread). deliveredOfNotHeldPct is l1.delivered / (l1.attempts - l1.inconclusive), whose denominator still includes the awaiting rows. deliveredOfFinalOutcomePct is l1.delivered / (l1.attempts - l1.inconclusive - l1.awaitingReread), the share of attempts with a counted, final outcome that delivered. Percentages have one decimal and are null when the denominator is 0. l1.awaitingReread counts rows at settle_claimed (the seller asserted a settlement and vet402 has not yet re-read it on-chain, and the daily re-read runs at 14:00 UTC). l1.awaitingRereadOlderThan1d and l1.awaitingRereadOlderThan7d count those whose attempt is more than 1 and 7 days old, and l1.awaitingRereadOldestAttemptAt is the oldest one. A row stays there while the chain read cannot settle it either way (for example a transaction the RPC does not return yet), so a few rows wait far longer than a day. withdrawnFail counts endpoints with catalog status delisted whose newest probes would publish as fail. Those endpoints are left out of publishedFail. A pass on a delisted endpoint stays in publishedPass." +
+          CATALOG_SNAPSHOTS_DISCLAIMER_SUFFIX,
         /**
          * ERC-8004 段階 A（2026-11-08）: 購入の payTo と Base の ERC-8004 agent の持ち主の完全一致。
          * 自分の readAt を持つ（公開の集計と同じ 300 秒の窓で載せる）。読めなければ unavailable で、0 は出さない。
          */
         erc8004: { ...erc8004, about: ERC8004_ABOUT },
+        settlementIndex,
         humanReadable: "https://vet402.com/observatory/state",
         methodology: "https://vet402.com/observatory/methodology",
         // 引用されて初めて配布になる。ライセンスと取得日を本文に入れておかないと、

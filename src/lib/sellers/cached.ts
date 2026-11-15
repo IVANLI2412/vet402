@@ -19,6 +19,7 @@ import { unstable_cache } from "next/cache";
 import { getDb } from "@/lib/db/client";
 import { PUBLIC_READ_REVALIDATE } from "@/lib/observatory/public-read-revalidate";
 import type { SellerBoard, SellerDetail, SellerOtherChains } from "./board";
+import { readHostCalledVsDelivered, type HostCalledVsDelivered } from "./called-vs-delivered";
 import { readPurchasedHosts, readSellerBoard, readSellerDetail, readSellerOtherChains } from "./reader";
 
 export class SellersUnavailable extends Error {}
@@ -51,6 +52,16 @@ export const getPurchasedHostsCached: () => Promise<string[]> = unstable_cache(
     return readPurchasedHosts(db);
   },
   ["sellers:purchased-hosts:v1"],
+  { revalidate: PUBLIC_READ_REVALIDATE, tags: ["observatory"] },
+);
+
+export const getSellerCalledVsDeliveredCached: (host: string) => Promise<HostCalledVsDelivered | null> = unstable_cache(
+  async (host: string) => {
+    const db = getDb();
+    if (!db) throw new SellersUnavailable("database not configured");
+    return readHostCalledVsDelivered(db, host);
+  },
+  ["sellers:called-vs-delivered:v1"],
   { revalidate: PUBLIC_READ_REVALIDATE, tags: ["observatory"] },
 );
 

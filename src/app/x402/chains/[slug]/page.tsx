@@ -8,6 +8,7 @@ import { articleJsonLd, breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/util/json-ld";
 import { getObservatoryStatsCached } from "@/lib/observatory/cached-reads";
 import { publicChainLabel } from "@/lib/observatory/chains";
+import { chainHeldLines } from "@/lib/observatory/chain-page-words";
 
 export function generateStaticParams() {
   return GUIDE_CHAINS.map((c) => ({ slug: c.slug }));
@@ -111,7 +112,7 @@ export default async function ChainGuidePage({ params }: { params: Promise<Param
               non-empty body. The row is <code>l1.byChain</code> for{" "}
               {chain.publicName}. CAIP-2 {chain.caip2}.
             </p>
-            <dl className="mt-4 grid gap-4 sm:grid-cols-3">
+            <dl className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="border-t border-brand-deep pt-3">
                 <dt className="doc-caption">Paid attempts</dt>
                 <dd className="mt-1 text-[1.75rem] tabular-nums text-brand-deep">{fmt(row.attempts)}</dd>
@@ -124,13 +125,20 @@ export default async function ChainGuidePage({ params }: { params: Promise<Param
                 <dt className="doc-caption">Delivered</dt>
                 <dd className="mt-1 text-[1.75rem] tabular-nums text-brand-deep">{fmt(row.delivered)}</dd>
               </div>
+              <div className="border-t border-brand-deep pt-3">
+                <dt className="doc-caption">Held (settled, then 4xx)</dt>
+                <dd className="mt-1 text-[1.75rem] tabular-nums text-brand-deep">{fmt(row.inconclusiveSettled)}</dd>
+              </div>
             </dl>
-            {row.inconclusiveSettled > 0 ? (
-              <p className="doc-note mt-4">
-                {fmt(row.inconclusiveSettled)} settled purchases on this chain are held as inconclusive. The methodology
-                says why a 4xx is held.
+            {chainHeldLines({
+              settled: row.settled,
+              delivered: row.delivered,
+              inconclusiveSettled: row.inconclusiveSettled,
+            }).map((line) => (
+              <p key={line} className="doc-note mt-4">
+                {line}
               </p>
-            ) : null}
+            ))}
           </>
         )}
 

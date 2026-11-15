@@ -25,6 +25,7 @@ import {
   UNDER_RECHECK,
 } from "@/components/site/sellers/SellersViews";
 import TrackView from "@/components/site/TrackView";
+import SellerCalledVsDeliveredSection from "@/components/site/sellers/SellerCalledVsDeliveredSection";
 import SellerHostBadgeSection from "@/components/site/sellers/SellerHostBadgeSection";
 
 /**
@@ -174,7 +175,12 @@ export default async function SellerPage({ params, searchParams }: Props) {
         page={page}
         now={Date.parse(detail.fetchedAt)}
         revalidateSec={PUBLIC_READ_REVALIDATE}
-        afterSummary={<SellerHostBadgeSection host={detail.host} />}
+        afterSummary={
+          <>
+            <SellerCalledVsDeliveredSection host={detail.host} />
+            <SellerHostBadgeSection host={detail.host} />
+          </>
+        }
       />
       <TrackView event="seller_page_view" props={{ host }} />
     </main>

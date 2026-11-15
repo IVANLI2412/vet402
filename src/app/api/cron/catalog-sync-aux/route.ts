@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authorizeCron } from "@/lib/cron/auth";
 import { syncCircleDiscovery } from "@/lib/observatory/circle-discovery";
 import { syncMppDirectory } from "@/lib/observatory/mpp-directory";
+import { syncRail402Discovery } from "@/lib/observatory/snapshot-only-catalogs";
 import { refreshSolanaDiscoveryPayees } from "@/lib/settlements/discovery-payees";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 
@@ -40,5 +41,12 @@ export async function GET(request: NextRequest) {
     logServerErrorSafe("cron.catalog-sync-aux.circle-discovery", error);
     circleDiscovery = { error: "circle_discovery_failed" };
   }
-  return NextResponse.json({ ok: true, discoveryPayees, mppDirectory, circleDiscovery });
+  let rail402Discovery: unknown = null;
+  try {
+    rail402Discovery = await syncRail402Discovery();
+  } catch (error) {
+    logServerErrorSafe("cron.catalog-sync-aux.rail402-discovery", error);
+    rail402Discovery = { error: "rail402_discovery_failed" };
+  }
+  return NextResponse.json({ ok: true, discoveryPayees, mppDirectory, circleDiscovery, rail402Discovery });
 }

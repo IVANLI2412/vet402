@@ -54,6 +54,8 @@ export type ParsedCatalogItem = {
   qualityCalls30d: number | null;
   qualityPayers30d: number | null;
   qualityLastCalledAt: Date | null;
+  /** Bazaar curated flag; null when the item is not Bazaar-shaped (Circle, MPP). */
+  bazaarCurated: boolean | null;
   rawAccepts: unknown | null;
 };
 
@@ -209,6 +211,7 @@ export function parseCatalogItem(item: unknown): ParsedCatalogItem {
     qualityCalls30d: asFiniteNumber(quality?.l30DaysTotalCalls),
     qualityPayers30d: asFiniteNumber(quality?.l30DaysUniquePayers),
     qualityLastCalledAt: asDate(quality?.lastCalledAt),
+    bazaarCurated: bazaar ? rec.curated === true : null, // absent curated on Bazaar → false
     rawAccepts: accepts.length > 0 ? accepts : null,
   };
 }

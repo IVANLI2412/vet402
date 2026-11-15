@@ -24,6 +24,7 @@ import {
   x402L1Purchases,
 } from "@/lib/db/schema";
 import { CATALOG_SOURCE } from "./catalog-source";
+import { enrichCatalogSnapshot } from "./catalog-snapshot-status";
 import { readCdpPassFreshness } from "./catalog-freshness";
 import { MIN_CONSECUTIVE_FAILS_TO_PUBLISH, publicProbeWord, publishedVerdict } from "./l0-verdict";
 import { l0ReasonDetail, type L0ProbeDetail } from "./l0-reasons";
@@ -1009,6 +1010,8 @@ export type CatalogSnapshot = {
    * complete は周回の強弱ではない。Bazaar 以外は undefined。
    */
   cursorPassCompleted?: boolean;
+  status?: "complete" | "partial" | "fetch_failed";
+  snapshotOnly?: boolean;
 };
 
 /** 1 チェーン分の L1 実測。settledNonceBound + settledAmountPayeeOnly = settled。 */
@@ -1456,7 +1459,7 @@ export async function getObservatoryStats(): Promise<ObservatoryStats> {
       operatorEndpointsExcluded,
       operatorExclusionConfigured: isOperatorExclusionConfigured(),
       latestSnapshot: snap,
-      catalogSnapshots: [...latestBySource.values()].sort((a, b) => a.source.localeCompare(b.source)),
+      catalogSnapshots: [...latestBySource.values()].map(enrichCatalogSnapshot).sort((a, b) => a.source.localeCompare(b.source)),
       cdpBazaarIngestStale: freshness.stale,
       cdpBazaarLastStrongPassAt: freshness.lastStrongPassAt,
     };
