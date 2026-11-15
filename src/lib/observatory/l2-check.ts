@@ -467,6 +467,21 @@ export function l2DeclarationSource(
   return resolveOutputDeclaration(declaredSchema, liveOutputExample, liveOutputSchema).source;
 }
 
+/**
+ * 使う宣言が型の宣言（402 の outputSchema・カタログのスキーマ）か、見本の値か（2026-11-15 J1・内部）。
+ * 見本の値は型の宣言ではないので、answer-check の declared_type は見本からは fail を出さない。
+ */
+export function l2DeclarationKindOf(
+  declaredSchema: unknown,
+  liveOutputExample?: Record<string, unknown> | null,
+  liveOutputSchema?: unknown,
+): "schema" | "example" | "none" {
+  const hashOf = resolveOutputDeclaration(declaredSchema, liveOutputExample, liveOutputSchema).hashOf;
+  if (hashOf === "example") return "example";
+  if (hashOf === "none") return "none";
+  return "schema";
+}
+
 /** 本文が JSON の頭（空白の後の { か [）で始まるか。 */
 export function looksLikeJson(body: string): boolean {
   const c = body.trimStart().charAt(0);
@@ -680,4 +695,358 @@ export function l2ReadingColumnsSql(alias: string): string {
     `CASE WHEN ${alias}.l2_schema = 'mismatch' AND jsonb_typeof(${m}) = 'object' THEN left(${m}->>'bodyHead', 500) END AS l2_body_head`,
     `CASE WHEN jsonb_typeof(${m}) = 'object' THEN left(${m}->>'contentType', 60) END AS l2_content_type`,
   ].join(", ");
+}
+
+// ============================================================
+// バイナリ出力の宣言と本文（2026-11-15 J1）。内部の判定と試験だけ。台帳・export には未接続。
+// ============================================================
+
+export type BinaryKind = "png" | "jpeg" | "gif" | "webp" | "pdf";
+
+const PNG_MAGIC = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const JPEG_PREFIX = new Uint8Array([0xff, 0xd8, 0xff]);
+const PDF_PREFIX = "%PDF-";
+
+function bytesEqual(a: Uint8Array, b: Uint8Array, len?: number): boolean {
+  const n = len ?? Math.min(a.length, b.length);
+  if (a.length < n || b.length < n) return false;
+  for (let i = 0; i < n; i++) if (a[i] !== b[i]) return false;
+  return true;
+}
+
+function bytesStartsWithText(bytes: Uint8Array, text: string): boolean {
+  const enc = new TextEncoder().encode(text);
+  return bytesEqual(bytes, enc, enc.length);
+}
+
+/** 生のバイトから画像・PDF の種類を厳密に判定する。 */
+export function binaryKindOfBytes(bytes: Uint8Array): BinaryKind | null {
+  if (bytes.length >= 8 && bytesEqual(bytes, PNG_MAGIC, 8)) return "png";
+  if (bytes.length >= 3 && bytesEqual(bytes, JPEG_PREFIX, 3)) return "jpeg";
+  if (bytes.length >= 6) {
+    const head = new TextDecoder().decode(bytes.slice(0, 6));
+    if (head === "GIF87a" || head === "GIF89a") return "gif";
+  }
+  if (bytes.length >= 12 && bytesStartsWithText(bytes, "RIFF")) {
+    const tag = new TextDecoder().decode(bytes.slice(8, 12));
+    if (tag === "WEBP") return "webp";
+  }
+  if (bytesStartsWithText(bytes, PDF_PREFIX)) return "pdf";
+  return null;
+}
+
+const PNG_TEXT_PREFIX = "\uFFFDPNG\r\n\u001a\n";
+
+/** UTF-8 に直した文字列から種類を判定する（U+0000 削除後もよい）。 */
+export function binaryKindOfDecodedText(text: string): { kind: BinaryKind; exact: boolean } | null {
+  if (text.startsWith(PNG_TEXT_PREFIX)) return { kind: "png", exact: true };
+  if (text.startsWith("GIF87a") || text.startsWith("GIF89a")) return { kind: "gif", exact: true };
+  if (text.startsWith(PDF_PREFIX)) return { kind: "pdf", exact: true };
+  if (/^RIFF[\s\S]{0,4}WEBP/.test(text)) return { kind: "webp", exact: true };
+  const fffd = text.match(/^(\uFFFD+)/);
+  if (fffd && fffd[1]!.length >= 3) {
+    const rest = text.slice(fffd[1].length).trimStart();
+    if (rest.startsWith("<") || rest.startsWith("{") || rest.startsWith("[")) return null;
+    return { kind: "jpeg", exact: false };
+  }
+  return null;
+}
+
+function normalizeBinaryMediaType(raw: string): string | null {
+  try {
+    const base = raw.trim().toLowerCase().split(";")[0]!.trim();
+    if (base === "image/jpg" || base === "image/pjpeg") return "image/jpeg";
+    if (
+      base === "image/png" ||
+      base === "image/jpeg" ||
+      base === "image/gif" ||
+      base === "image/webp" ||
+      base === "application/pdf" ||
+      base === "application/octet-stream" ||
+      base === "image/*"
+    ) {
+      return base;
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function contentMediaTypeFromSchemaNode(node: unknown): string | null {
+  const root = asPlain(node);
+  if (!root) return null;
+  if (typeof root.contentMediaType === "string") {
+    const n = normalizeBinaryMediaType(root.contentMediaType);
+    if (n) return n;
+  }
+  const output = asPlain(root.output);
+  if (output) {
+    if (typeof output.contentMediaType === "string") {
+      const n = normalizeBinaryMediaType(output.contentMediaType);
+      if (n) return n;
+    }
+    const ex = asPlain(output.example);
+    if (ex && typeof ex.contentMediaType === "string") {
+      const n = normalizeBinaryMediaType(ex.contentMediaType);
+      if (n) return n;
+    }
+  }
+  const example = asPlain(root.example);
+  if (example && typeof example.contentMediaType === "string") {
+    const n = normalizeBinaryMediaType(example.contentMediaType);
+    if (n) return n;
+  }
+  return null;
+}
+
+/** 402 文書からバイナリ出力の contentMediaType を取る。 */
+export function binaryMediaTypeFromDocument(document: unknown): string | null {
+  try {
+    const root = asPlain(document);
+    if (!root) return null;
+    if (Array.isArray(root.accepts)) {
+      for (const accept of root.accepts) {
+        const rec = asPlain(accept);
+        if (!rec || rec.outputSchema == null) continue;
+        const mt = contentMediaTypeFromSchemaNode(rec.outputSchema);
+        if (mt) return mt;
+      }
+    }
+    const bazaar = asPlain(root.extensions)?.bazaar;
+    const schema = asPlain(asPlain(bazaar)?.schema);
+    const props = asPlain(schema?.properties);
+    const output = asPlain(props?.output);
+    const outputProps = asPlain(output?.properties);
+    const example = asPlain(outputProps?.example);
+    if (example && typeof example.contentMediaType === "string") {
+      return normalizeBinaryMediaType(example.contentMediaType);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/** カタログの v1 schema からバイナリ出力の contentMediaType を取る。 */
+export function binaryMediaTypeFromCatalog(declaredSchema: unknown): string | null {
+  try {
+    const schema = asPlain(declaredSchema);
+    const props = asPlain(schema?.properties);
+    const output = asPlain(props?.output);
+    const outputProps = asPlain(output?.properties);
+    const example = asPlain(outputProps?.example);
+    if (example && typeof example.contentMediaType === "string") {
+      return normalizeBinaryMediaType(example.contentMediaType);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function bodyIsWhitespaceOnly(body: string | Uint8Array): boolean {
+  if (body instanceof Uint8Array) {
+    if (body.length === 0) return true;
+    for (const b of body) {
+      if (b !== 0x20 && b !== 0x09 && b !== 0x0a && b !== 0x0d) return false;
+    }
+    return true;
+  }
+  return body.trim() === "";
+}
+
+/** 無払いの 402 からバイナリの contentMediaType を取る（liveOutputSchemaOf と同じ順）。 */
+export function liveBinaryMediaTypeOf(input: {
+  bodyText?: unknown;
+  headers?: { get(name: string): string | null } | null;
+}): string | null {
+  try {
+    const headerB64 = paymentRequiredHeader(input.headers);
+    if (headerB64 !== null) {
+      const headerDoc = jsonFromBase64(headerB64);
+      if (headerDoc.ok) {
+        const fromHeader = binaryMediaTypeFromDocument(headerDoc.value);
+        if (fromHeader) return fromHeader;
+      }
+    }
+    if (typeof input.bodyText === "string" && input.bodyText !== "") {
+      const bodyDoc = jsonFromText(input.bodyText);
+      if (bodyDoc !== undefined) return binaryMediaTypeFromDocument(bodyDoc);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+export type L2BinaryReason =
+  | "binary_empty"
+  | "binary_kind_mismatch"
+  | "binary_kind_unknown"
+  | "binary_text_body"
+  | "binary_kind_inexact";
+
+function detectBinaryKind(body: string | Uint8Array): { kind: BinaryKind; exact: boolean } | null {
+  if (body instanceof Uint8Array) {
+    const kind = binaryKindOfBytes(body);
+    return kind ? { kind, exact: true } : null;
+  }
+  return binaryKindOfDecodedText(body);
+}
+
+function imageWildcardMatches(kind: BinaryKind): boolean {
+  return kind === "png" || kind === "jpeg" || kind === "gif" || kind === "webp";
+}
+
+function contentTypeAgreesWithDeclared(contentType: string | null, declared: string): boolean | null {
+  if (contentType === null || contentType === undefined) return null;
+  const norm = normalizeBinaryMediaType(contentType);
+  if (!norm) return false;
+  if (declared === "image/*") return norm.startsWith("image/");
+  if (declared === "application/octet-stream") return true;
+  return norm === declared;
+}
+
+/** バイナリ宣言と本文の一致（純関数）。 */
+export function checkL2Binary(input: {
+  mediaType: string;
+  body: string | Uint8Array;
+  contentType: string | null;
+  bodyIncomplete?: L2NotCheckedReason | null;
+}): {
+  status: "match" | "mismatch" | "not_checked";
+  reason: L2BinaryReason | L2NotCheckedReason | null;
+  declaredMediaType: string;
+  detectedKind: BinaryKind | null;
+  exact: boolean;
+  contentTypeAgrees: boolean | null;
+} {
+  const declared = normalizeBinaryMediaType(input.mediaType) ?? input.mediaType.toLowerCase().split(";")[0]!.trim();
+  const agrees = contentTypeAgreesWithDeclared(input.contentType, declared);
+  const base = {
+    declaredMediaType: declared,
+    detectedKind: null as BinaryKind | null,
+    exact: true,
+    contentTypeAgrees: agrees,
+  };
+  if (input.bodyIncomplete === "body_timeout" || input.bodyIncomplete === "body_read_error") {
+    return { ...base, status: "not_checked", reason: input.bodyIncomplete };
+  }
+  const empty = bodyIsWhitespaceOnly(input.body);
+  if (empty) {
+    return { ...base, status: "not_checked", reason: "binary_empty" };
+  }
+  const bodyStr = input.body instanceof Uint8Array ? new TextDecoder().decode(input.body) : input.body;
+  const detected = detectBinaryKind(input.body);
+  if (detected) {
+    const { kind, exact } = detected;
+    const withKind = { ...base, detectedKind: kind, exact };
+    const kindMatches = (d: string, k: BinaryKind): boolean => {
+      if (d === "image/*") return imageWildcardMatches(k);
+      if (d === "application/octet-stream") return true;
+      if (d === "image/png") return k === "png";
+      if (d === "image/jpeg") return k === "jpeg";
+      if (d === "image/gif") return k === "gif";
+      if (d === "image/webp") return k === "webp";
+      if (d === "application/pdf") return k === "pdf";
+      return false;
+    };
+    if (!exact) {
+      return { ...withKind, status: "not_checked", reason: "binary_kind_inexact" };
+    }
+    if (kindMatches(declared, kind)) {
+      return { ...withKind, status: "match", reason: null };
+    }
+    // mismatch は特定の型の宣言（image/png 等）と exact な別の型のときだけ。image/* は特定の型ではないので not_checked。
+    if (declared === "image/*") {
+      return { ...withKind, status: "not_checked", reason: "binary_kind_unknown" };
+    }
+    return { ...withKind, status: "mismatch", reason: "binary_kind_mismatch" };
+  }
+  const afterLeadingFffd = (() => {
+    const m = bodyStr.match(/^(\uFFFD+)/);
+    if (m && m[1]!.length >= 3) return bodyStr.slice(m[1].length).trimStart();
+    return null;
+  })();
+  const textBodyTail =
+    looksLikeJson(bodyStr) ||
+    bodyStr.trimStart().startsWith("<") ||
+    (afterLeadingFffd !== null &&
+      (afterLeadingFffd.startsWith("<") || afterLeadingFffd.startsWith("{") || afterLeadingFffd.startsWith("[")));
+  if (textBodyTail) {
+    return { ...base, status: "not_checked", reason: "binary_text_body", exact: false };
+  }
+  return { ...base, status: "not_checked", reason: "binary_kind_unknown", exact: false };
+}
+
+function binaryMediaTypeIsSupported(mt: string | null): mt is string {
+  return mt !== null && normalizeBinaryMediaType(mt) !== null;
+}
+
+/**
+ * JSON 宣言が無いときだけバイナリ宣言で L2 を差し替える。
+ * 内部の判定と試験だけ。有料購入の記録経路への接続は 11/19 以降の別作業。
+ */
+export type CheckL2WithBinaryDeclarationResult = Omit<ReturnType<typeof checkL2Detailed>, "reason"> & {
+  reason: L2Reason | L2BinaryReason | L2NotCheckedReason | null;
+  binary?: {
+    declaredMediaType: string;
+    detectedKind: BinaryKind | null;
+    exact: boolean;
+    contentTypeAgrees: boolean | null;
+  };
+};
+
+export function checkL2WithBinaryDeclaration(
+  declaredSchema: unknown,
+  bodyText: string,
+  contentType: string | null,
+  bodyIncomplete: L2NotCheckedReason | null = null,
+  liveOutputExample?: Record<string, unknown> | null,
+  liveOutputSchema?: unknown,
+  binaryMediaType: string | null = null,
+  binarySource: "live_402" | "catalog" = "live_402",
+): CheckL2WithBinaryDeclarationResult {
+  const detailed = checkL2Detailed(
+    declaredSchema,
+    bodyText,
+    contentType,
+    bodyIncomplete,
+    liveOutputExample,
+    liveOutputSchema,
+  );
+  if (detailed.status !== "no_declaration" || !binaryMediaTypeIsSupported(binaryMediaType)) {
+    return detailed;
+  }
+  const body: string | Uint8Array = bodyText;
+  const bin = checkL2Binary({
+    mediaType: binaryMediaType!,
+    body,
+    contentType,
+    bodyIncomplete,
+  });
+  const sha = (v: string) => createHash("sha256").update(v, "utf8").digest("hex");
+  const normMt = normalizeBinaryMediaType(binaryMediaType!) ?? binaryMediaType!;
+  let declarationHash: string | null = null;
+  try {
+    const json = JSON.stringify({ contentMediaType: normMt });
+    if (typeof json === "string") declarationHash = sha(json);
+  } catch {
+    declarationHash = null;
+  }
+  return {
+    status: bin.status,
+    missing: [],
+    declarationHash,
+    responseHash: detailed.responseHash,
+    reason: bin.reason,
+    declarationSource: binarySource,
+    binary: {
+      declaredMediaType: bin.declaredMediaType,
+      detectedKind: bin.detectedKind,
+      exact: bin.exact,
+      contentTypeAgrees: bin.contentTypeAgrees,
+    },
+  };
 }

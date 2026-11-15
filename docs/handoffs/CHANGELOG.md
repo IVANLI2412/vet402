@@ -13,6 +13,14 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-15 J1: binary output declarations and answer checks on stored bodies (internal)
+
+- What: vet402 adds binary media type extraction and `checkL2Binary` in `l2-check.ts` (additive only). vet402 adds `src/lib/observatory/answer-check/` judges on stored purchase bodies without new network calls or purchases, and `checkedPurchaseShare` for the share of settled purchases with a checked answer over 30 days. vet402 adds tests for binary L2 and answer checks.
+- Why: vet402 must judge paid binary responses (PNG and JPEG from agent402) using ledger `bodyHead` after UTF-8 decode, before wiring l1-runner on 11/19.
+- Rule: when vet402 has no firm evidence, the judge says not_checked. Only three judges can fail a seller: `json_valid` (a JSON content type with a body that is not valid JSON), `declared_type` (a value type that differs from a type declared in a JSON Schema, not from an example value) and `binary_kind` (exact leading bytes of another type). The JPEG guess from a decoded body, a missing echo and a change of shape never fail a seller.
+- Tests: `tests/l2-binary-declaration.test.ts`, `tests/answer-check-judges.test.ts`, `tests/answer-check-share.test.ts`, `tests/answer-check-no-network.test.ts`.
+- Impact: vet402 does not change `export.csv` columns or values, `l2_schema`, `l2_reading`, or public verdicts. vet402 does not connect this path to l1-runner yet (after 11/19).
+
 ## 2026-11-15 Verdict reasons: one sentence, effect and evidence per reason code, and the age of the last delivery first
 
 - vet402 adds reason-text.ts with one English sentence per reason code, reason-explain.ts with effect, evidence links and evidence_age tiers (fresh within 7 days, aging through 30, stale after 30, none without delivery).
