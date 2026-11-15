@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-15 U4 fix steps on diagnose and C4 refund rate per seller (wave2 u4j4)
+
+- What: vet402 adds English one-line fix steps and free retest links on GET /api/v1/diagnose (how_to_fix per check, retest on WARN and BLOCK). vet402 indexes Base USDC transfers from seller payTo addresses back to the vet402 Base payers and shows refunds on each seller page by payTo, as amounts. For each payTo, the amount paid is the sum paid on settled purchases by the vet402 Base payers that the seller page puts on the seller's side and whose 30-day window vet402 has read. Held rows (any settled 4xx, a 202, an unconfirmed payment) are left out. The amount back is the sum of USDC sent back from that payTo to the vet402 Base payers within 30 days after one of those purchases, each transfer counted once and capped at the amount paid. The rate is back divided by paid, and there is no rate when nothing is paid. Refund transfers are counted as a number of transfers and are not tied to one purchase. A payTo shared by several listings shows the same payTo-level number on each page with a note. Operator payTo addresses and the vet402 payer wallets themselves are left out.
+- Why: Sellers need a single actionable sentence per failed check. Buyers and sellers need an on-chain refund measure that does not depend on guessing which purchase a transfer belongs to, so a seller that refunds is never shown as one that does not.
+- Tests: tests/diagnose-fix-steps.test.ts, tests/seller-refunds.test.ts, tests/seller-refund-section.test.ts, tests/seller-refund-index.pg.test.ts, tests/seller-refund-untyped-params.pg.test.ts (raw SQL with untyped parameters, as neon-http sends them), tests/seller-refund-no-paid-rpc.test.ts, and updates where existing diagnose tests assert the response shape.
+- Impact: The refund section on /sellers/[host] stays hidden until scripts/sql/2026-11-15-payer-refund-transfers.sql is applied on production. The new cron /api/cron/index-payer-refunds reads the same free log path as the settlement index (about 1,000 blocks per getLogs call). Decision API wiring for refund stats is deferred (readPayToRefundStats is ready). export.csv columns are unchanged.
+
 ## 2026-11-15 U3: daily judgments JSON at the CDN and key-less /decision at 60 a minute
 
 - What: vet402 adds `GET /api/v1/judgments/{file}` for daily judgment JSON (index, hex shards, one document per active listing), built once per UTC day from the same payer decision as key-less `/decision` without score or caller_policy. vet402 raises the key-less `/decision` limit to 60 requests per minute per IP and updates public copy, OpenAPI, llms.txt, and llms-full.txt.

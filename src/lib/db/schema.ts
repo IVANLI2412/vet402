@@ -1656,3 +1656,28 @@ export const decisionUsageMonthlyPublished = pgTable(
     ),
   ],
 );
+
+/**
+ * x402_payer_refund_transfers（2026-11-15）— payTo から vet402 の Base 支払元へ戻った USDC Transfer。
+ * SQL: scripts/sql/2026-11-15-payer-refund-transfers.sql
+ */
+export const x402PayerRefundTransfers = pgTable(
+  "x402_payer_refund_transfers",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    chain: text("chain").notNull(),
+    txHash: text("tx_hash").notNull(),
+    logIndex: integer("log_index").notNull(),
+    fromAddress: text("from_address").notNull(),
+    toAddress: text("to_address").notNull(),
+    asset: text("asset").notNull(),
+    amount: text("amount").notNull(),
+    blockNumber: bigint("block_number", { mode: "bigint" }).notNull(),
+    blockTime: timestamp("block_time", { withTimezone: true }).notNull(),
+    observedAt: timestamp("observed_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    uniqueIndex("x402_payer_refund_transfers_chain_tx_log_idx").on(t.chain, t.txHash, t.logIndex),
+    index("x402_payer_refund_transfers_from_address_idx").on(t.fromAddress),
+  ],
+);

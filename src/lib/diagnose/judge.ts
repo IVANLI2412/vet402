@@ -14,6 +14,7 @@ import {
   solanaFeePayerOk,
   usdAtomic,
 } from "./assets";
+import { howToFix, retestFor } from "./fix-steps";
 import {
   CHECK_IDS,
   fixFor,
@@ -39,7 +40,7 @@ export type RecommendedAccept = {
   usd_atomic: string;
 };
 
-export type DiagnoseCheck = { id: CheckId; status: CheckStatus; fix: string };
+export type DiagnoseCheck = { id: CheckId; status: CheckStatus; fix: string; how_to_fix: string | null };
 export type NotChecked = { id: string; reason: string };
 
 export type DiagnoseCatalog = { listed: boolean; check_url: string | null };
@@ -53,6 +54,7 @@ export type DiagnoseBody = {
   as_of: string;
   catalog: DiagnoseCatalog | null;
   http_status: number | null;
+  retest: { rerun_url: string; request_url: string; how: string } | null;
 };
 
 export type JudgeInput = {
@@ -185,7 +187,7 @@ function recommend(accepts: ParsedAccept[]): RecommendedAccept | null {
 }
 
 function row(id: CheckId, status: CheckStatus): DiagnoseCheck {
-  return { id, status, fix: fixFor(id, status) };
+  return { id, status, fix: fixFor(id, status), how_to_fix: howToFix(id, status) };
 }
 
 function skipped(ids: readonly CheckId[], reason: string): NotChecked[] {
@@ -199,6 +201,8 @@ function catalogRow(catalog: DiagnoseCatalog | null): NotChecked[] {
 function bodyOf(input: JudgeInput, checks: DiagnoseCheck[], notChecked: NotChecked[], recommended: RecommendedAccept | null): DiagnoseBody {
   const dirty = checks.some((check) => check.status !== "pass") || notChecked.some((item) => item.id === "account_readiness" && item.reason === SKIP_READINESS_UNREAD);
   const verdict: Verdict = recommended === null ? "BLOCK" : dirty ? "WARN" : "ALLOW";
+  const retest =
+    verdict === "ALLOW" ? null : retestFor(input.requestedUrl, input.method);
   return {
     verdict,
     recommended_accept: recommended,
@@ -208,6 +212,7 @@ function bodyOf(input: JudgeInput, checks: DiagnoseCheck[], notChecked: NotCheck
     as_of: input.now.toISOString(),
     catalog: input.catalog,
     http_status: input.httpStatus,
+    retest,
   };
 }
 

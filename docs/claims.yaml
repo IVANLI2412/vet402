@@ -2017,6 +2017,21 @@ claims:
     check: null
     why_unverifiable: "HTML 頁で JSON を返さない。読み取りは src/lib/sellers/cached.ts（unstable_cache・PUBLIC_READ_REVALIDATE）と reader.ts で、tests/sellers-views.test.ts が取得時刻の表示を、tests/sellers-reader.pg.test.ts が読み取りを固定する"
     verified_at: 2026-09-28
+  # --- 2026-11-15 C4: /sellers の返金率（届かなかった Base 購入のあと payTo から vet402 支払元へ戻った USDC） ---
+  - id: sellers_refund_usdc_window
+    surface: src/components/site/sellers/SellerRefundSection.tsx
+    quote: "vet402 adds up the USDC sent back from the payTo to the vet402 Base payer within 30 days after one of those purchases, counts each transfer once, and caps the sum at the amount paid"
+    means: "返金は payTo 単位の金額。分母は payTo ごとの、売り手側の失敗（isBadPaid: settled・未配達・isInconclusive 外・202 外・payer が BASE_PAYER_PERIODS・classifySellerRow の bucket seller）で 30 日の窓を読み終えたものに払った額の合計。分子はその各失敗の後 30 日以内に payTo から vet402 の Base 払う側の財布へ戻った USDC の合計（送金は1回だけ・分母で切る）。購入と送金を1対1に結びつけない。src/lib/sellers/refunds.ts の refundStats"
+    check: null
+    why_unverifiable: "公開 GET は tx 一覧を返さない。定義は refunds.ts と refund-reader.ts、tests/seller-refunds.test.ts と tests/seller-refund-section.test.ts が固定する"
+    verified_at: 2026-11-16
+  - id: sellers_refund_excludes_unsettled
+    surface: src/components/site/sellers/SellerRefundSection.tsx
+    quote: "Rows held for judgment (any settled 4xx, a 202, an unconfirmed payment) are not in this count, even when this page puts a settled 4xx on the seller's side"
+    means: "分母は settled かつ売り手側として確定した行だけ。決済後の 4xx 全部・202・未確定・settle_failed・void は含めない"
+    check: null
+    why_unverifiable: "isBadPaid は status === settled・isDelivered でない・isInconclusive でない（settled の 4xx 全部）・202 でない・payer が BASE_PAYER_PERIODS・sellerSide（classifySellerRow の bucket seller）の全部。tests/seller-refunds.test.ts が分母を固定する"
+    verified_at: 2026-11-16
   # --- 2026-09-29 敵対的監査 4 周目（規制当局・コンプライアンス）: 法務面と最終確認画面 ---
   - id: legal_r4_billing_auto_renews_monthly
     surface: src/app/dashboard/billing/page.tsx

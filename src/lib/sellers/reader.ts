@@ -151,6 +151,7 @@ const ROW_COLUMNS_BASE = sql`
 /** 行の列（ROW_COLUMNS_BASE と example_input）。行の少ない問い合わせ用。 */
 const ROW_COLUMNS = sql`${ROW_COLUMNS_BASE},
   ${EXAMPLE_INPUT} AS example_input`;
+export const sellerRowColumnsSql = ROW_COLUMNS;
 
 /** 配達フィードの L1 窓 JOIN 用: 分類に要る列（endpoint e と pu の JOIN 前提）。 */
 export const feedL1WindowClassifyColumnsSql = sql`

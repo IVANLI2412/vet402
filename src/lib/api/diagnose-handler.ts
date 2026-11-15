@@ -2,6 +2,7 @@
 import { NextResponse } from "next/server";
 import { rejectUnknownQuery } from "@/lib/api/export-guard";
 import { withNoindex } from "@/lib/api/public-read-robots";
+import { UNSAFE_TARGET_FIX } from "@/lib/diagnose/fix-steps";
 import { diagnoseLive, type DiagnoseBody, type DiagnoseLiveInput } from "@/lib/diagnose/diagnose";
 import { isHttpsAbsoluteUrl } from "@/lib/mcp/schemas";
 import { ERROR_TEXT } from "@/lib/mcp/text";
@@ -38,7 +39,7 @@ export async function handleDiagnose(request: Request, deps: DiagnoseDeps = {}):
   const method = methodRaw?.toUpperCase() === "POST" ? "POST" : "GET";
 
   const out = await diagnoseLive({ url: urlRaw, method, ...deps });
-  if (!out.ok) return json(400, { error: "unsafe_target" }, "no-store");
+  if (!out.ok) return json(400, { error: "unsafe_target", how_to_fix: UNSAFE_TARGET_FIX }, "no-store");
   const cache = out.body.http_status === null ? "no-store" : "public, max-age=60, s-maxage=60";
   return json(200, out.body satisfies DiagnoseBody, cache);
 }

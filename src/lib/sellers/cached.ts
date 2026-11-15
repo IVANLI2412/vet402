@@ -21,6 +21,8 @@ import { PUBLIC_READ_REVALIDATE } from "@/lib/observatory/public-read-revalidate
 import type { SellerBoard, SellerDetail, SellerOtherChains } from "./board";
 import { readHostCalledVsDelivered, type HostCalledVsDelivered } from "./called-vs-delivered";
 import { readPurchasedHosts, readSellerBoard, readSellerDetail, readSellerOtherChains } from "./reader";
+import { readSellerRefundStats } from "./refund-reader";
+import type { RefundStats } from "./refunds";
 
 export class SellersUnavailable extends Error {}
 
@@ -72,6 +74,16 @@ export const getSellerOtherChainsCached: (host: string) => Promise<SellerOtherCh
     return readSellerOtherChains(db, host);
   },
   ["sellers:other-chains:v3"],
+  { revalidate: PUBLIC_READ_REVALIDATE, tags: ["observatory"] },
+);
+
+export const getSellerRefundStatsCached: (host: string) => Promise<RefundStats | null> = unstable_cache(
+  async (host: string) => {
+    const db = getDb();
+    if (!db) throw new SellersUnavailable("database not configured");
+    return readSellerRefundStats(db, { host });
+  },
+  ["sellers:refunds:v3"],
   { revalidate: PUBLIC_READ_REVALIDATE, tags: ["observatory"] },
 );
 

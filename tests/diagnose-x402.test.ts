@@ -70,8 +70,18 @@ function assertPartition(body: DiagnoseBody): void {
   const overlap = body.checked.filter((id) => body.not_checked.some((n) => n.id === id));
   assert.deepEqual(overlap, []);
   assert.ok(VERDICTS.includes(body.verdict), body.verdict);
-  for (const check of body.checks) assertEnglish(check.fix);
+  for (const check of body.checks) {
+    assertEnglish(check.fix);
+    if (check.status === "pass") assert.equal(check.how_to_fix, null);
+    else assert.ok(check.how_to_fix, `${check.id}:${check.status}`);
+  }
   for (const row of body.not_checked) assertEnglish(row.reason);
+  if (body.verdict === "ALLOW") assert.equal(body.retest, null);
+  else {
+    assert.ok(body.retest);
+    assert.ok(body.retest.rerun_url.includes(encodeURIComponent(SELLER)));
+    assert.ok(body.retest.request_url.startsWith("https://github.com/kzmttkc/vet402/issues/new"));
+  }
 }
 
 const clean = () => judge(challenge([accept()]));
