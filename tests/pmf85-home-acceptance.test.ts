@@ -78,6 +78,20 @@ test("A-1: seller checks wording, not score lookups, on home signup FAQ and docs
   assert.doesNotMatch(read("src/app/docs/api/page.tsx"), SCORE_LOOKUPS);
 });
 
+test("A-1b: pricing surfaces say seller checks, not lookups", () => {
+  const LOOKUPS_MONTH = /\blookups\b/i;
+  for (const f of [
+    "src/app/page.tsx",
+    "src/app/pricing/page.tsx",
+    "src/app/signup/page.tsx",
+    "src/app/docs/api/page.tsx",
+    "src/components/site/PricingSection.tsx",
+  ]) {
+    assert.doesNotMatch(read(f), LOOKUPS_MONTH, f);
+    assert.match(read(f), /seller checks/i, f);
+  }
+});
+
 test("item 3: not a guarantee sits before PricingSection on home", () => {
   const page = read("src/app/page.tsx");
   const disc = page.indexOf("not a guarantee");
@@ -211,7 +225,10 @@ test("B-1: PasteCheck same-host and none states in source", () => {
   const paste = read("src/components/site/home/PasteCheck.tsx");
   assert.match(paste, /same_host_listings/);
   assert.match(paste, /This host has/);
-  assert.match(paste, /recorded listings/);
+  assert.match(paste, /\? "listing" : "listings"/);
+  assert.match(paste, /home_paste_submit/);
+  assert.match(paste, /home_result_state/);
+  assert.match(paste, /home_snippet_copy/);
   assert.match(paste, /vet402 has not paid this URL yet\. Run a live check:/);
   assert.match(paste, /\/api\/v1\/diagnose\?url=/);
   assert.match(paste, /pathSegments/);

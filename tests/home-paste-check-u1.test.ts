@@ -331,7 +331,8 @@ test("not_in_catalog and 503 and 429 messages", async () => {
   });
   await submit("https://api.example.com/not-in-catalog");
   const notCat = dom.window.document.body.textContent ?? "";
-  assert.match(notCat, /This host has 1 recorded listings/);
+  assert.match(notCat, /This host has 1 recorded listing\b/);
+  assert.doesNotMatch(notCat, /This host has 1 recorded listings/);
   assert.match(notCat, /\/v1\/quote/);
   assert.doesNotMatch(notCat, /No record yet/);
   assert.doesNotMatch(notCat, /Check before paying, one line/);
@@ -438,14 +439,20 @@ test("the live verdict line is screen-reader only, so the card's Verdict is the 
   unmount();
 });
 
-test("the same_host live line is screen-reader only too", async () => {
+test("same_host summary is visible once with singular listing copy", async () => {
   await act(async () => {
     root.render(React.createElement(PasteCheck, { cls }));
   });
   await submit("https://api.example.com/not-in-catalog");
-  const live = dom.window.document.querySelector('[aria-live="polite"] [data-testid="paste-live-verdict"]');
-  assert.ok(live);
-  assert.equal(live!.className, "sr-only");
-  assert.match(live!.textContent ?? "", /recorded listings/);
+  const block = dom.window.document.querySelector('[data-testid="paste-same-host"]');
+  assert.ok(block);
+  assert.equal(block!.getAttribute("aria-live"), "polite");
+  const summary = dom.window.document.querySelector('[data-testid="paste-same-host-summary"]');
+  assert.ok(summary);
+  assert.match(summary!.textContent ?? "", /This host has 1 recorded listing\b/);
+  const duplicateLive = [...dom.window.document.querySelectorAll('[data-testid="paste-live-verdict"]')].some((el) =>
+    /recorded listing/.test(el.textContent ?? ""),
+  );
+  assert.equal(duplicateLive, false, "live region must not repeat the visible same-host summary");
   unmount();
 });

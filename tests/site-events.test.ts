@@ -14,6 +14,8 @@ import {
   recordSiteEvent,
   shouldCount,
   sourceLabel,
+  homeResultStateSource,
+  HOME_RESULT_STATES,
 } from "@/lib/site-events";
 
 const ROOT = join(import.meta.dirname, "..");
@@ -45,6 +47,21 @@ test("pathGroup: dynamic patterns", () => {
   assert.equal(pathGroup("/payee/0xabc"), "/payee/[address]");
   assert.equal(pathGroup("/mystery-page"), "other");
   assert.ok(pathGroup(`/${"a".repeat(80)}`).length <= 64);
+});
+
+test("homeResultStateSource", () => {
+  for (const state of HOME_RESULT_STATES) {
+    assert.equal(homeResultStateSource(state), state);
+  }
+  assert.equal(homeResultStateSource("RECORD"), "record");
+  assert.equal(homeResultStateSource("evil"), null);
+  assert.equal(homeResultStateSource("https://evil"), null);
+});
+
+test("home paste events are in SITE_EVENTS", () => {
+  for (const name of ["home_paste_submit", "home_result_state", "home_snippet_copy"]) {
+    assert.ok(SITE_EVENTS.includes(name as (typeof SITE_EVENTS)[number]), name);
+  }
 });
 
 test("sourceLabel", () => {

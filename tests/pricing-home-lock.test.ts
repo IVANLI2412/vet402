@@ -21,8 +21,8 @@ const EXPECTED_PLANS = [
 
 const EXPECTED_INCLUDES: Record<(typeof EXPECTED_PLANS)[number]["key"], string> = {
   free: "REST, MCP and x402 middleware, TypeScript SDK",
-  pro: "Everything in Free, higher monthly lookup quota",
-  scale: "Everything in Pro, highest monthly lookup quota",
+  pro: "Everything in Free, higher monthly seller check quota",
+  scale: "Everything in Pro, highest monthly seller check quota",
 };
 
 const FORBIDDEN_INCLUDES_MARKETING =
@@ -30,7 +30,7 @@ const FORBIDDEN_INCLUDES_MARKETING =
 
 function assertHomePricingTable(html: string): void {
   const thead = html.match(/<thead>([\s\S]*?)<\/thead>/)?.[1] ?? "";
-  for (const label of ["Tier", "Price", "Lookups / month", "Includes"]) {
+  for (const label of ["Tier", "Price", "Seller checks / month", "Includes"]) {
     assert.match(thead, new RegExp(`>${label}<`));
   }
 
@@ -77,7 +77,7 @@ function assertHomePricingTable(html: string): void {
     throw new Error(`unexpected Includes column: ${includes.join(" | ")}`);
   }
 
-  const tableEnglish = [...parsed.flat(), "Tier", "Price", "Lookups / month", "Includes"].join(" ");
+  const tableEnglish = [...parsed.flat(), "Tier", "Price", "Seller checks / month", "Includes"].join(" ");
   if (FORBIDDEN_PUBLIC_ENGLISH.test(tableEnglish)) {
     throw new Error("forbidden public English in pricing table");
   }

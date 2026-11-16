@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-16 HOME (PMF85 r2): paste events, listing copy, seller-check wording, referral stats
+
+- What: PasteCheck emits first-party `home_paste_submit`, `home_result_state` (source column stores `record`, `same_host`, or `none` only), and `home_snippet_copy`. Same-host summary uses singular or plural listing copy once, with `aria-live` on the visible block only. Pricing table and JSON-LD on `/`, `/pricing`, `/signup`, and `/docs/api` say seller checks and seller check quota, not lookups. `GET /api/v1/stats/referrals?days=7` returns `page_view` counts by coarse referrer label (X visits roll up under `x` via existing PageViewBeacon referrer host mapping).
+- Why: PMF85 acceptance items I7, listing copy, D4 referrer counts, and consistent quota wording on public pricing surfaces.
+- Tests: `tests/site-events.test.ts`, `tests/site-referral-stats.test.ts`, `tests/home-paste-check-u1.test.ts`, `tests/pmf85-home-paste-states.test.ts`, `tests/pmf85-home-acceptance.test.ts`, `tests/pricing-home-lock.test.ts`.
+- Impact: No SQL migration (reuses `site_events_daily`). No change to `export.csv` columns or payment paths.
+
 ## 2026-11-16 revert funnel r2 seller check call (ae1199b4)
 
 - What: Reverts the buyer check `curl` on `/sellers/{host}`.

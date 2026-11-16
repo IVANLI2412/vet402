@@ -22,8 +22,8 @@ const PLAN_ORDER = ["free", "pro", "scale"] as const;
 
 const INCLUDES: Record<(typeof PLAN_ORDER)[number], string> = {
   free: "REST, MCP and x402 middleware, TypeScript SDK",
-  pro: "Everything in Free, higher monthly lookup quota",
-  scale: "Everything in Pro, highest monthly lookup quota",
+  pro: "Everything in Free, higher monthly seller check quota",
+  scale: "Everything in Pro, highest monthly seller check quota",
 };
 
 /**
@@ -76,7 +76,7 @@ export function PricingSection({
                 Price
               </th>
               <th scope="col" className="num">
-                Lookups / month
+                Seller checks / month
               </th>
               <th scope="col">Includes</th>
             </tr>
@@ -110,7 +110,7 @@ export function PricingSection({
               </dt>
               <dd className="mt-2 space-y-1 text-[0.84375rem] text-brand">
                 <p className="text-brand-deep">
-                  {plan.monthlyLimit.toLocaleString("en-US")} lookups / month
+                  {plan.monthlyLimit.toLocaleString("en-US")} seller checks / month
                 </p>
                 <p>{INCLUDES[id]}</p>
               </dd>

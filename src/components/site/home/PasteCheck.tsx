@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
+import { track } from "@/lib/analytics";
 import { reasonTextOf } from "@/lib/decision/reason-text";
 import { beforePaySnippets } from "@/lib/find/snippets";
 import { isPublicExplorerTxUrl } from "@/lib/observatory/chains";
@@ -136,6 +137,18 @@ function diagnoseCurlLine(raw: string): string {
 
 type PasteOutcome = "record" | "same_host" | "none";
 
+export function recordedListingsLine(count: number): string {
+  const noun = count === 1 ? "listing" : "listings";
+  return `This host has ${count} recorded ${noun}.`;
+}
+
+function pasteOutcomeOf(check: CheckBody | null): PasteOutcome | null {
+  if (!check) return null;
+  if (!check.not_in_catalog) return "record";
+  if ((check.same_host_listings?.length ?? 0) > 0) return "same_host";
+  return "none";
+}
+
 function sameUtcSecond(a: string, b: string): boolean {
   const ta = Math.floor(new Date(a).getTime() / 1000);
   const tb = Math.floor(new Date(b).getTime() / 1000);
@@ -255,6 +268,8 @@ export function PasteCheck({
         return;
       }
 
+      track("home_paste_submit", { r: "internal" });
+
       abortRef.current?.abort();
       const ac = new AbortController();
       abortRef.current = ac;
@@ -288,6 +303,10 @@ export function PasteCheck({
           setCheck(checkOut.body);
           setCheckErr(checkOut.err);
           setPhase("result");
+          if (!checkOut.err && checkOut.body) {
+            const outcomeState = pasteOutcomeOf(checkOut.body);
+            if (outcomeState) track("home_result_state", { r: outcomeState });
+          }
           return checkOut;
         });
 
@@ -323,6 +342,7 @@ export function PasteCheck({
     if (!text || !navigator.clipboard?.writeText) return;
     void navigator.clipboard.writeText(text).then(
       () => {
+        track("home_snippet_copy", { r: "internal" });
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       },
@@ -398,10 +418,6 @@ export function PasteCheck({
               <p className="sr-only" data-testid="paste-live-verdict">
                 Verdict {verdict}
               </p>
-            ) : outcome === "same_host" && sameHostListings ? (
-              <p className="sr-only" data-testid="paste-live-verdict">
-                This host has {sameHostListings.length} recorded listings.
-              </p>
             ) : outcome === "none" ? (
               <p className="sr-only" data-testid="paste-live-verdict">
                 vet402 has not paid this URL yet.
@@ -410,10 +426,11 @@ export function PasteCheck({
           </div>
           <div className={s.pasteResult}>
             {phase === "result" && outcome === "same_host" && sameHostListings ? (
-              <div className={s.pasteBlock} data-testid="paste-same-host">
-                <p>
+              <div className={s.pasteBlock} data-testid="paste-same-host" aria-live="polite">
+                <p data-testid="paste-same-host-summary">
                   This host has{" "}
-                  <span className={s.mono}>{sameHostListings.length}</span> recorded listings
+                  <span className={s.mono}>{sameHostListings.length}</span> recorded{" "}
+                  {sameHostListings.length === 1 ? "listing" : "listings"}.
                 </p>
                 <ul className={s.pasteAltList}>
                   {sameHostListings.slice(0, 3).map((row) => {

@@ -134,7 +134,7 @@ export default async function Home() {
         name: BILLING_PLANS.free.name,
         price: "0",
         priceCurrency: "USD",
-        description: `${BILLING_PLANS.free.monthlyLimit.toLocaleString()} lookups / month`,
+        description: `${BILLING_PLANS.free.monthlyLimit.toLocaleString()} seller checks / month`,
       },
       ...(isStripeConfigured()
         ? [
@@ -143,14 +143,14 @@ export default async function Home() {
               name: BILLING_PLANS.pro.name,
               price: "49",
               priceCurrency: "USD",
-              description: `${BILLING_PLANS.pro.monthlyLimit.toLocaleString()} lookups / month`,
+              description: `${BILLING_PLANS.pro.monthlyLimit.toLocaleString()} seller checks / month`,
             },
             {
               "@type": "Offer",
               name: BILLING_PLANS.scale.name,
               price: "199",
               priceCurrency: "USD",
-              description: `${BILLING_PLANS.scale.monthlyLimit.toLocaleString()} lookups / month`,
+              description: `${BILLING_PLANS.scale.monthlyLimit.toLocaleString()} seller checks / month`,
             },
           ]
         : []),

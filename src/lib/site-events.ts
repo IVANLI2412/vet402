@@ -57,7 +57,22 @@ export const SITE_EVENTS = [
   "entry_before_pay",
   "entry_while_pay",
   "entry_after_pay",
+  "home_paste_submit",
+  "home_result_state",
+  "home_snippet_copy",
 ] as const;
+
+/** home_result_state: stored in `source` (state word only, not a referrer host). */
+export const HOME_RESULT_STATES = ["record", "same_host", "none"] as const;
+export type HomeResultState = (typeof HOME_RESULT_STATES)[number];
+
+const HOME_RESULT_STATE_SET: ReadonlySet<string> = new Set(HOME_RESULT_STATES);
+
+export function homeResultStateSource(raw: string | null | undefined): HomeResultState | null {
+  const s = (raw ?? "").trim().toLowerCase();
+  if (HOME_RESULT_STATE_SET.has(s)) return s as HomeResultState;
+  return null;
+}
 
 export type SiteEventName = (typeof SITE_EVENTS)[number];
 

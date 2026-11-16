@@ -1,5 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { pathGroup, recordSiteEvent, shouldCount, sourceLabel } from "@/lib/site-events";
+import {
+  homeResultStateSource,
+  pathGroup,
+  recordSiteEvent,
+  shouldCount,
+  sourceLabel,
+} from "@/lib/site-events";
 
 const MAX_BODY = 512;
 
@@ -28,16 +34,25 @@ export async function POST(request: NextRequest) {
     return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
   }
 
-  let refHost: string | undefined;
-  if (typeof body.r === "string") {
-    const r = body.r.trim().slice(0, 253);
-    if (r && /^[a-z0-9.-]+$/i.test(r)) refHost = r;
+  const refRaw = typeof body.r === "string" ? body.r.trim().slice(0, 253) : "";
+
+  let source: string;
+  if (event === "home_result_state") {
+    const state = homeResultStateSource(refRaw);
+    if (!state) {
+      return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
+    }
+    source = state;
+  } else {
+    let refHost: string | undefined;
+    if (refRaw && /^[a-z0-9.-]+$/i.test(refRaw)) refHost = refRaw;
+    source = sourceLabel(refHost);
   }
 
   recordSiteEvent({
     event,
     path: pathGroup(pathRaw),
-    source: sourceLabel(refHost),
+    source,
   });
 
   return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });

@@ -104,7 +104,8 @@ test("B-1: biorxiv host top shows /v1/biorxiv-details row without No record yet"
   });
   await submit(BIORXIV_HOME);
   const text = dom.window.document.body.textContent ?? "";
-  assert.match(text, /This host has 1 recorded listings/);
+  assert.match(text, /This host has 1 recorded listing\b/);
+  assert.doesNotMatch(text, /This host has 1 recorded listings/);
   assert.match(text, /\/v1\/biorxiv-details/);
   assert.match(text, /POST/);
   assert.doesNotMatch(text, /No record yet/);
@@ -234,7 +235,7 @@ test("B-1: same-host with failed find and no path match omits the Alternatives h
   });
   await submit("https://host.example/");
   const text = dom.window.document.body.textContent ?? "";
-  assert.match(text, /This host has 1 recorded listings/);
+  assert.match(text, /This host has 1 recorded listing\b/);
   assert.doesNotMatch(text, /Alternatives that delivered more often/);
   unmount();
 });

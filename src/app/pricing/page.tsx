@@ -4,7 +4,7 @@ import { pageMetadata } from "@/lib/seo";
 
 const TITLE = "vet402 pricing: free x402 seller checks, paid limits";
 const DESCRIPTION =
-  "vet402 access tiers: free x402 seller checks with a monthly quota, and paid plans with higher lookup limits.";
+  "vet402 access tiers: free x402 seller checks with a monthly quota, and paid plans with higher seller check limits.";
 
 export const metadata: Metadata = {
   ...pageMetadata({
