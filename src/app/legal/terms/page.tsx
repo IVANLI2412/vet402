@@ -69,28 +69,28 @@ export default async function TermsPage() {
             <span>Instrument: terms of service</span>
             <span>
               {/* この頁のシアン1点。改訂日という事実。 */}
-              Revision: <span className="text-signal">September 29, 2026</span>
+              Revision: <span className="text-signal">November 16, 2026</span>
             </span>
           </div>
           <div className="doc-head-col">
             <span>vet402</span>
             <span>x402 Economy</span>
-            <span>September 2026</span>
+            <span>November 16, 2026</span>
           </div>
         </div>
         <h1 className="doc-title mt-8">Terms of Service</h1>
         <div className="rule-double mx-auto mt-6 w-full max-w-[34ch]" />
-        <p className="doc-note text-center">Last updated: November 2, 2026</p>
+        <p className="doc-note text-center">Last updated: November 16, 2026</p>
 
         <section className="space-y-2">
           <h2 className="sec-head">
             <span className="sec-no">0.</span>
-            <span>Business use only</span>
+            <span>Who can use vet402</span>
           </h2>
           <p>
-            vet402 (formerly Vouch) is offered for business-to-business (B2B) use by agent and service operators
-            integrating its measurements and scores into their own products. It is not marketed or sold to
-            consumers for personal use. See our{" "}
+            vet402 (formerly Vouch) publishes measurements and scores for agent and service operators who
+            integrate them into their own products. Anyone can create a free account. Paid plans are for business use; where consumer law applies, it prevails.
+            See the{" "}
             <a className="doc-link" href="/legal/notice">
               Legal Notice
             </a>{" "}
@@ -377,8 +377,8 @@ export default async function TermsPage() {
             Nothing in these terms limits or excludes liability that cannot be limited or excluded
             under the law that applies to you — including liability for fraud or fraudulent
             misrepresentation, for our own intentional misconduct or gross negligence, or for death
-            or personal injury. vet402 is offered for business use only (section 0), so this section
-            is written for a business counterparty rather than a consumer; if mandatory
+            or personal injury. Section 0 allows anyone a free account and treats paid plans as for
+            business use. This section is written with paid business use in mind. If mandatory
             consumer-protection rules nonetheless apply to you, they apply whether or not this
             document says so, and this section takes effect only as far as those rules allow.
           </p>
@@ -418,9 +418,9 @@ export default async function TermsPage() {
           <p>
             For any dispute that reaches a court, the Japanese district court with jurisdiction over
             the operator&apos;s principal place of business will be the exclusive court of first
-            instance. vet402 is a B2B service (section 0), so this is written as a
-            business-to-business venue clause and there is no consumer carve-out; if you are
-            somehow using vet402 in a capacity where mandatory local rules give you a forum in your
+            instance. Section 0 allows anyone a free account and treats paid plans as for business
+            use. This clause is written with paid business use in mind. If you are somehow using
+            vet402 in a capacity where mandatory local rules give you a forum in your
             own country, those rules apply on their own terms regardless of this clause. If you need
             to know the specific court by name before you can approve vet402 internally, ask us by
             email and we will tell you in writing.
@@ -444,7 +444,7 @@ export default async function TermsPage() {
             that means the updated terms apply. If any part of these terms turns out to be
             unenforceable, the rest stays in force and that part is read as narrowly as needed to
             make it valid. If we do not enforce something immediately, we have not given it up.
-            Sections 5 through 11, and sections 13 through 15, survive after you stop using the
+            Sections 5 through 11, and sections 13 through 16, survive after you stop using the
             service. Together with the{" "}
             <a className="doc-link" href="/legal/privacy">
               Privacy Policy
@@ -645,10 +645,10 @@ export default async function TermsPage() {
             <span>Paid subscriptions</span>
           </h2>
           <p>
-            Paid plans raise the monthly lookup quota on the score API. They are business-to-business
-            subscriptions billed after an API key exists, from the dashboard, in US dollars via
-            Stripe. Public pages — the observatory and the payee lookup — stay free and do not
-            require a key.
+            Paid plans raise the monthly lookup quota on the score API. Paid plans are for business use,
+            and where consumer law applies, it prevails. They are billed after an API key exists, from
+            the dashboard, in US dollars via Stripe. Public pages — the observatory and the payee lookup —
+            stay free and do not require a key.
           </p>
           <p>
             <strong>What you buy.</strong> A month of the stated lookup quota for that plan, shared

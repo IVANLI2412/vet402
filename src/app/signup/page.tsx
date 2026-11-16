@@ -253,6 +253,12 @@ export default function SignupPage() {
           The observatory, a resource decision, and payee lookup stay public without one.
           Free: 1,000 score lookups a month. No card.
         </p>
+        <p className="mx-auto mt-3 max-w-[56ch] text-center text-[0.84375rem] text-brand">
+          Anyone can create a free account. Paid plans are for business use; where consumer law applies, it prevails.{" "}
+          <Link href="/legal/terms" className="doc-link">
+            Terms of Service
+          </Link>
+        </p>
         <div className="rule-double mx-auto mt-6 w-full max-w-[34ch]" />
 
       {/* 2026-08-06 (UX audit item 7): this form now submits with or without

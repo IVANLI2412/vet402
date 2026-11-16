@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-16 PMF85 legal copy (terms §0, signup, privacy Clarity and weekly key-less counts)
+
+- What: Terms §0 is retitled "Who can use vet402" with the PMF85 free-account and paid-business sentences (duplicate B2B-only line removed). Terms §9, §11, and §16 cross-references match §0 (free for anyone, paid for business, consumer law prevails when it applies). Signup shows the same pair with a link to `/legal/terms`. Privacy adds `c.bing.com` for Clarity, "Weekly key-less caller counts" (H-2: weekly salt rotation, hash with current and previous week salt for cross-week tally, UTC calendar date only for multi-day count, three hash-free aggregates kept without expiry, `client_usage_daily` rows hold no raw IP or UA or hash, erasure deletes all matching rows and recounts), separate GDPR legitimate-interest bullet, retention, erasure note), and terms §12 survival now includes §16 (Paid subscriptions). Revision and Last updated on both legal pages are November 16, 2026.
+- Why: Align public legal text with free signup, Clarity CSP (`c.bing.com`), and the weekly key-less caller metric before PMF85 sign-off.
+- Tests: `tests/legal-pmf85-1116.test.ts`; date lines in `tests/clarity-consent.test.ts` and `tests/legal-r4-disclosures.test.ts`.
+- Impact: Copy and tests only. No API, CSP, or database behavior changes in this entry.
+
 ## 2026-11-16 PMF85 r3 (二巡目): monthly quota is score lookups, seller checks stay keyless
 
 - What: Public pricing, home JSON-LD, signup, docs API quickstart, and FAQ name the monthly BILLING_PLANS quota score lookups again. PricingSection adds a line that seller checks at GET /api/v1/check need no key and do not count against the monthly quota.
