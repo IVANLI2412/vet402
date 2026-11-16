@@ -66,6 +66,19 @@ export function newestDeliveredPurchase(
   return candidates[0]!;
 }
 
+/** 評判頁の通知リンク先: 全出品のうち、いちばん新しい届いた購入の記録 endpoint id。 */
+export function latestDeliveredRecordId(detail: SellerDetail): string | null {
+  let best: { attemptedAt: string; endpointId: string } | null = null;
+  for (const l of deliveredListings(detail)) {
+    const row = newestDeliveredPurchase(l);
+    if (!row) continue;
+    if (!best || row.attemptedAt > best.attemptedAt) {
+      best = { attemptedAt: row.attemptedAt, endpointId: l.endpointId };
+    }
+  }
+  return best?.endpointId ?? null;
+}
+
 function otherChainBlocksReputation(l: SellerListing): boolean {
   const other = l.otherChain;
   const base = l.latest;

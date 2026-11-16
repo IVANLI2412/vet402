@@ -68,7 +68,8 @@ export default function robots(): MetadataRoute.Robots {
     // データ源の全ホスト、lastmod は各売り手の最新の購入）。
     // 2026-09-29 敵対的監査: 売り手頁の「どちら側の失敗か」に誤りが見つかったため、直すまで
     // 売り手の sitemap を外す（/sitemap-sellers.xml 自体は残す。戻すときはここに足すだけ）。
-    sitemap: [`${SITE_URL}/sitemap.xml`, `${SITE_URL}/sitemap-observatory.xml`],
+    // 2026-11-16: sitemap-sellers は全部届いた売り手の評判頁50件だけになった（失敗のある売り手は noindex）ので戻す
+    sitemap: [`${SITE_URL}/sitemap.xml`, `${SITE_URL}/sitemap-observatory.xml`, `${SITE_URL}/sitemap-sellers.xml`],
     host: SITE_URL,
   };
 }

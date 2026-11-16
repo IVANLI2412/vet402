@@ -1,7 +1,17 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import robots from "@/app/robots";
 import sitemap from "@/app/sitemap";
 import { getAllPosts } from "@/lib/blog";
+import { SITE_URL } from "@/lib/site-url";
+
+test("robots lists three sitemap URLs", () => {
+  const maps = Array.isArray(robots().sitemap) ? robots().sitemap! : [robots().sitemap];
+  assert.equal(maps.length, 3);
+  assert.ok(maps.includes(`${SITE_URL}/sitemap.xml`));
+  assert.ok(maps.includes(`${SITE_URL}/sitemap-observatory.xml`));
+  assert.ok(maps.includes(`${SITE_URL}/sitemap-sellers.xml`));
+});
 
 test("sitemap includes the observatory entry points", async () => {
   const urls = (await sitemap()).map((entry) => entry.url);

@@ -230,7 +230,7 @@ export default function SignupPage() {
       <article className="sheet">
         <div className="doc-head doc-head-compact">
           <div className="doc-head-col">
-            <span>Access request</span>
+            <span>Free API key</span>
             <span>
               {/* この頁のシアン1点。無料枠という事実。 */}
               Tier: <span className="text-signal">Free — 1,000 seller checks / month</span>

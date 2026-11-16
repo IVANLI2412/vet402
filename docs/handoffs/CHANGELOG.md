@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-16 PMF85 r3: paste a11y, signup eyebrow, observatory network, sellers sitemap, home title, record alerts
+
+- What: PasteCheck announces same-host listing counts in the standing `aria-live` region and drops `aria-live` from the visible same-host block. Signup eyebrow reads Free API key. Observatory network filter keeps `eip155:8453` placeholder visible on narrow viewports. robots.txt lists three sitemaps again (sitemap-sellers.xml). Home `pageMetadata` title matches the H1 job statement. Reputation seller pages link to the latest delivered record for email alerts.
+- Why: PMF85 r3 acceptance: accessible paste results without double announcement, signup clarity, filter UX, SEO sitemap recovery, title alignment, and a path from reputation pages to RecordSubscribe.
+- Tests: `tests/home-paste-check-u1.test.ts`, `tests/pmf85-pages-seo.test.ts`, `tests/pmf85-pages-reputation.test.ts`, `tests/sitemap.test.ts`, `tests/seo-technical-gaps.test.ts`.
+- Impact: No SQL or DATABASE_URL changes. Payment, legal, and privacy surfaces unchanged.
+
 ## 2026-11-16 HOME (PMF85 r2): paste events, listing copy, seller-check wording, referral stats
 
 - What: PasteCheck emits first-party `home_paste_submit`, `home_result_state` (source column stores `record`, `same_host`, or `none` only), and `home_snippet_copy`. Same-host summary uses singular or plural listing copy once, with `aria-live` on the visible block only. Pricing table and JSON-LD on `/`, `/pricing`, `/signup`, and `/docs/api` say seller checks and seller check quota, not lookups. `GET /api/v1/stats/referrals?days=7` returns `page_view` counts by coarse referrer label (X visits roll up under `x` via existing PageViewBeacon referrer host mapping).

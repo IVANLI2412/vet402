@@ -8,6 +8,7 @@ import { paymentChainLabel } from "@/lib/observatory/chains";
 import {
   deliveredListings,
   getReputationHostsCached,
+  latestDeliveredRecordId,
   newestDeliveredPurchase,
   reputationPageEligible,
   reputationSellerPath,
@@ -48,6 +49,7 @@ export function ReputationSellerArticle({ detail, nonce }: { detail: SellerDetai
   const host = detail.host;
   const listings = deliveredListings(detail);
   const n = listings.length;
+  const latestRecordId = latestDeliveredRecordId(detail);
   const asOf = detail.fetchedAt.slice(0, 10);
   const path = reputationSellerPath(host);
   const breadcrumb = breadcrumbJsonLd([
@@ -94,6 +96,16 @@ export function ReputationSellerArticle({ detail, nonce }: { detail: SellerDetai
               </tbody>
             </table>
           </TableScroll>
+        ) : null}
+
+        {latestRecordId ? (
+          <p className="doc-p mt-8">
+            Get an email when this record changes:{" "}
+            <Link href={`/observatory/e/${latestRecordId}`} className="underline">
+              open the latest record and use the alert form
+            </Link>
+            .
+          </p>
         ) : null}
 
         <p className="doc-p mt-8 text-brand-lift">Records are measurements, not a guarantee.</p>

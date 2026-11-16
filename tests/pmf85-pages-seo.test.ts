@@ -160,3 +160,24 @@ test("OG 画像が在る（pageMetadata 経由の頁）", () => {
   const appRoute = join(ROOT, "src/app", rel);
   assert.ok(existsSync(alt) || existsSync(appRoute), `missing OG at public or src/app for ${OG_IMAGE_PATH}`);
 });
+
+test("home metadata title matches H1 job statement", () => {
+  const src = read("src/app/page.tsx");
+  assert.match(
+    src,
+    /title:\s*"Know if an x402 seller delivers before your agent pays \| vet402"/,
+  );
+  assert.doesNotMatch(src, /verify x402 payments for AI agents/);
+});
+
+test("signup eyebrow says Free API key, not Access request", () => {
+  const src = read("src/app/signup/page.tsx");
+  assert.match(src, />Free API key</);
+  assert.doesNotMatch(src, /Access request/);
+});
+
+test("observatory network field keeps full eip155:8453 placeholder width at 360px", () => {
+  const src = read("src/app/observatory/page.tsx");
+  assert.match(src, /placeholder="eip155:8453"/);
+  assert.match(src, /min-w-\[13ch\]/);
+});

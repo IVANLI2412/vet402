@@ -213,14 +213,14 @@ export default async function ObservatoryPage({
                 <option value="withdrawn">withdrawn</option>
               </select>
             </label>
-            <label className="block min-w-0 flex-1 text-[0.84375rem] sm:min-w-[16ch] sm:flex-none">
+            <label className="block min-w-[13ch] flex-1 text-[0.84375rem] sm:min-w-[16ch] sm:flex-none">
               <span className="doc-caption block">Network</span>
               <input
                 data-clarity-mask="true"
                 name="network"
                 defaultValue={query.network ?? ""}
                 placeholder="eip155:8453"
-                className="doc-input mt-1 max-sm:text-[1.0625rem]"
+                className="doc-input mt-1 w-full min-w-[13ch] max-sm:text-[1.0625rem]"
               />
             </label>
             {/* 2026-08-23 UX: underline のテキストリンクに見えており、フィルタを

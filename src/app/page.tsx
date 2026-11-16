@@ -18,7 +18,7 @@ import { PasteCheck } from "@/components/site/home/PasteCheck";
 import s from "./home.module.css";
 
 export const metadata = pageMetadata({
-  title: "vet402: verify x402 payments for AI agents",
+  title: "Know if an x402 seller delivers before your agent pays | vet402",
   description:
     "vet402 pays x402 sellers with its own money and publishes what came back. Paste a URL to see the record. Settlement assets include USDC.",
   path: "/",

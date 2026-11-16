@@ -116,8 +116,8 @@ test("robots は静的 sitemap と endpoint sitemap の両方を指す", () => {
   const sitemaps = Array.isArray(r.sitemap) ? r.sitemap : [r.sitemap];
   assert.ok(sitemaps.includes(`${SITE_URL}/sitemap.xml`));
   assert.ok(sitemaps.includes(`${SITE_URL}/sitemap-observatory.xml`));
-  // 2026-09-29: 帰属の見直しが済むまで売り手の sitemap は robots から外す（戻すときはこの行を includes に戻す）。
-  assert.ok(!sitemaps.includes(`${SITE_URL}/sitemap-sellers.xml`), "売り手頁の sitemap は見直し中は出さない（2026-09-29）");
+  assert.ok(sitemaps.includes(`${SITE_URL}/sitemap-sellers.xml`), "売り手評判頁の sitemap（2026-11-16 pmf85 r3）");
+  assert.equal(sitemaps.length, 3);
 });
 
 test("公開の読み取り API は * と AI クローラに名指しで開け、書き込みと配下は閉じたまま（2026-10-26）", () => {

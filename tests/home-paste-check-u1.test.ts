@@ -446,13 +446,13 @@ test("same_host summary is visible once with singular listing copy", async () =>
   await submit("https://api.example.com/not-in-catalog");
   const block = dom.window.document.querySelector('[data-testid="paste-same-host"]');
   assert.ok(block);
-  assert.equal(block!.getAttribute("aria-live"), "polite");
+  assert.equal(block!.getAttribute("aria-live"), null);
   const summary = dom.window.document.querySelector('[data-testid="paste-same-host-summary"]');
   assert.ok(summary);
   assert.match(summary!.textContent ?? "", /This host has 1 recorded listing\b/);
-  const duplicateLive = [...dom.window.document.querySelectorAll('[data-testid="paste-live-verdict"]')].some((el) =>
-    /recorded listing/.test(el.textContent ?? ""),
-  );
-  assert.equal(duplicateLive, false, "live region must not repeat the visible same-host summary");
+  const liveVerdicts = [...dom.window.document.querySelectorAll('[data-testid="paste-live-verdict"]')];
+  assert.equal(liveVerdicts.length, 1);
+  assert.match(liveVerdicts[0]!.textContent ?? "", /This host has 1 recorded listing\b/);
+  assert.ok(liveVerdicts[0]!.closest('[aria-live="polite"]'));
   unmount();
 });

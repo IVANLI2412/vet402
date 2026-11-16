@@ -422,11 +422,16 @@ export function PasteCheck({
               <p className="sr-only" data-testid="paste-live-verdict">
                 vet402 has not paid this URL yet.
               </p>
+            ) : outcome === "same_host" && sameHostListings ? (
+              <p className="sr-only" data-testid="paste-live-verdict">
+                This host has {sameHostListings.length} recorded{" "}
+                {sameHostListings.length === 1 ? "listing" : "listings"}.
+              </p>
             ) : null}
           </div>
           <div className={s.pasteResult}>
             {phase === "result" && outcome === "same_host" && sameHostListings ? (
-              <div className={s.pasteBlock} data-testid="paste-same-host" aria-live="polite">
+              <div className={s.pasteBlock} data-testid="paste-same-host">
                 <p data-testid="paste-same-host-summary">
                   This host has{" "}
                   <span className={s.mono}>{sameHostListings.length}</span> recorded{" "}

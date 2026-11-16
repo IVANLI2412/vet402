@@ -6,6 +6,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   REPUTATION_FORBIDDEN_WORDS,
+  latestDeliveredRecordId,
   newestDeliveredPurchase,
   reputationBodyLowercase,
   reputationDetailEligible,
@@ -180,6 +181,24 @@ test("評判ページ描画 HTML に禁止語が 0 件", () => {
   const html = renderToStaticMarkup(createElement(ReputationSellerArticle, { detail }));
   assert.deepEqual(htmlForbiddenCount(html), []);
   assert.match(html, /At each of the 2 listings/);
+  assert.match(html, /Get an email when this record changes:/);
+  assert.match(html, /href="\/observatory\/e\/e1"/);
+  assert.match(html, />open the latest record and use the alert form</);
+});
+
+test("latestDeliveredRecordId: 全出品のうちいちばん新しい届いた購入の endpoint id", () => {
+  const d = eligibleDetail();
+  assert.equal(latestDeliveredRecordId(d), "e1");
+  const newer = buildSellerDetail(
+    "shop.example",
+    [
+      { endpointId: "e1", resourceKey: "shop.example/api", resourceUrl: "https://shop.example/api", method: "GET", priceAmount: "1" },
+      { endpointId: "e2", resourceKey: "shop.example/v1", resourceUrl: "https://shop.example/v1", method: "GET", priceAmount: "1" },
+    ],
+    [delivered, { ...delivered, endpointId: "e2", attemptedAt: "2026-11-20T00:00:00Z" }],
+    "2026-11-20T00:00:00Z",
+  );
+  assert.equal(latestDeliveredRecordId(newer), "e2");
 });
 
 test("詳細が不適格なとき page は reputationPageEligible", () => {
@@ -249,6 +268,8 @@ test("newestDeliveredPurchase: 他チェーンの届いた購入が Base より�
   const html = renderToStaticMarkup(createElement(ReputationSellerArticle, { detail: d }));
   assert.match(html, /2026-11-18 00:00/);
   assert.match(html, />BNB Chain</);
+  assert.match(html, /href="\/observatory\/e\/e1"/);
+  assert.equal(latestDeliveredRecordId(d), "e1");
 });
 
 test("404 本文に評判禁止語は無い", () => {
