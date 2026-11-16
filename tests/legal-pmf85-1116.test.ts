@@ -40,10 +40,10 @@ const NEW_SNIPPETS = [
   ),
   sliceBetween(privacySrc, "Weekly key-less caller counts", "Keyed decision counts"),
   sliceBetween(privacySrc, "weekly key-less caller counts. The", "Legal obligation"),
-  sliceBetween(privacySrc, "For weekly key-less caller counts, the pseudonymized", "Key-less API call counts"),
+  sliceBetween(privacySrc, "For weekly key-less caller counts, the pseudonymized digests", "Key-less API call counts"),
   sliceBetween(
     privacySrc,
-    "For weekly key-less caller counts, while the salt",
+    "For weekly key-less caller counts, vet402 does not store",
     "To exercise any of these, email",
   ),
   sliceBetween(privacySrc, 'id="session-analytics"', 'id="privacy-choices"'),
@@ -103,25 +103,28 @@ test("privacy: weekly key-less caller counts (H-2)", () => {
   assert.match(privacy, /secret salt/);
   assert.match(privacy, /replaced every week/);
   assert.match(privacy, /sha256\(salt \+ IP address \+ User-Agent\)/);
-  assert.match(privacy, /IP address and User-Agent.*not stored/);
-  assert.match(privacy, /end of the following week/);
-  assert.match(privacy, /deletes that week.*values and salt/);
+  assert.match(privacy, /IP address and User-Agent are not stored/);
+  assert.match(privacy, /closes a UTC week/);
+  assert.match(privacy, /deletes that week.*salt, digests, and carry bits/);
+  assert.match(privacy, /Only three counts remain/);
   assert.match(privacy, /how many distinct callers/);
-  assert.match(privacy, /2 or more days/);
-  assert.match(privacy, /called the key-less API the previous week/);
-  assert.match(privacy, /hashes the same IP address and User-Agent with the previous week/);
-  assert.match(privacy, /UTC calendar date/);
+  assert.match(privacy, /2 or more UTC days/);
+  assert.match(privacy, /also calling the key-less API the previous week/);
+  assert.match(privacy, /bloom-filter positions carried from the prior week/);
+  assert.match(privacy, /does not keep the previous week.*salt/);
+  assert.match(privacy, /UTC calendar dates/);
   assert.doesNotMatch(privacy, /uses the IP address only for rate limiting/i);
-  assert.match(privacy, /IP address is not stored for these counts/);
+  assert.doesNotMatch(privacy, /hashes the same IP address and User-Agent with the previous week/);
 });
 
-test("privacy: weekly key-less erasure recounts aggregates (H-2)", () => {
+test("privacy: weekly key-less erasure states no stored IP or UA (H-2)", () => {
   const block = squash(
-    sliceBetween(privacySrc, "For weekly key-less caller counts, while the salt", "To exercise any of these, email"),
+    sliceBetween(privacySrc, "For weekly key-less caller counts, vet402 does not store", "To exercise any of these, email"),
   );
-  assert.match(block, /delete every row that matches that value/);
-  assert.match(block, /recounts that week.*three counts/);
-  assert.match(block, /hold no hash and are kept without an expiry date/);
+  assert.match(block, /does not store an IP address or User-Agent/);
+  assert.match(block, /only the three aggregate counts for that week remain/);
+  assert.match(block, /cannot be linked to a particular caller/);
+  assert.doesNotMatch(block, /delete every row/);
 });
 
 test("terms §16: aligned with §0; not business-to-business subscriptions", () => {

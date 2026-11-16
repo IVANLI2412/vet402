@@ -2153,30 +2153,30 @@ claims:
   - id: privacy_weekly_keyless_caller_counts_salt_replaced_every_week
     surface: src/app/legal/privacy/page.tsx
     quote: "secret salt that is replaced every week"
-    means: "鍵なし API 呼び出しの週次集計（H-2）で、照合用の秘密ソルトは毎週新しい値に入れ替える"
+    means: "鍵なし API 呼び出しの週次集計（H-2）で、照合用の秘密ソルトは毎週新しい値に入れ替え、週を閉じると消す"
     check: null
-    why_unverifiable: "サーバの中の処理の記述で公開 GET では確かめられない。実装は pmf85 の API 担当（H-1）が別ブランチで作る。実装が main に入るまで本番に出さない。入ったら根拠のコードと試験をここに書く"
+    why_unverifiable: "サーバの中の処理の記述で公開 GET では確かめられない。根拠は src/lib/api/keyless-callers.ts の ensureWeekSalt・src/lib/api/keyless-callers-close.ts の週次 DELETE FROM keyless_week_salts。tests/keyless-callers.pg.test.ts が週次クローズでソルト消去を固定する"
     verified_at: 2026-11-16
   - id: privacy_weekly_keyless_caller_counts_retention_only_three
     surface: src/app/legal/privacy/page.tsx
-    quote: "the end of the following week only, then vet402 deletes that week&apos;s values and salt. Only three counts per week remain"
-    means: "週次の疑似名値とソルトは翌週末までだけ保持し、その後は消す。残るのは週あたり 3 種類の件数（ユニーク呼び手・週内 2 日以上・前週も呼んだ人）だけ"
+    quote: "When vet402 closes a UTC week it deletes that week&apos;s salt, digests, and carry bits for that week. Only three counts remain"
+    means: "UTC 週を閉じるとその週のソルト・ダイジェスト・carry bits を消し、週あたり 3 種類の件数（ユニーク呼び手・週内 2 UTC 日以上・前週も呼んだとマークされた人）だけが keyless_caller_weekly に残る"
     check: null
-    why_unverifiable: "サーバの中の処理の記述で公開 GET では確かめられない。実装は pmf85 の API 担当（H-1）が別ブランチで作る。実装が main に入るまで本番に出さない。入ったら根拠のコードと試験をここに書く"
+    why_unverifiable: "サーバの中の処理の記述で公開 GET では確かめられない。根拠は src/lib/api/keyless-callers-close.ts の closeCompletedKeylessWeeks。tests/keyless-callers.pg.test.ts が週次クローズで行とソルト削除と 3 件数保存を固定する"
     verified_at: 2026-11-16
-  - id: privacy_weekly_keyless_caller_counts_erasure_delete_every_row
+  - id: privacy_weekly_keyless_caller_counts_bloom_carry_not_prior_salt
     surface: src/app/legal/privacy/page.tsx
-    quote: "delete every row that matches that value"
-    means: "週次鍵なし呼び手集計について、当該週のソルトがまだある間は、提示された IP と User-Agent から同じ疑似名値を計算し、一致する行をすべて削除してから 3 件数を再集計できる"
+    quote: "does not keep the previous week&apos;s salt"
+    means: "前週からの再来判定は Bloom の bit 位置だけを次週の keyless_carry_bits に書き、前週のソルトは持ち越さない"
     check: null
-    why_unverifiable: "サーバの中の処理の記述で公開 GET では確かめられない。実装は pmf85 の API 担当（H-1）が別ブランチで作る。実装が main に入るまで本番に出さない。入ったら根拠のコードと試験をここに書く"
+    why_unverifiable: "サーバの中の処理の記述で公開 GET では確かめられない。根拠は src/lib/api/keyless-callers.ts の insertCarryBits・carryBitsPresent。tests/keyless-callers.pg.test.ts の returning callers が carry を固定する"
     verified_at: 2026-11-16
   - id: privacy_weekly_keyless_caller_counts_erasure_only_three_remain
     surface: src/app/legal/privacy/page.tsx
-    quote: "only the three counts for that week remain"
-    means: "週次の疑似名値とソルトを消した後も、当該週の 3 件数だけは期限なく残る（ハッシュは含まない）"
+    quote: "only the three aggregate counts for that week remain"
+    means: "週を閉じた後は当該週の 3 件数だけが残り、ハッシュは含まず特定の呼び手に結び付けられない（IP と UA は元から保存しない）"
     check: null
-    why_unverifiable: "サーバの中の処理の記述で公開 GET では確かめられない。実装は pmf85 の API 担当（H-1）が別ブランチで作る。実装が main に入るまで本番に出さない。入ったら根拠のコードと試験をここに書く"
+    why_unverifiable: "ポリシー上の事実の記述。根拠は keyless-callers-close の削除と keyless_caller_weekly の 3 列のみ。tests/keyless-callers.pg.test.ts が IP/UA 列の不在を固定する"
     verified_at: 2026-11-16
   # 2026-10-21: public/llms.txt を走査に加えた。抽出器は .txt を TSX として読み、バッククォートを文字列の境界にするため、断定は文ではなく断片になる。引用はその断片とファイルの両方にある短い範囲。
   - id: llms_levels_l0_span

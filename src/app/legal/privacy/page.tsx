@@ -162,21 +162,16 @@ export default async function PrivacyPage() {
             </li>
             <li>
               <strong>Weekly key-less caller counts</strong>: for key-less API requests, vet402 uses a
-              secret salt that is replaced every week. vet402 starts each week with a new salt. For each
-              key-less request in that week vet402 computes{" "}
-              <code>sha256(salt + IP address + User-Agent)</code> with that week&apos;s salt. The IP address
-              and User-Agent themselves are not stored. While the previous week&apos;s salt is still held,
-              vet402 also hashes the same IP address and User-Agent with the previous week&apos;s salt and
-              checks that value against the previous week&apos;s stored values to count how many callers also
-              called the key-less API the previous week. To count callers who called the key-less API on 2
-              or more days in the week, vet402 keeps only which UTC calendar date each stored value
-              appeared on, not the IP address or User-Agent text. A week&apos;s values and salt are kept until
-              the end of the following week only, then vet402 deletes that week&apos;s values and salt. Only
-              three counts per week remain: how many distinct callers, how many callers called the key-less
-              API on 2 or more days in the week, and how many callers also called the key-less API the
-              previous week. Those counts hold no hash, IP address, or User-Agent and are kept without an
-              expiry date. While the salt is present, each value is pseudonymized data that can tell one
-              caller from another. The IP address is not stored for these counts.
+              secret salt that is replaced every week. For each request vet402 computes{" "}
+              <code>sha256(salt + IP address + User-Agent)</code> with that week&apos;s salt; the IP address
+              and User-Agent are not stored. vet402 keeps the digest, which UTC calendar dates it appeared
+              on, and whether bloom-filter positions carried from the prior week mark the caller as active
+              the previous week; during the week it writes those positions into the following week&apos;s
+              table and does not keep the previous week&apos;s salt. When vet402 closes a UTC week it deletes
+              that week&apos;s salt, digests, and carry bits for that week. Only three counts remain: how
+              many distinct callers, how many called the key-less API on 2 or more UTC days in the week, and
+              how many were marked as also calling the key-less API the previous week; those counts hold no
+              hash, IP address, or User-Agent and are kept without an expiry date.
             </li>
             {/* 2026-10-26 Takeshi 承認。レビュー: 公開は持ち主の人数。締まった月だけを、
                 翌月 3 日 00:00 UTC 以降の最初の読み取りで固定する。削除すると鍵 id は新しい
@@ -274,7 +269,7 @@ export default async function PrivacyPage() {
             <li>
               <strong>Legitimate interests</strong> (Art. 6(1)(f)) for weekly key-less caller counts. The
               interest is counting whether key-less use is recurring. vet402 limits this to weekly
-              pseudonymized values and does not store the raw IP address.
+              pseudonymized digests and bloom positions and does not store the raw IP address or User-Agent.
             </li>
             <li>
               <strong>Legal obligation</strong> (Art. 6(1)(c)) — keeping billing and tax records for
@@ -356,9 +351,9 @@ export default async function PrivacyPage() {
             below.
           </p>
           <p>
-            For weekly key-less caller counts, the pseudonymized values and the week&apos;s salt are kept at
-            most until the end of the following week. The three aggregate counts for each week remain
-            without an expiry date.
+            For weekly key-less caller counts, the pseudonymized digests, carry bits, and that week&apos;s
+            salt are removed when vet402 closes the UTC week. The three aggregate counts for each closed week
+            remain without an expiry date.
           </p>
           <p>
             Key-less API call counts are kept without an expiry date. Each row is a count for one
@@ -804,11 +799,10 @@ export default async function PrivacyPage() {
             similarly significant effects about you as a user of this site.
           </p>
           <p>
-            For weekly key-less caller counts, while the salt for that week is still held vet402 can
-            compute the same value from an IP address and User-Agent you provide and delete every row that
-            matches that value. vet402 then recounts that week&apos;s three counts from the remaining
-            values. After vet402 deletes the salt and the values for that week, only the three counts for
-            that week remain. They hold no hash and are kept without an expiry date.
+            For weekly key-less caller counts, vet402 does not store an IP address or User-Agent. While a
+            week is still open, pseudonymized digests and that week&apos;s salt may remain. After vet402
+            closes the week, only the three aggregate counts for that week remain; they hold no hash and
+            cannot be linked to a particular caller.
           </p>
           <p>
             To exercise any of these, email{" "}
