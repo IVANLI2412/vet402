@@ -1,6 +1,7 @@
 import { type Address, isAddress, parseAbi, parseAbiItem, zeroAddress } from "viem";
 import { isSkipChainReadsEnabled } from "@/lib/config/env";
-import { getIndexedFeedbackWindow } from "@/lib/db/feedback-index";
+import { getIndexedFeedbackWindow, type IndexedFeedbackWindow } from "@/lib/db/feedback-index";
+import { logServerWarnSafe } from "@/lib/util/log-safe";
 import { getLogsChunked, getLogsChunkSize } from "./chunked-logs";
 import { getLogScanClient, getPublicClient } from "./client";
 import { ERC8004_ADDRESSES, IDENTITY_REGISTRY_FROM_BLOCK } from "./config";
@@ -209,9 +210,12 @@ function liveScanChunkBlocks(): bigint {
  * the indexer's checkpoint and the tip. That gap is a day or two at worst (see
  * FEEDBACK_TAIL_MAX_DAYS), roughly a dozen chunks in the common case, so a
  * 2.5s ceiling inside the engine's 3,500ms signal budget is generous rather
- * than tight. Overrunning it is not fatal — the caller converts it into
- * `feedback_stats_unavailable`, which the verdict layer treats as high risk.
- * Slower is allowed to mean "more cautious"; never "hangs".
+ * than tight. When the index already covers the scoring window but the live
+ * tail read fails, fail-open is bounded: only if the missing tail
+ * (checkpoint+1…tip) is at most FEEDBACK_TAIL_FAILOPEN_MAX_BLOCKS (18,000 = 1 h of 0.2 s blocks on
+ * Base). Wider gaps still throw — same fail-closed path as a missing index.
+ * Slower may mean slightly stale; never hang, and never treat an RPC hiccup as
+ * "we checked and it was fine".
  *
  * The batch pacing delay is overridden to 0: GET_LOGS_CHUNK_DELAY_MS exists to
  * be kind to the RPC during nightly catch-up, and its mere presence forces
@@ -223,6 +227,21 @@ function liveScanChunkBlocks(): bigint {
  */
 const TAIL_SCAN_CONCURRENCY = 2;
 const TAIL_SCAN_DEADLINE_MS = 2_500;
+
+/** Max unindexed tail (blocks) we may answer without when the live read fails. */
+// Base has 0.2 s blocks since block 53,556,127 (block-clock.ts): 18,000 blocks is one hour.
+const DEFAULT_FEEDBACK_TAIL_FAILOPEN_MAX_BLOCKS = 18_000n;
+
+function feedbackTailFailopenMaxBlocks(): bigint {
+  const raw = process.env.FEEDBACK_TAIL_FAILOPEN_MAX_BLOCKS;
+  if (!raw) return DEFAULT_FEEDBACK_TAIL_FAILOPEN_MAX_BLOCKS;
+  try {
+    const blocks = BigInt(raw);
+    return blocks > 0n ? blocks : DEFAULT_FEEDBACK_TAIL_FAILOPEN_MAX_BLOCKS;
+  } catch {
+    return DEFAULT_FEEDBACK_TAIL_FAILOPEN_MAX_BLOCKS;
+  }
+}
 
 type FeedbackLog = {
   args?: { clientAddress?: Address };
@@ -284,24 +303,39 @@ async function scanFeedbackLogs(
  * meaning are unchanged, and so is every consumer — sybil.ts, verdict.ts and
  * helpers.ts are untouched by this change, deliberately.
  *
- * WHAT DID NOT CHANGE: coverage is still all-or-nothing. If the index does not
- * reach back far enough, or the unindexed tail is too wide to read cheaply,
- * this throws and the fail-closed chain runs exactly as before. A partial
- * window would UNDERCOUNT, and undercounting is fail-open here — the anomaly
- * is raised by feedback being plentiful, so missing rows make a sybil cluster
- * look quieter than it is. "We could not check" must never be reported as
- * "we checked and it was fine".
+ * Fail-closed is unchanged when the index does not reach back far enough, or
+ * the tail is too wide to read on the request path. When the index covers the
+ * window but the live tail read fails, we answer from indexed rows only if the
+ * missing tail is at most ~1 hour of blocks (FEEDBACK_TAIL_FAILOPEN_MAX_BLOCKS,
+ * env-overridable): treat the window end as the checkpoint — an undercount,
+ * fail-open for sybil (anomalies need plentiful feedback). A wider missing tail
+ * rethrows; the fail-closed chain runs as before. "We could not check" must
+ * never be reported as "we checked and it was fine".
  *
  * `allowFullScan` is for callers with no request budget — the outcome-detector
  * cron, which asks for windows up to 30 days that a young index cannot yet
  * cover. It must never be set on a request path: that is the unbounded scan
  * this function exists to get rid of.
  */
+export type FetchRecentFeedbackStatsOptions = {
+  allowFullScan?: boolean;
+  /** Test seam: skip RPC tip lookup. */
+  latestBlock?: bigint;
+  /** Test seam: override indexed window read. */
+  getIndex?: (
+    chainId: number,
+    agentId: bigint,
+    fromBlock: bigint,
+  ) => Promise<IndexedFeedbackWindow | null>;
+  /** Test seam: override live tail scan. */
+  scanTail?: typeof scanFeedbackLogs;
+};
+
 export async function fetchRecentFeedbackStats(
   agentId: bigint,
   windowDays = 7,
   chainId?: number,
-  options?: { allowFullScan?: boolean },
+  options?: FetchRecentFeedbackStatsOptions,
 ): Promise<RecentFeedbackStats> {
   if (isSkipChainReadsEnabled()) {
     return { recentCount: 0, uniqueClients: 0, windowDays };
@@ -311,7 +345,7 @@ export async function fetchRecentFeedbackStats(
   const resolvedChainId = chainId ?? DEFAULT_CHAIN_ID;
 
   try {
-    const latestBlock = await client.getBlockNumber();
+    const latestBlock = options?.latestBlock ?? (await client.getBlockNumber());
     // Chain-aware window, decided by block TIME (2026-11-07). Base went from
     // 2 s to 0.2 s blocks at 53,556,127; the old fixed 43,200 blocks/day made
     // this "7 days" ~17 hours, and a window reaching back across the change
@@ -327,7 +361,8 @@ export async function fetchRecentFeedbackStats(
       floorBlock,
     );
 
-    const index = await getIndexedFeedbackWindow(resolvedChainId, agentId, fromBlock);
+    const loadIndex = options?.getIndex ?? getIndexedFeedbackWindow;
+    const index = await loadIndex(resolvedChainId, agentId, fromBlock);
 
     // 2026-09-09: この選択規則は feedback-window.ts が持つ（RPC も DB も
     // 要らない純粋な判定なので、そこなら直接テストできる）。ここが返す
@@ -347,16 +382,28 @@ export async function fetchRecentFeedbackStats(
     }
 
     if (plan.kind === "index_and_tail") {
-      const tail =
-        plan.gap > 0n
-          ? await scanFeedbackLogs(
-              resolvedChainId,
-              agentId,
-              plan.index.checkpoint + 1n,
-              latestBlock,
-              { deadlineMs: TAIL_SCAN_DEADLINE_MS },
-            )
-          : [];
+      const scanTail = options?.scanTail ?? scanFeedbackLogs;
+      let tail: FeedbackEntry[] = [];
+      if (plan.gap > 0n) {
+        try {
+          tail = await scanTail(
+            resolvedChainId,
+            agentId,
+            plan.index.checkpoint + 1n,
+            latestBlock,
+            { deadlineMs: TAIL_SCAN_DEADLINE_MS },
+          );
+        } catch (error) {
+          const failopenMax = feedbackTailFailopenMaxBlocks();
+          if (plan.gap > failopenMax) {
+            throw error;
+          }
+          logServerWarnSafe(
+            "feedback_stats_tail_skipped",
+            `tailBlocks=${plan.gap} ${error instanceof Error ? error.message : String(error)}`,
+          );
+        }
+      }
 
       return summarizeFeedback([...plan.index.entries, ...tail], fromBlock, windowDays);
     }

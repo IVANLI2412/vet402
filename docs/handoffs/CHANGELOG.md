@@ -13,6 +13,12 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-16 scoring: indexed feedback when tail getLogs times out
+
+- What: `fetchRecentFeedbackStats` still reads the feedback index and scans a short tail via `eth_getLogs`. If that tail read fails while the index already covers the 7-day window, the scorer returns indexed rows only when the missing tail is at most `FEEDBACK_TAIL_FAILOPEN_MAX_BLOCKS` (default 18,000 = 1 h of Base 0.2 s blocks; env-overridable). It logs `feedback_stats_tail_skipped` with `tailBlocks`. Wider gaps still throw → `feedback_stats_unavailable`.
+- Why: Production health showed most scoring degradations as `feedback_stats_unavailable(deadline:getLogsChunked)` even when the indexer had the window; unconditional fail-open would treat multi-hour indexer lag as “checked and fine”. The feedback indexer normally keeps the tail within ~30 minutes.
+- Tests: `tests/feedback-stats-tail-fallback.test.ts`, plus existing `tests/*scor*`, `tests/*health*`, `tests/*feedback*`.
+- Impact: Sybil rules may slightly undercount feedback in the last ≤1 h indexer gap when RPC is slow (fail-open). Fail-closed unchanged when the index is absent, does not cover the window, or the tail gap exceeds the cap.
 ## 2026-11-16 PMF85 legal copy (terms §0, signup, privacy Clarity and weekly key-less counts)
 
 - What: Terms §0 is retitled "Who can use vet402" with the PMF85 free-account and paid-business sentences (duplicate B2B-only line removed). Terms §9, §11, and §16 cross-references match §0 (free for anyone, paid for business, consumer law prevails when it applies). Signup shows the same pair with a link to `/legal/terms`. Privacy adds `c.bing.com` for Clarity, "Weekly key-less caller counts" (H-2: weekly salt rotation, hash with current and previous week salt for cross-week tally, UTC calendar date only for multi-day count, three hash-free aggregates kept without expiry, `client_usage_daily` rows hold no raw IP or UA or hash, erasure deletes all matching rows and recounts), separate GDPR legitimate-interest bullet, retention, erasure note), and terms §12 survival now includes §16 (Paid subscriptions). Revision and Last updated on both legal pages are November 16, 2026.
