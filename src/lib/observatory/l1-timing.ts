@@ -1,7 +1,10 @@
 // ============================================================
 // L1 の待ち時間（2026-09-29）。l1-runner（支払いのコード）と公開の方法論頁の両方が読むので、
 // 依存の無いこのファイルに置く（公開頁に支払いのモジュールを読み込ませない）。
+// chains.ts の CAIP-2 だけは読んでよい（正本はここに複製しない）。
 // ============================================================
+
+import { XRPL_MAINNET_CAIP2 } from "./chains";
 
 /**
  * 1 本の HTTP（無払いの要求・支払い付きの要求それぞれ）を待つ上限（既定）。本文の読み取りを含む。
@@ -42,16 +45,34 @@ export const L1_AVALANCHE_NETWORK = "eip155:43114";
 export const L1_CELO_PAID_TIMEOUT_SINCE = "2026-10-19";
 
 /**
- * 支払い付きの要求を待つミリ秒。network が Celo のときだけ L1_CELO_PAID_TIMEOUT_MS。
+ * XRPL（xrpl:0）の支払い付きの要求だけ待つ上限（2026-11-16）。
+ * 実測では api.vextorium.com/v1/filing-summary が約 21 秒で 200 を返し、vet402 の支払い付き行は
+ * HTTP 応答なしになった。決済の確定は中央値 6.7 秒だが、売り手が ledger 確定まで応答を持つと
+ * 20 秒では切れる。無払いの要求と、ほかのチェーンの支払い付き要求は L1_REQUEST_TIMEOUT_MS のまま。
+ * 文字列は chains.ts の XRPL_MAINNET_CAIP2 と同じ。testnet（xrpl:1 等）は含めない。
+ */
+export const L1_XRPL_PAID_TIMEOUT_MS = 45_000;
+export const L1_XRPL_NETWORK = XRPL_MAINNET_CAIP2;
+
+/**
+ * 方法論の頁が「XRPL の支払い付きは 45 秒」と書く開始日。
+ * 行に `paidTimeoutMs` を残し始めたのは 2026-10-19（Celo と同じ）で、
+ * それより前の行は分類でも公開文でも 20 秒として扱う。
+ */
+export const L1_XRPL_PAID_TIMEOUT_SINCE = "2026-11-16";
+
+/**
+ * 支払い付きの要求を待つミリ秒。network が Celo または XRPL mainnet のときだけ 45 秒。
  * Arbitrum（L1_ARBITRUM_NETWORK）と Avalanche（L1_AVALANCHE_NETWORK）は既定の timeoutMs。
- * timeoutMs / celoPaidTimeoutMs はテストの差し込み（本番は定数）。
+ * timeoutMs / celoPaidTimeoutMs / xrplPaidTimeoutMs はテストの差し込み（本番は定数）。
  */
 export function l1PaidTimeoutMs(
   network: string | null | undefined,
-  options: { timeoutMs?: number; celoPaidTimeoutMs?: number } = {},
+  options: { timeoutMs?: number; celoPaidTimeoutMs?: number; xrplPaidTimeoutMs?: number } = {},
 ): number {
   const timeoutMs = options.timeoutMs ?? L1_REQUEST_TIMEOUT_MS;
   if (network === L1_CELO_NETWORK) return options.celoPaidTimeoutMs ?? L1_CELO_PAID_TIMEOUT_MS;
+  if (network === L1_XRPL_NETWORK) return options.xrplPaidTimeoutMs ?? L1_XRPL_PAID_TIMEOUT_MS;
   if (network === L1_ARBITRUM_NETWORK) return timeoutMs;
   if (network === L1_AVALANCHE_NETWORK) return timeoutMs;
   return timeoutMs;

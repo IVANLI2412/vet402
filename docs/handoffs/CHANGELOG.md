@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-16 — L1: XRPL の支払い付き要求だけ 45 秒待つ（l1/xrpl-paid-timeout-1116）
+
+- **何を**: `L1_XRPL_PAID_TIMEOUT_MS = 45_000`（`l1-timing.ts`）。XRPL mainnet（`xrpl:0`・chains.ts の `XRPL_MAINNET_CAIP2`）の支払い付き要求だけ 45 秒待つ。無払いは 20 秒、ほかのチェーンは従来どおり。予算は Celo と同型（`laneChain === "xrpl"` または主ネットワーク `xrpl:0`）。`L1_BATCH_BUDGET_MS` 210 秒 + 最悪 88 秒 = 298 秒で `maxDuration` 300 秒の内側。方法論の頁に Celo と同じ形式で 2 か所追記。`paidTimeoutMs` は行の `raw_response_meta` に書く（fix-modes は network では決めない・変更なし）。
+- **なぜ**: 2026-11-05 の api.vextorium.com/v1/filing-summary は約 21 秒で 200 を返したが、vet402 の支払い付き行は HTTP 応答なしになった。売り手が ledger 確定まで応答を持つと 20 秒では足りない。
+- **試験**: `tests/l1-xrpl-paid-timeout.test.ts`, `tests/l1-celo-paid-timeout.test.ts`, `tests/observatory-l1-deadline.test.ts`, `tests/observatory-l1-runner.test.ts`, `tests/claims-registry.test.ts`, `tests/docs-surface-parity.test.ts`.
+- **影響**: 2026-11-16 以降に書いた XRPL 行だけ `paidTimeoutMs` 45000。それより前は 20 秒として分類。export 列は変えない。
+
 ## 2026-11-16 measure: H-PRICE rate-limit hits and watch-sellers interest (hprice)
 
 - What: Keyless check/decision routes record `client_usage_daily` rows with client `rate_limited` on 429. Seller reputation pages add a small watch-all-sellers interest block (`watch_sellers_interest` in `site_events_daily`). `GET /api/v1/stats/interest?days=14` returns `{ days, watch_sellers_interest }`.

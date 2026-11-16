@@ -18,7 +18,7 @@ import {
   paidTimeoutForBudget,
   worstCasePurchaseMs,
 } from "@/lib/observatory/l1-runner";
-import { L1_CELO_PAID_TIMEOUT_MS, L1_REQUEST_TIMEOUT_MS } from "@/lib/observatory/l1-timing";
+import { L1_CELO_PAID_TIMEOUT_MS, L1_REQUEST_TIMEOUT_MS, L1_XRPL_PAID_TIMEOUT_MS } from "@/lib/observatory/l1-timing";
 
 test("1件の最悪ケース = HTTP2本 + 署名/DB/RPC の余裕", () => {
   assert.equal(worstCasePurchaseMs(20_000), 20_000 * 2 + L1_PURCHASE_SLACK_MS);
@@ -68,17 +68,22 @@ test("予算 + 1件の最悪ケース は cron ルートの maxDuration の内�
   );
 });
 
-test("Celo レーンの候補だけ、予算は支払い付きの大きい方を見込む", () => {
+test("Celo / XRPL レーンの候補だけ、予算は支払い付きの大きい方を見込む", () => {
   assert.equal(paidTimeoutForBudget({ network: "eip155:8453", laneChain: null }, 20_000, 45_000), 20_000);
   assert.equal(paidTimeoutForBudget({ network: "eip155:8453", laneChain: "base" }, 20_000, 45_000), 20_000);
   assert.equal(paidTimeoutForBudget({ network: "eip155:8453", laneChain: "celo" }, 20_000, 45_000), 45_000);
   assert.equal(paidTimeoutForBudget({ network: "eip155:42220", laneChain: null }, 20_000, 45_000), 45_000);
+  assert.equal(paidTimeoutForBudget({ network: "eip155:8453", laneChain: "xrpl" }, 20_000, 45_000, 45_000), 45_000);
+  assert.equal(paidTimeoutForBudget({ network: "xrpl:0", laneChain: null }, 20_000, 45_000, L1_XRPL_PAID_TIMEOUT_MS), 45_000);
   // 無払いの timeoutMs の方が長いときは、そちらを下回らない（大きい方）。
   assert.equal(paidTimeoutForBudget({ network: "eip155:42220", laneChain: "celo" }, 60_000, 45_000), 60_000);
+  assert.equal(paidTimeoutForBudget({ network: "xrpl:0", laneChain: "xrpl" }, 60_000, 45_000, L1_XRPL_PAID_TIMEOUT_MS), 60_000);
   const celoWorst = worstCasePurchaseMs(20_000, 45_000);
   assert.equal(canStartAnotherPurchase(celoWorst, 20_000, 45_000), true);
   assert.equal(canStartAnotherPurchase(celoWorst - 1, 20_000, 45_000), false);
-  // 2 引数のままなら Base の最悪（60 秒）で、Celo の 45 秒は混ざらない。
+  const xrplWorst = worstCasePurchaseMs(20_000, L1_XRPL_PAID_TIMEOUT_MS);
+  assert.ok(L1_BATCH_BUDGET_MS + xrplWorst <= 300_000);
+  // 2 引数のままなら Base の最悪（60 秒）で、Celo / XRPL の 45 秒は混ざらない。
   assert.equal(canStartAnotherPurchase(worstCasePurchaseMs(20_000), 20_000), true);
   assert.equal(canStartAnotherPurchase(worstCasePurchaseMs(20_000) - 1, 20_000), false);
 });
