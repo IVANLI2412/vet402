@@ -85,7 +85,8 @@ export default async function PrivacyPage() {
             <li>Billing metadata via Stripe (we do not store card numbers)</li>
             <li>
               Request metadata for security and rate-limiting — including the IP address a request
-              is made from — kept only as long as needed to run those controls
+              is made from — kept only as long as needed to run those controls. The raw IP address
+              stored with a free verification request is cleared after 90 days.
             </li>
             <li>
               The public blockchain addresses and ERC-8004 agent identifiers we score, together

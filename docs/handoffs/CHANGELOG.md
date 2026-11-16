@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+
+## 2026-11-16 privacy: raw IP on free verification requests cleared after 90 days (legal2)
+
+- What: The privacy policy's request-metadata line now says the raw IP stored with a free verification request is cleared after 90 days. The commercial disclosure's Contact section now says operator disclosure requests are answered without delay, matching the Article 11 proviso above it; support and billing keep a few business days.
+- Why: `src/lib/cron/log-retention.ts` already sets `verification_requests.requester_ip` to NULL after the free 90 days, but the policy only said "as long as needed". Found by the PMF85 LEGAL pass.
+- Tests: `tests/legal-*.test.ts`, `tests/claims-*.test.ts`.
+- Impact: Text only. No code or SQL change.
 ## 2026-11-16 PMF85 r4: hero ledger split, paste record alert, narrow-screen fixes, skip to paste, vet402 voice, legal lastmod, DB restore runbook
 
 - What: The home hero counts split **Settled, not delivered** from **Settled, inconclusive (4xx)** using `l1.inconclusiveSettled` (same partition as `/observatory/state`). PasteCheck adds the record email-update sentence on record and same-host results. Home placeholder shortens; observatory Network filter is full width below `sm`. A **Skip to the URL check** link targets `#lp-paste-url`. Public copy on `/memo`, `/status`, `/faq`, `/docs/api`, and `faq-data` drops we/our/us for vet402 or I. Sitemap `/legal/terms` and `/legal/privacy` lastmod shares `src/lib/legal/document-dates.ts` with the pages. `docs/INCIDENT_RUNBOOK.md` gains §9 (Neon point-in-time restore).

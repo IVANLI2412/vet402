@@ -270,7 +270,8 @@ export default async function LegalNoticePage() {
             <a className="doc-link" href={SUPPORT_MAILTO}>
               {SUPPORT_EMAIL}
             </a>
-            . We aim to respond within a few business days.
+            . Operator disclosure requests are answered without delay, before you decide to buy.
+            Support and billing questions get a reply within a few business days.
           </p>
         </section>
 
