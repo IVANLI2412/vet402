@@ -68,18 +68,16 @@ test("A-2/G-1: home H1, sub, connect lead, and no safe/safely on key surfaces", 
   }
 });
 
-test("A-1: seller checks wording, not score lookups, on home signup FAQ and docs API", () => {
-  assert.doesNotMatch(read("src/app/signup/layout.tsx"), SCORE_LOOKUPS);
-  assert.match(read("src/app/signup/layout.tsx"), /seller checks/);
-  assert.doesNotMatch(read("src/components/site/faq-data.ts"), SCORE_LOOKUPS);
-  assert.match(read("src/components/site/faq-data.ts"), /seller checks/);
-  assert.doesNotMatch(read("src/app/page.tsx"), SCORE_LOOKUPS);
-  assert.match(read("src/app/page.tsx"), /seller checks/);
-  assert.doesNotMatch(read("src/app/docs/api/page.tsx"), SCORE_LOOKUPS);
+test("A-1: monthly quota copy uses score lookups, not seller checks", () => {
+  assert.match(read("src/app/signup/layout.tsx"), SCORE_LOOKUPS);
+  assert.match(read("src/components/site/faq-data.ts"), SCORE_LOOKUPS);
+  assert.match(read("src/app/page.tsx"), SCORE_LOOKUPS);
+  assert.match(read("src/app/docs/api/page.tsx"), SCORE_LOOKUPS);
+  assert.match(read("src/app/signup/page.tsx"), /1,000 score lookups/);
 });
 
-test("A-1b: pricing surfaces say seller checks, not lookups", () => {
-  const LOOKUPS_MONTH = /\blookups\b/i;
+test("A-1b: pricing surfaces name the monthly quota score lookups", () => {
+  const SELLER_CHECK_MONTH = /seller checks?\s*\/\s*month|seller checks a month/i;
   for (const f of [
     "src/app/page.tsx",
     "src/app/pricing/page.tsx",
@@ -87,8 +85,8 @@ test("A-1b: pricing surfaces say seller checks, not lookups", () => {
     "src/app/docs/api/page.tsx",
     "src/components/site/PricingSection.tsx",
   ]) {
-    assert.doesNotMatch(read(f), LOOKUPS_MONTH, f);
-    assert.match(read(f), /seller checks/i, f);
+    assert.match(read(f), SCORE_LOOKUPS, f);
+    assert.doesNotMatch(read(f), SELLER_CHECK_MONTH, f);
   }
 });
 

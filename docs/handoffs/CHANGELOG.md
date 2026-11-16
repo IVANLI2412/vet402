@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-16 PMF85 r3 (二巡目): monthly quota is score lookups, seller checks stay keyless
+
+- What: Public pricing, home JSON-LD, signup, docs API quickstart, and FAQ name the monthly BILLING_PLANS quota score lookups again. PricingSection adds a line that seller checks at GET /api/v1/check need no key and do not count against the monthly quota.
+- Why: applyRateLimit meters score API routes only. Seller checks via handleKeylessCheckRoute are per-minute per IP and never debit monthlyLimit.
+- Tests: `tests/pmf85-quota-wording.test.ts`, updated `tests/pricing-home-lock.test.ts`, `tests/pmf85-home-acceptance.test.ts`, `tests/lp-first-screen.test.ts`.
+- Impact: Copy only. No SQL, billing logic, or rate-limit behavior changes.
+
 ## 2026-11-16 PMF85 r3: paste a11y, signup eyebrow, observatory network, sellers sitemap, home title, record alerts
 
 - What: PasteCheck announces same-host listing counts in the standing `aria-live` region and drops `aria-live` from the visible same-host block. Signup eyebrow reads Free API key. Observatory network filter keeps `eip155:8453` placeholder visible on narrow viewports. robots.txt lists three sitemaps again (sitemap-sellers.xml). Home `pageMetadata` title matches the H1 job statement. Reputation seller pages link to the latest delivered record for email alerts.

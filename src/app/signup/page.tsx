@@ -233,7 +233,7 @@ export default function SignupPage() {
             <span>Free API key</span>
             <span>
               {/* この頁のシアン1点。無料枠という事実。 */}
-              Tier: <span className="text-signal">Free — 1,000 seller checks / month</span>
+              Tier: <span className="text-signal">Free — 1,000 score lookups / month</span>
             </span>
           </div>
           <div className="doc-head-col">
@@ -249,8 +249,9 @@ export default function SignupPage() {
           A free key reads a payee score. A resource decision stays available without a key.
         </h1>
         <p className="mx-auto mt-3 max-w-[56ch] text-center text-brand-lift">
-          A key is for programmatic seller checks. The observatory, a resource decision, and payee lookup
-          stay public without one. Free: 1,000 seller checks a month. No card.
+          A key is for score lookups on the score API. Seller checks need no key.
+          The observatory, a resource decision, and payee lookup stay public without one.
+          Free: 1,000 score lookups a month. No card.
         </p>
         <div className="rule-double mx-auto mt-6 w-full max-w-[34ch]" />
 

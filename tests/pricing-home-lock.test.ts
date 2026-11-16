@@ -21,8 +21,8 @@ const EXPECTED_PLANS = [
 
 const EXPECTED_INCLUDES: Record<(typeof EXPECTED_PLANS)[number]["key"], string> = {
   free: "REST, MCP and x402 middleware, TypeScript SDK",
-  pro: "Everything in Free, higher monthly seller check quota",
-  scale: "Everything in Pro, highest monthly seller check quota",
+  pro: "Everything in Free, higher monthly score lookup quota",
+  scale: "Everything in Pro, highest monthly score lookup quota",
 };
 
 const FORBIDDEN_INCLUDES_MARKETING =
@@ -30,7 +30,7 @@ const FORBIDDEN_INCLUDES_MARKETING =
 
 function assertHomePricingTable(html: string): void {
   const thead = html.match(/<thead>([\s\S]*?)<\/thead>/)?.[1] ?? "";
-  for (const label of ["Tier", "Price", "Seller checks / month", "Includes"]) {
+  for (const label of ["Tier", "Price", "Score lookups / month", "Includes"]) {
     assert.match(thead, new RegExp(`>${label}<`));
   }
 
@@ -77,7 +77,7 @@ function assertHomePricingTable(html: string): void {
     throw new Error(`unexpected Includes column: ${includes.join(" | ")}`);
   }
 
-  const tableEnglish = [...parsed.flat(), "Tier", "Price", "Seller checks / month", "Includes"].join(" ");
+  const tableEnglish = [...parsed.flat(), "Tier", "Price", "Score lookups / month", "Includes"].join(" ");
   if (FORBIDDEN_PUBLIC_ENGLISH.test(tableEnglish)) {
     throw new Error("forbidden public English in pricing table");
   }
@@ -86,12 +86,12 @@ function assertHomePricingTable(html: string): void {
 function assertHomeHeroPricingCopy(pageSource: string): void {
   assert.match(
     pageSource,
-    /Start free with \{BILLING_PLANS\.free\.monthlyLimit\.toLocaleString\("en-US"\)\} seller checks a month\./,
+    /Start free with \{BILLING_PLANS\.free\.monthlyLimit\.toLocaleString\("en-US"\)\} score lookups a month\./,
   );
   assert.doesNotMatch(pageSource, /Pro is \$\{BILLING_PLANS\.pro\.monthlyUsd\} a month/);
   assert.doesNotMatch(pageSource, /Scale is \$\{BILLING_PLANS\.scale\.monthlyUsd\} a month/);
-  const freeLine = `Start free with ${BILLING_PLANS.free.monthlyLimit.toLocaleString("en-US")} seller checks a month.`;
-  if (freeLine !== "Start free with 1,000 seller checks a month.") {
+  const freeLine = `Start free with ${BILLING_PLANS.free.monthlyLimit.toLocaleString("en-US")} score lookups a month.`;
+  if (freeLine !== "Start free with 1,000 score lookups a month.") {
     throw new Error(`unexpected hero free line: ${freeLine}`);
   }
   const heroStart = pageSource.indexOf('className={s.heroNote}');

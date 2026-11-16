@@ -134,7 +134,7 @@ export default async function Home() {
         name: BILLING_PLANS.free.name,
         price: "0",
         priceCurrency: "USD",
-        description: `${BILLING_PLANS.free.monthlyLimit.toLocaleString()} seller checks / month`,
+        description: `${BILLING_PLANS.free.monthlyLimit.toLocaleString()} score lookups / month`,
       },
       ...(isStripeConfigured()
         ? [
@@ -143,14 +143,14 @@ export default async function Home() {
               name: BILLING_PLANS.pro.name,
               price: "49",
               priceCurrency: "USD",
-              description: `${BILLING_PLANS.pro.monthlyLimit.toLocaleString()} seller checks / month`,
+              description: `${BILLING_PLANS.pro.monthlyLimit.toLocaleString()} score lookups / month`,
             },
             {
               "@type": "Offer",
               name: BILLING_PLANS.scale.name,
               price: "199",
               priceCurrency: "USD",
-              description: `${BILLING_PLANS.scale.monthlyLimit.toLocaleString()} seller checks / month`,
+              description: `${BILLING_PLANS.scale.monthlyLimit.toLocaleString()} score lookups / month`,
             },
           ]
         : []),
@@ -217,7 +217,7 @@ export default async function Home() {
           <div className={s.heroNote}>
             <p>
               <Link href="/signup">
-                Start free with {BILLING_PLANS.free.monthlyLimit.toLocaleString("en-US")} seller checks a month.
+                Start free with {BILLING_PLANS.free.monthlyLimit.toLocaleString("en-US")} score lookups a month.
               </Link>
             </p>
             <p>

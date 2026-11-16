@@ -22,8 +22,8 @@ const PLAN_ORDER = ["free", "pro", "scale"] as const;
 
 const INCLUDES: Record<(typeof PLAN_ORDER)[number], string> = {
   free: "REST, MCP and x402 middleware, TypeScript SDK",
-  pro: "Everything in Free, higher monthly seller check quota",
-  scale: "Everything in Pro, highest monthly seller check quota",
+  pro: "Everything in Free, higher monthly score lookup quota",
+  scale: "Everything in Pro, highest monthly score lookup quota",
 };
 
 /**
@@ -56,6 +56,10 @@ export function PricingSection({
         Usage-based. The free tier is enough to wire a check into an x402 flow and see real results
         before committing to anything.
       </p>
+      <p className="doc-p">
+        Seller checks (<code className="text-brand-deep">/api/v1/check</code>) need no key and do not
+        count against the monthly quota.
+      </p>
 
       {/* 2026-08-13 UX監査R1 [D1]: 375px で表の実幅 365px に対して可視域 309px、
           つまり INCLUDES 列（各段に何が付くか＝価格表で価格の次に効く列）が
@@ -76,7 +80,7 @@ export function PricingSection({
                 Price
               </th>
               <th scope="col" className="num">
-                Seller checks / month
+                Score lookups / month
               </th>
               <th scope="col">Includes</th>
             </tr>
@@ -110,7 +114,7 @@ export function PricingSection({
               </dt>
               <dd className="mt-2 space-y-1 text-[0.84375rem] text-brand">
                 <p className="text-brand-deep">
-                  {plan.monthlyLimit.toLocaleString("en-US")} seller checks / month
+                  {plan.monthlyLimit.toLocaleString("en-US")} score lookups / month
                 </p>
                 <p>{INCLUDES[id]}</p>
               </dd>

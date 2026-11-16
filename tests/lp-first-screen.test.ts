@@ -112,7 +112,7 @@ test("the headline leading is 1.08", () => {
 
 test("the first screen defines the record and does not say 2xx or lookups", () => {
   assert.match(page, /Paste a URL to see the record/);
-  assert.match(page, /seller checks a month/);
+  assert.match(page, /score lookups a month/);
   assert.match(page, /href="\/signup"/);
   assert.match(page, /href="\/x402\/check-a-seller"/);
   assert.equal(cardDeliveredLabel({ held: false, delivered: true, httpStatus: 200 }), "Yes");
