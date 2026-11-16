@@ -2,13 +2,9 @@
 import { spawnSync } from "node:child_process";
 
 /** @type {{ id: string, reason: string, expires: string }[]} */
-export const AUDIT_ALLOWLIST = [
-  {
-    id: "GHSA-mrhx-c7xc-m3w5",
-    reason: "payment-path dependency, upgrade needs a separate review",
-    expires: "2026-12-16",
-  },
-];
+// 2026-11-16: GHSA-mrhx-c7xc-m3w5 (zod via @x402/core) cleared by @x402/stellar 2.31.0. Keep this empty
+// unless a new advisory needs a dated, reviewed exception.
+export const AUDIT_ALLOWLIST = [];
 
 /** @param {unknown} report */
 export function isNpmAuditJson(report) {
@@ -59,9 +55,10 @@ export function resolveRootAdvisoryIds(vulns, pkg, visiting = new Set()) {
 /**
  * @param {unknown} report npm audit --json
  * @param {string} today ISO date YYYY-MM-DD
+ * @param {{ id: string, reason: string, expires: string }[]} [allowlist]
  * @returns {{ ok: true } | { ok: false, blocked: string[], reason?: string }}
  */
-export function gateAuditReport(report, today) {
+export function gateAuditReport(report, today, allowlist = AUDIT_ALLOWLIST) {
   const vulns = /** @type {Record<string, { severity?: string, via?: unknown[] }>} */ (
     report && typeof report === "object" && "vulnerabilities" in report ? report.vulnerabilities : {}
   );
@@ -70,7 +67,7 @@ export function gateAuditReport(report, today) {
   for (const [pkg, row] of Object.entries(vulns ?? {})) {
     if (row.severity !== "high" && row.severity !== "critical") continue;
     for (const id of resolveRootAdvisoryIds(vulns, pkg)) {
-      const entry = AUDIT_ALLOWLIST.find((row) => row.id === id);
+      const entry = allowlist.find((row) => row.id === id);
       if (!entry) {
         blocked.add(id);
         continue;

@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+
+## 2026-11-16 deps: @x402/stellar 2.31.0 clears the zod high advisory; audit allowlist emptied
+
+- What: `@x402/stellar` 2.28.0 -> 2.31.0 (exact). It pulls `@x402/core` 2.31.0, which uses zod 4.6.7, so `npm audit --omit=dev` reports 0 vulnerabilities. `scripts/ci-audit-gate.mjs` ships an empty `AUDIT_ALLOWLIST`; `gateAuditReport` takes an optional allowlist so the tests keep a dated fixture.
+- Why: GHSA-mrhx-c7xc-m3w5 (zod memory exhaustion on oversized constrained collections) sat in the payment-path dependency under a dated CI exception until 2026-12-16. Owner approved the upgrade on 2026-11-16.
+- Tests: `tests/ci-audit-gate.test.ts` (shipped allowlist is empty, fixture exceptions still expire), `tests/*stellar*.test.ts`, `tests/settlement-verify-*.test.ts`. The payer uses only `validateStellarDestinationAddress` from the package; valid G and C addresses still pass and garbage still fails.
+- Impact: No payment code change. No SQL.
 ## 2026-11-16 PMF85 r5: /connect keyless paths, /status Cause and 7-day degraded share, /legal/notice dates
 
 - What: `/connect` opens with three keyless paths (`GET /api/v1/check`, home paste anchor, SDK `check` aligned with `/memo` snippets). MCP moves to its own section above the buyer/seller chooser. `/status` adds a last-7-days degraded sample line and a Cause column mapped from `health_snapshots.detail` (no raw detail on the public page). `/legal/notice` Revision and Last updated are November 16, 2026.

@@ -7,7 +7,14 @@ import { AUDIT_ALLOWLIST, gateAuditReport, isNpmAuditJson } from "../scripts/ci-
 
 const GATE_SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "../scripts/ci-audit-gate.mjs");
 
-const ALLOWED_ID = AUDIT_ALLOWLIST[0]!.id;
+const FIXTURE_ALLOWLIST = [
+  { id: "GHSA-mrhx-c7xc-m3w5", reason: "fixture: dated exception", expires: "2026-12-16" },
+];
+const ALLOWED_ID = FIXTURE_ALLOWLIST[0]!.id;
+
+test("the shipped allowlist is empty (no standing high exceptions)", () => {
+  assert.deepEqual(AUDIT_ALLOWLIST, []);
+});
 
 const SAMPLE = {
   vulnerabilities: {
@@ -19,12 +26,12 @@ const SAMPLE = {
 };
 
 test("allowed high advisory passes before expiry", () => {
-  const result = gateAuditReport(SAMPLE, "2026-12-01");
+  const result = gateAuditReport(SAMPLE, "2026-12-01", FIXTURE_ALLOWLIST);
   assert.equal(result.ok, true);
 });
 
 test("allowed high advisory fails after expiry", () => {
-  const result = gateAuditReport(SAMPLE, "2026-12-17");
+  const result = gateAuditReport(SAMPLE, "2026-12-17", FIXTURE_ALLOWLIST);
   assert.equal(result.ok, false);
   if (!result.ok) assert.ok(result.reason?.includes("expired"));
 });
@@ -40,7 +47,7 @@ test("high/critical without GHSA url still blocks", () => {
       evil: { severity: "high", via: [{ source: 999, name: "evil", dependency: "evil", title: "x" }] },
     },
   };
-  const result = gateAuditReport(report, "2026-12-01");
+  const result = gateAuditReport(report, "2026-12-01", FIXTURE_ALLOWLIST);
   assert.equal(result.ok, false);
   if (!result.ok) assert.deepEqual(result.blocked, ["npm-audit:evil:high"]);
 });
@@ -54,7 +61,7 @@ test("unexpected high advisory fails", () => {
       },
     },
   };
-  const result = gateAuditReport(report, "2026-12-01");
+  const result = gateAuditReport(report, "2026-12-01", FIXTURE_ALLOWLIST);
   assert.equal(result.ok, false);
   if (!result.ok) assert.deepEqual(result.blocked, ["GHSA-xxxx-yyyy-zzzz"]);
 });
@@ -70,19 +77,15 @@ test("derived high/critical passes when all root advisories are allowlisted", ()
       "@x402/stellar": { severity: "high", via: ["@x402/core"] },
     },
   };
-  const result = gateAuditReport(report, "2026-12-01");
+  const result = gateAuditReport(report, "2026-12-01", FIXTURE_ALLOWLIST);
   assert.equal(result.ok, true);
 });
 
 test("piped npm audit JSON via child stdin exits 0", async () => {
   const payload = JSON.stringify({
     auditReportVersion: 2,
-    vulnerabilities: {
-      zod: {
-        severity: "high",
-        via: [{ url: `https://github.com/advisories/${ALLOWED_ID}`, severity: "high" }],
-      },
-    },
+    // The shipped allowlist is empty, so a clean report is what must pass through the pipe.
+    vulnerabilities: {},
   });
 
   const { exitCode, stderr } = await new Promise<{ exitCode: number; stderr: string }>((resolve, reject) => {
@@ -110,7 +113,7 @@ test("derived high/critical fails when a root advisory is not allowlisted", () =
       derived: { severity: "high", via: ["rootpkg"] },
     },
   };
-  const result = gateAuditReport(report, "2026-12-01");
+  const result = gateAuditReport(report, "2026-12-01", FIXTURE_ALLOWLIST);
   assert.equal(result.ok, false);
   if (!result.ok) assert.deepEqual(result.blocked, ["GHSA-bbbb-cccc-dddd"]);
 });
