@@ -25,7 +25,6 @@ import {
   UNDER_RECHECK,
 } from "@/components/site/sellers/SellersViews";
 import TrackView from "@/components/site/TrackView";
-import SellerBuyerCheckSection from "@/components/site/sellers/SellerBuyerCheckSection";
 import SellerCalledVsDeliveredSection from "@/components/site/sellers/SellerCalledVsDeliveredSection";
 import SellerHostBadgeSection from "@/components/site/sellers/SellerHostBadgeSection";
 import SellerRefundSection from "@/components/site/sellers/SellerRefundSection";
@@ -179,7 +178,6 @@ export default async function SellerPage({ params, searchParams }: Props) {
         revalidateSec={PUBLIC_READ_REVALIDATE}
         afterSummary={
           <>
-            <SellerBuyerCheckSection host={detail.host} listings={detail.listings} />
             <SellerCalledVsDeliveredSection host={detail.host} />
             <SellerRefundSection host={detail.host} />
             <SellerHostBadgeSection host={detail.host} />

@@ -13,12 +13,11 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
-## 2026-11-16 funnel r2: buyer check call on /sellers/{host}
+## 2026-11-16 revert funnel r2 seller check call (ae1199b4)
 
-- What: `/sellers/{host}` shows a copyable `curl` for `GET /api/v1/check` on the first https listing, above the called-vs-delivered, refund, and badge sections. Copy fires the existing `snippet_copy` event through CodeBlock. New `src/lib/sellers/buyer-check.ts` and `SellerBuyerCheckSection.tsx`.
-- Why: Funnel loop (Takeshi_Automation `.company/products/vouch/FUNNEL_LOOP.md`) picked r2 (key page to action) for 2026-11-09..15. The seller page drew the most key-page views after observatory records, and its only code block was the seller-side badge, so a buyer had no copyable next step. Experiment `20261116-seller-check`, judged by r2 after 7 days. Reverted if r2 does not rise.
-- Tests: `tests/seller-buyer-check.test.ts`.
-- Impact: No API, SQL, or style changes. Pages without an https listing render nothing new.
+- What: Reverts the buyer check `curl` on `/sellers/{host}`.
+- Why: The vet402.com session registered `exp-1116-paste-same-host` (r1, 56d02fb3) in `state/vet402_funnel.json` while this change was in flight. The funnel loop runs one change at a time. Also found: the snippet added `method=GET`, and `GET /api/v1/check` with `method=GET` answered `not_in_catalog: true` for a listed URL that answers with a record when method is omitted. A rerun should drop `method`, and the method matching in check is worth a look by the vet402.com session.
+- Impact: Seller page returns to its previous state. No API or SQL changes.
 ## 2026-11-16 HOME (PMF85): front page copy, PasteCheck states, shared header on /
 
 - What: The home H1 and subcopy now lead with delivery records and paste-check. PasteCheck splits results into a full record, same-host listings, or a diagnose curl when vet402 has not paid the URL. The shared SiteHeader and SiteFooter wrap the home page too (five nav items, mobile menu button with aria-expanded). Connect lead, signup metadata, FAQ, SEO defaults, and OG alt follow the public English rules on the home surface. Signup and FAQ say seller checks instead of score lookups. One pricing section on home, with "Records are measurements, not a guarantee." before it. Paid monthly prices appear only in that pricing section, not in the hero note. 404 drops the Status report label.
