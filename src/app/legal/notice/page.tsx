@@ -69,7 +69,7 @@ export default async function LegalNoticePage() {
             <span>Instrument: legal notice</span>
             <span>
               {/* この頁のシアン1点。改訂日という事実。 */}
-              Revision: <span className="text-signal">November 8, 2026</span>
+              Revision: <span className="text-signal">November 16, 2026</span>
             </span>
           </div>
           <div className="doc-head-col">
@@ -81,7 +81,7 @@ export default async function LegalNoticePage() {
         <div>
           <h1 className="doc-title mt-8">Legal Notice</h1>
           <div className="rule-double mx-auto mt-6 w-full max-w-[34ch]" />
-          <p className="doc-note mt-3 text-center">Last updated: November 8, 2026</p>
+          <p className="doc-note mt-3 text-center">Last updated: November 16, 2026</p>
         </div>
 
         <section className="space-y-2">

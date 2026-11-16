@@ -50,8 +50,8 @@ test("summarizeByDay buckets snapshots into UTC days and counts each status", ()
   ];
   const summary = summarizeByDay(rows);
   assert.deepEqual(summary, [
-    { date: "2026-08-14", total: 1, ok: 1, degraded: 0, error: 0 },
-    { date: "2026-08-15", total: 3, ok: 2, degraded: 1, error: 0 },
+    { date: "2026-08-14", total: 1, ok: 1, degraded: 0, error: 0, causes: [] },
+    { date: "2026-08-15", total: 3, ok: 2, degraded: 1, error: 0, causes: ["other"] },
   ]);
 });
 

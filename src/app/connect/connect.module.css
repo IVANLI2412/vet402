@@ -71,6 +71,47 @@
   border-top: 1px solid var(--line);
 }
 
+.sectionHeading {
+  margin: 0;
+  color: var(--ink);
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.keyless {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.keylessList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+  margin: 0;
+  padding: 0 0 0 1.25rem;
+  color: var(--ink-soft);
+  font-size: 0.9375rem;
+}
+
+.keylessItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.keylessLabel {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.inlineCode {
+  font-family: var(--font-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.84375rem;
+  color: var(--ink);
+}
+
 .foot {
   margin: 0;
   color: var(--ink-soft);

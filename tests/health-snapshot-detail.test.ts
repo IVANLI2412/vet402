@@ -212,10 +212,10 @@ test("/status ページは detail / latency / instance を読まない——admi
   assert.doesNotMatch(page, /instance/i);
 });
 
-test("getStatusHistory は detail 列を select しない——公開ページへ運ぶ配管を作らない", () => {
+test("getStatusHistory は detail を読むが latency / instance は読まない——Cause 列用に detail だけサーバー側で要約する", () => {
   const snapshot = readFileSync(join(process.cwd(), "src/lib/health/snapshot.ts"), "utf8");
   const history = snapshot.slice(snapshot.indexOf("export async function getStatusHistory"));
-  assert.doesNotMatch(history, /detail/);
+  assert.match(history, /detail: healthSnapshots\.detail/);
   assert.doesNotMatch(history, /latencyMs/);
   assert.doesNotMatch(history, /instance/);
 });

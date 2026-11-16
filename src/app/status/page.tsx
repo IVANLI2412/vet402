@@ -9,9 +9,12 @@ import { WideColumn } from "@/components/site/WideColumn";
 import {
   currentVerdict,
   getStatusHistory,
+  rollupSevenDaySamples,
+  sevenUtcDaysEndingYesterday,
   STATUS_STALE_AFTER_MS,
   type CurrentVerdict,
 } from "@/lib/health/snapshot";
+import { formatPct1 } from "@/lib/util/pct";
 import { readChainFreshness, type ChainFreshness } from "@/lib/health/chain-freshness";
 
 /**
@@ -172,6 +175,9 @@ export default async function StatusPage() {
 
   // Sort newest first for the table; summarizeByDay returns oldest-first.
   const daysNewestFirst = [...history.days].reverse();
+  const sevenDayWindow = sevenUtcDaysEndingYesterday(renderedAt);
+  const sevenDay = rollupSevenDaySamples(history.days, sevenDayWindow);
+  const sevenDayPct = formatPct1(sevenDay.degraded, sevenDay.total);
 
   return (
     <main className="px-4 pt-8 pb-4 sm:px-6 md:px-8 md:pt-12">
@@ -297,43 +303,61 @@ export default async function StatusPage() {
             for what this page can and cannot claim.
           </p>
         ) : (
-          <TableScroll label="Daily status samples over the last 30 days">
-            <table className="fact-table">
-              <caption className="sr-only">Daily status samples over the last 30 days</caption>
-              <thead>
-                <tr>
-                  <th scope="col">Day</th>
-                  <th scope="col">Worst observed</th>
-                  <th scope="col" className="num">
-                    Samples
-                  </th>
-                  <th scope="col" className="num">
-                    ok
-                  </th>
-                  <th scope="col" className="num">
-                    degraded
-                  </th>
-                  <th scope="col" className="num">
-                    error
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {daysNewestFirst.map((d) => (
-                  <tr key={d.date}>
-                    <td className="whitespace-nowrap">{fmtDay(d.date)}</td>
-                    <td>
-                      <VerdictWord ok={d.ok} degraded={d.degraded} error={d.error} />
-                    </td>
-                    <td className="num">{d.total}</td>
-                    <td className="num">{d.ok}</td>
-                    <td className="num">{d.degraded}</td>
-                    <td className="num">{d.error}</td>
+          <>
+            <p className="doc-p">
+              Last 7 days: {sevenDay.degraded} of {sevenDay.total} samples degraded ({sevenDayPct}),{" "}
+              {sevenDay.error} errors.
+            </p>
+            <TableScroll label="Daily status samples over the last 30 days">
+              <table className="fact-table">
+                <caption className="sr-only">Daily status samples over the last 30 days</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Day</th>
+                    <th scope="col">Worst observed</th>
+                    <th scope="col" className="num">
+                      Samples
+                    </th>
+                    <th scope="col" className="num">
+                      ok
+                    </th>
+                    <th scope="col" className="num">
+                      degraded
+                    </th>
+                    <th scope="col" className="num">
+                      error
+                    </th>
+                    <th scope="col">Cause</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </TableScroll>
+                </thead>
+                <tbody>
+                  {daysNewestFirst.map((d) => (
+                    <tr key={d.date}>
+                      <td className="whitespace-nowrap">{fmtDay(d.date)}</td>
+                      <td>
+                        <VerdictWord ok={d.ok} degraded={d.degraded} error={d.error} />
+                      </td>
+                      <td className="num">{d.total}</td>
+                      <td className="num">{d.ok}</td>
+                      <td className="num">{d.degraded}</td>
+                      <td className="num">{d.error}</td>
+                      <td>
+                        {d.degraded > 0 ? (
+                          d.causes.length > 0 ? (
+                            d.causes.join(", ")
+                          ) : (
+                            <span className="text-brand-lift">&mdash;</span>
+                          )
+                        ) : (
+                          <span className="text-brand-lift">&mdash;</span>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </TableScroll>
+          </>
         )}
 
         <h2 className="sec-head">

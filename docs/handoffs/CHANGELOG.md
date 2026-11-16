@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-16 PMF85 r5: /connect keyless paths, /status Cause and 7-day degraded share, /legal/notice dates
+
+- What: `/connect` opens with three keyless paths (`GET /api/v1/check`, home paste anchor, SDK `check` aligned with `/memo` snippets). MCP moves to its own section above the buyer/seller chooser. `/status` adds a last-7-days degraded sample line and a Cause column mapped from `health_snapshots.detail` (no raw detail on the public page). `/legal/notice` Revision and Last updated are November 16, 2026.
+- Why: PMF85 r5 acceptance: surface keyless integration paths, publish degraded causes without internal tokens, align notice dates with the Contact change.
+- Tests: `tests/pmf85-r5-acceptance.test.ts`, updated `tests/connect-page.test.ts`, `tests/health-snapshot.test.ts`.
+- Impact: Public copy and status aggregation only. No billing, paste experiment, new SQL, or payment routes.
+
 
 ## 2026-11-16 privacy: raw IP on free verification requests cleared after 90 days (legal2)
 

@@ -143,30 +143,111 @@ export type DaySummary = {
   ok: number;
   degraded: number;
   error: number;
+  /** Public cause labels on degraded samples this day (at most 2, most frequent first). */
+  causes: string[];
 };
+
+export type HealthSnapshotRow = {
+  checkedAt: Date;
+  status: string;
+  detail?: string | null;
+};
+
+const PUBLIC_CAUSE_LABELS = [
+  "score input slow (feedback)",
+  "score input slow (wallet)",
+  "score input slow (sybil)",
+  "payee lookup slow",
+  "other",
+] as const;
+
+export type PublicHealthCause = (typeof PUBLIC_CAUSE_LABELS)[number];
+
+/**
+ * Maps health_snapshots.detail to public cause labels. Never returns raw detail tokens.
+ * scoring-probe.ts 同様、内部の詳細は公開しない。
+ */
+export function publicCausesFromSnapshotDetail(detail: string | null | undefined): PublicHealthCause[] {
+  if (!detail) return ["other"];
+  const text = detail.toLowerCase();
+  const out = new Set<PublicHealthCause>();
+  if (text.includes("feedback_stats_unavailable")) out.add("score input slow (feedback)");
+  if (text.includes("wallet_metrics_unavailable")) out.add("score input slow (wallet)");
+  if (text.includes("sybil_checks_unavailable")) out.add("score input slow (sybil)");
+  if (/payee=(degraded|error)\b/.test(text)) out.add("payee lookup slow");
+  if (out.size === 0) out.add("other");
+  return [...out];
+}
+
+/** Top public cause labels across degraded rows in one UTC day (at most 2). */
+export function topPublicCausesForDay(rows: readonly Pick<HealthSnapshotRow, "status" | "detail">[]): string[] {
+  const counts = new Map<string, number>();
+  for (const row of rows) {
+    if (row.status !== "degraded") continue;
+    for (const label of publicCausesFromSnapshotDetail(row.detail)) {
+      counts.set(label, (counts.get(label) ?? 0) + 1);
+    }
+  }
+  return [...counts.entries()]
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, 2)
+    .map(([label]) => label);
+}
+
+/** UTC calendar days from yesterday back through seven days (inclusive), oldest first. */
+export function sevenUtcDaysEndingYesterday(now: Date): string[] {
+  const days: string[] = [];
+  for (let i = 7; i >= 1; i--) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - i));
+    days.push(d.toISOString().slice(0, 10));
+  }
+  return days;
+}
+
+export function rollupSevenDaySamples(
+  days: readonly DaySummary[],
+  windowDates: readonly string[],
+): { total: number; degraded: number; error: number } {
+  const window = new Set(windowDates);
+  let total = 0;
+  let degraded = 0;
+  let error = 0;
+  for (const d of days) {
+    if (!window.has(d.date)) continue;
+    total += d.total;
+    degraded += d.degraded;
+    error += d.error;
+  }
+  return { total, degraded, error };
+}
 
 /**
  * Buckets snapshots into UTC calendar days. A day with zero rows is simply
  * absent from the result — never synthesized as 100% (or any other number).
  * /status must read "absent" as "not observed", not as "was fine".
  */
-export function summarizeByDay(
-  rows: readonly { checkedAt: Date; status: string }[],
-): DaySummary[] {
-  const byDay = new Map<string, DaySummary>();
+export function summarizeByDay(rows: readonly HealthSnapshotRow[]): DaySummary[] {
+  const byDay = new Map<string, { summary: DaySummary; rows: HealthSnapshotRow[] }>();
   for (const row of rows) {
     const date = row.checkedAt.toISOString().slice(0, 10);
     let bucket = byDay.get(date);
     if (!bucket) {
-      bucket = { date, total: 0, ok: 0, degraded: 0, error: 0 };
+      bucket = {
+        summary: { date, total: 0, ok: 0, degraded: 0, error: 0, causes: [] },
+        rows: [],
+      };
       byDay.set(date, bucket);
     }
-    bucket.total += 1;
-    if (row.status === "ok") bucket.ok += 1;
-    else if (row.status === "degraded") bucket.degraded += 1;
-    else if (row.status === "error") bucket.error += 1;
+    bucket.rows.push(row);
+    bucket.summary.total += 1;
+    if (row.status === "ok") bucket.summary.ok += 1;
+    else if (row.status === "degraded") bucket.summary.degraded += 1;
+    else if (row.status === "error") bucket.summary.error += 1;
   }
-  return [...byDay.values()].sort((a, b) => a.date.localeCompare(b.date));
+  for (const bucket of byDay.values()) {
+    bucket.summary.causes = topPublicCausesForDay(bucket.rows);
+  }
+  return [...byDay.values()].map((b) => b.summary).sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export type StatusHistory = {
@@ -213,7 +294,11 @@ export async function getStatusHistory(windowDays = 30): Promise<StatusHistory> 
   try {
     const cutoff = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
     const rows = await db
-      .select({ checkedAt: healthSnapshots.checkedAt, status: healthSnapshots.status })
+      .select({
+        checkedAt: healthSnapshots.checkedAt,
+        status: healthSnapshots.status,
+        detail: healthSnapshots.detail,
+      })
       .from(healthSnapshots)
       .orderBy(desc(healthSnapshots.checkedAt));
     const current = rows[0] ? { status: rows[0].status as HealthStatus, checkedAt: rows[0].checkedAt } : null;

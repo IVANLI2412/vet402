@@ -8,6 +8,7 @@
 //   MCP: src/lib/docs/mcp-page-text.ts (Cursor), src/app/docs/mcp/page.tsx (Claude Code, Claude Desktop, Claude.ai)
 //   Express / Next.js / Hono: packages/middleware/README.md
 // Public English: no we / our / us, no semicolons, no dashes.
+import { beforePaySnippets } from "@/lib/find/snippets";
 import { MCP_DOCS_CONNECT_CURSOR } from "@/lib/docs/mcp-page-text";
 
 export const CONNECT_LEAD = "Put vet402 between AI agents. Both sides read the same purchase records.";
@@ -38,6 +39,27 @@ import { keylessDecisionPerMinute } from "@/lib/api/keyless-limits";
 
 const SAMPLE_URL = "https://api.example.com/v1/quote";
 const KEYLESS_DECISION = keylessDecisionPerMinute();
+
+const keylessCheck = beforePaySnippets(SAMPLE_URL);
+
+/** REST check on /connect (same one-liner as /memo before-pay snippets). */
+export const CONNECT_KEYLESS_CHECK_CURL =
+  keylessCheck.find((s) => s.id === "curl")?.code ??
+  `curl -s "https://vet402.com/api/v1/check?url=${encodeURIComponent(SAMPLE_URL)}"`;
+
+/** SDK check on /connect (same call pattern as /memo). */
+export const CONNECT_KEYLESS_SDK =
+  keylessCheck.find((s) => s.id === "ts")?.code ?? `import { check } from "vet402"; const r = await check("${SAMPLE_URL}");`;
+
+export const CONNECT_PASTE_HREF = "https://vet402.com/#lp-paste-url";
+
+export const CONNECT_MCP: ConnectStack = {
+  stack: "MCP",
+  intro:
+    "Cursor: put this line in .cursor/mcp.json. Claude Code: claude mcp add --transport http vet402 https://vet402.com/mcp. Claude Desktop and Claude.ai add a custom connector in Settings, Connectors with the URL https://vet402.com/mcp. No key.",
+  code: MCP_DOCS_CONNECT_CURSOR,
+  packages: [],
+};
 
 const BUY: ConnectStack[] = [
   {
@@ -79,13 +101,6 @@ const BUY: ConnectStack[] = [
       `    d = httpx.get(f"https://vet402.com/api/v1/resources/{resource_id}/decision", params={"role": "payer"}).json()`,
       `    print(d["recommendation"], d["reason_codes"])`,
     ].join("\n"),
-    packages: [],
-  },
-  {
-    stack: "MCP",
-    intro:
-      "Cursor: put this line in .cursor/mcp.json. Claude Code: claude mcp add --transport http vet402 https://vet402.com/mcp. Claude Desktop and Claude.ai add a custom connector in Settings, Connectors with the URL https://vet402.com/mcp. No key.",
-    code: MCP_DOCS_CONNECT_CURSOR,
     packages: [],
   },
   {

@@ -6,7 +6,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { CONNECT_CHOICES, CONNECT_LEAD, CONNECT_SIGNUP_HREF } from "@/lib/connect/snippets";
+import {
+  CONNECT_CHOICES,
+  CONNECT_KEYLESS_CHECK_CURL,
+  CONNECT_KEYLESS_SDK,
+  CONNECT_LEAD,
+  CONNECT_MCP,
+  CONNECT_SIGNUP_HREF,
+} from "@/lib/connect/snippets";
 
 const ROOT = process.cwd();
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
@@ -44,9 +51,12 @@ test("each choice starts in three steps: key, stack, one line", () => {
   assert.ok(existsSync(join(ROOT, "src/app", CONNECT_SIGNUP_HREF, "page.tsx")));
 });
 
-test("buy shows curl, TypeScript, Python, MCP and no-code; sell shows Express, Hono and Next.js", () => {
+test("buy shows curl, TypeScript, Python and no-code; MCP sits on the page above the chooser; sell shows Express, Hono and Next.js", () => {
   const ids = (id: string) => CONNECT_CHOICES.find((c) => c.id === id)!.stacks.map((s) => s.stack);
-  for (const s of ["curl", "TypeScript", "Python", "MCP", "No-code"]) assert.ok(ids("buy").includes(s), `buy ${s}`);
+  for (const s of ["curl", "TypeScript", "Python", "No-code"]) assert.ok(ids("buy").includes(s), `buy ${s}`);
+  assert.ok(!ids("buy").includes("MCP"), "MCP is not duplicated under I buy");
+  assert.ok(read("src/app/connect/page.tsx").includes("CONNECT_MCP"));
+  assert.equal(CONNECT_MCP.stack, "MCP");
   for (const s of ["Express", "Hono", "Next.js"]) assert.ok(ids("sell").includes(s), `sell ${s}`);
   // Both does not repeat the snippets (are.na / Linear plainness): one sentence and a switch to each tab.
   const both = CONNECT_CHOICES.find((c) => c.id === "both")!;
@@ -162,8 +172,13 @@ test("public English on /connect: no we, no dash, no semicolon in prose, no asse
 });
 
 test("the MCP snippet uses the documented config shape and the hosted URL", () => {
-  const mcp = CONNECT_CHOICES.find((c) => c.id === "buy")!.stacks.find((s) => s.stack === "MCP")!;
-  assert.ok(mcp.code.includes('{"mcpServers":{"vet402":{"type":"http","url":"https://vet402.com/mcp"}}}'));
+  assert.ok(CONNECT_MCP.code.includes('{"mcpServers":{"vet402":{"type":"http","url":"https://vet402.com/mcp"}}}'));
+});
+
+test("keyless check snippets on the page match /memo before-pay curls and SDK call", () => {
+  assert.match(CONNECT_KEYLESS_CHECK_CURL, /\/api\/v1\/check\?url=/);
+  assert.match(CONNECT_KEYLESS_SDK, /import \{ check \} from "vet402"/);
+  assert.match(read("src/app/connect/page.tsx"), /CONNECT_KEYLESS_CHECK_CURL/);
 });
 
 const CONNECT_UI = ["src/app/connect/page.tsx", "src/components/connect/ConnectChooser.tsx"];
@@ -268,9 +283,8 @@ test("Python uses plain HTTP on the two routes (vet402-sdk is not on PyPI and ha
 
 test("no snippet promises a coming package, and MCP needs no key to paste", () => {
   for (const s of allSnippets) assert.doesNotMatch(`${s.intro}\n${s.code}`, /\bis coming\b|\bcoming soon\b/i, s.stack);
-  const mcp = CONNECT_CHOICES.find((c) => c.id === "buy")!.stacks.find((s) => s.stack === "MCP")!;
-  assert.doesNotMatch(mcp.code, /VOUCH_API_KEY|your_key_here/);
-  assert.match(mcp.intro, /Claude Desktop/);
+  assert.doesNotMatch(CONNECT_MCP.code, /VOUCH_API_KEY|your_key_here/);
+  assert.match(CONNECT_MCP.intro, /Claude Desktop/);
 });
 
 test("values a reader must fill are named in the snippet, not left undefined", () => {
