@@ -93,7 +93,7 @@ function sellerLi(id: string, rid: string, o: { latest: string; result: string; 
   );
 }
 
-function recordHtml(state: string, rows: { minute: string; result: string; http: string; tx?: string; l2: string; side: string }[]) {
+function recordHtml(state: string, rows: { minute: string; result: string; http: string; tx?: string; l2: string; side: string; stage?: string }[]) {
   const head = `<span>Published state: <span class="i"><svg width="10"><rect></rect></svg>${state}</span></span>`;
   if (rows.length === 0) return head + `<p>No paid purchases recorded for this endpoint yet.</p>`;
   return (
@@ -104,7 +104,10 @@ function recordHtml(state: string, rows: { minute: string; result: string; http:
         (r) =>
           `<tr><td><span class="sm:hidden">x</span><span class="hidden sm:inline">${r.minute} UTC</span></td><td>${r.result}</td><td class="num">${r.http}</td>` +
           `<td>${r.tx ? `<a href="https://basescan.org/tx/${r.tx}" class="underline">short</a>` : "—"}</td><td>100 ms</td></tr>` +
-          `<tr class="fact-subrow"><td colSpan="5">5000 units<!-- --> · <!-- -->L2 <!-- -->${r.l2}<span class="block">Whose side: <!-- -->${r.side}</span></td></tr>`,
+          `<tr class="fact-subrow"><td colSpan="6">5000 units<!-- --> · <!-- -->L2 <!-- -->${r.l2}` +
+          `<span class="block font-[family-name:var(--font-sans)] text-[0.84375rem] text-brand-ink">Whose side: <!-- -->${r.side}</span>` +
+          (r.stage ? `<span class="block font-[family-name:var(--font-sans)] text-[0.84375rem] text-brand-ink">Stage: ${r.stage}</span>` : "") +
+          `</td></tr>`,
       )
       .join("") +
     `</tbody></table>`
@@ -249,6 +252,75 @@ test("誰の側かの語: 照合待ちは not sorted の語でも pending", () =
   assert.equal(sideFromWords("vet402's side"), "vet402");
   assert.equal(sideFromWords("—"), null);
 });
+
+test("記録頁: fact-subrow の Whose side は Stage 行を含まない（2026-11-14 wave1 B1）", () => {
+  const html = recordHtml("warn", [
+    {
+      minute: "2026-11-16 11:25",
+      result: "settle_failed",
+      http: "500",
+      l2: "not_checked",
+      side: "not sorted: one failure so far",
+      stage: "not_delivered",
+    },
+  ]);
+  const p = parseRecordPage(html);
+  assert.ok(p);
+  assert.equal(p.rows[0]!.whoseSide, "not sorted: one failure so far");
+});
+
+/** 2026-11-16 surface-canary: 記録頁に Stage が付いても 3 面の unsorted 語は一致（本番 11 件の型）。 */
+const STAGE_UNSORTED_CASES: { sideLabel: string; stage: string }[] = [
+  { sideLabel: "not sorted: no charge", stage: "inconclusive" },
+  { sideLabel: "not sorted: vet402 unproven", stage: "signed" },
+  { sideLabel: "not sorted: one failure so far", stage: "not_delivered" },
+  { sideLabel: "not sorted: one failure so far", stage: "signed" },
+  { sideLabel: "not sorted: charged, then rejected an input vet402 had not sent", stage: "inconclusive" },
+];
+
+function unsortedLatestRowListing(sideLabel: string, stage: string): ListingInput {
+  const x = listing(2, "warn_vet402", ["l1_failure"]);
+  assert.ok(x.sellersRow.ok === true && x.sellerPage.ok === true);
+  const at = "2026-11-16T11:25:00Z";
+  const minute = "2026-11-16 11:25";
+  x.sellersRow = {
+    ok: true,
+    value: {
+      ...x.sellersRow.value,
+      outcome: "unsorted",
+      side_label: sideLabel,
+      latest_attempted_at: at,
+      latest_status: "settle_failed",
+    },
+  };
+  x.sellerPage = {
+    ok: true,
+    value: {
+      ...x.sellerPage.value,
+      whoseSide: sideLabel,
+      latestAttempt: `${minute} UTC`,
+      attemptedAtIso: at,
+      recordedStatus: "settle_failed",
+      ledgerReadAt: minute,
+    },
+  };
+  x.record = {
+    ok: true,
+    value: parseRecordPage(
+      recordHtml("warn", [{ minute, result: "settle_failed", http: "500", l2: "not_checked", side: sideLabel, stage }]),
+    )!,
+  };
+  return x;
+}
+
+for (const { sideLabel, stage } of STAGE_UNSORTED_CASES) {
+  test(`latest_row_side PASS: unsorted「${sideLabel}」· Stage ${stage}`, () => {
+    const x = unsortedLatestRowListing(sideLabel, stage);
+    const ch = compareListing(x, registry()).checks.find((c) => c.rule === "latest_row_side");
+    assert.ok(ch, "latest_row_side not compared");
+    assert.equal(ch.ok, true, JSON.stringify(ch.values));
+  });
+}
 
 // ---- PASS / FAIL -------------------------------------------------------------------------------
 

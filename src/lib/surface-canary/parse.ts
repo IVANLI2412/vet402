@@ -147,7 +147,9 @@ export function parseRecordPage(html: string): RecordPage | null {
         const sub = htmlText(next[2]!);
         l2 = /\bL2 ([a-z_—-]+)/.exec(sub)?.[1] ?? null;
         if (l2 === "—") l2 = null;
-        whoseSide = /Whose side:\s*(.+)$/.exec(sub)?.[1]?.trim() ?? null;
+        // 2026-11-14（wave1 B1）: 記録頁の fact-subrow に Stage: が続く。Whose side の語だけ取る（canary の latest_row_side）。
+        const raw = /Whose side:\s*(.+)/.exec(sub)?.[1]?.trim() ?? null;
+        whoseSide = raw ? raw.replace(/\s+Stage:.*$/, "").trim() || null : null;
       }
       rows.push({
         attemptedMinute: when[1]!,

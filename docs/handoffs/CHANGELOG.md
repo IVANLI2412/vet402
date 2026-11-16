@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-17 — surface-canary: 記録頁 Stage 行を Whose side から外す・mcp-server zod 4.6.7
+
+- **何を**: `parseRecordPage` の fact-subrow で `Whose side` の語だけ取り、続く `Stage:` 行を latest_row_side の語比較から外す（2026-11-14 wave1 B1）。`tests/surface-consistency-canary.test.ts` に unsorted×Stage の型を追加。`packages/mcp-server` の runtime `zod` を `^4.6.7` に上げ GHSA-mrhx-c7xc-m3w5 を解消。
+- **なぜ**: 11/14 以降の surface-canary が 11 件の `side/latest_row_side` 赤になっていたが、sellers・売り手頁・記録頁の区分は揃っており、記録頁 HTML に Stage が付いただけで canary の正規表現が Stage まで食っていた。dependabot の high は mcp-server の lockfile だけが zod 3 系のままだった。
+- **試験**: `tests/surface-consistency-canary.test.ts`、`packages/mcp-server` の `npm run build`・`npm test`、本番向け `npx tsx scripts/surface-consistency-canary.ts --recheck-wait-sec 0`（0 discrepancies）。
+- **影響**: 面の表示は変えない（canary の読み方だけ）。root / sdk の dev 依存 `bigint-buffer` は未着手（development のみ）。
+
 ## 2026-11-16 — L1: XRPL の支払い付き要求だけ 45 秒待つ（l1/xrpl-paid-timeout-1116）
 
 - **何を**: `L1_XRPL_PAID_TIMEOUT_MS = 45_000`（`l1-timing.ts`）。XRPL mainnet（`xrpl:0`・chains.ts の `XRPL_MAINNET_CAIP2`）の支払い付き要求だけ 45 秒待つ。無払いは 20 秒、ほかのチェーンは従来どおり。予算は Celo と同型（`laneChain === "xrpl"` または主ネットワーク `xrpl:0`）。`L1_BATCH_BUDGET_MS` 210 秒 + 最悪 88 秒 = 298 秒で `maxDuration` 300 秒の内側。方法論の頁に Celo と同じ形式で 2 か所追記。`paidTimeoutMs` は行の `raw_response_meta` に書く（fix-modes は network では決めない・変更なし）。
