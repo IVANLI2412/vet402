@@ -10,7 +10,7 @@ import { CONNECT_CHOICES, CONNECT_LEAD, CONNECT_SIGNUP_HREF } from "@/lib/connec
 
 const ROOT = process.cwd();
 const read = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
-const LEAD = "Put vet402 between AI agents. Both sides trade safely.";
+const LEAD = "Put vet402 between AI agents. Both sides read the same purchase records.";
 
 const allSnippets = CONNECT_CHOICES.flatMap((c) => c.stacks);
 
@@ -205,10 +205,12 @@ test("code samples keep a copy button with an accessible name and a polite live 
   assert.match(src, /navigator\.clipboard/);
 });
 
-test("/connect is in the sitemap, the header menu and the footer; the home page is untouched", () => {
+test("/connect is in the sitemap, the footer, and not in the five-item header, and the home page is untouched", () => {
   assert.ok(read("src/app/sitemap.ts").includes("${SITE_URL}/connect"));
-  assert.ok(read("src/components/site/SiteHeader.tsx").includes('href: "/connect"'));
   assert.ok(read("src/components/site/SiteFooter.tsx").includes('href: "/connect"'));
+  const header = read("src/components/site/SiteHeader.tsx");
+  const nav = header.slice(header.indexOf("const NAV_ITEMS"), header.indexOf("];", header.indexOf("const NAV_ITEMS")) + 2);
+  assert.ok(!nav.includes('href: "/connect"'));
   assert.ok(!read("src/app/page.tsx").includes("/connect"));
 });
 

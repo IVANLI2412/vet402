@@ -17,7 +17,7 @@ import { safeJsonLd } from "@/lib/util/json-ld";
 export const metadata: Metadata = pageMetadata({
   title: "Get an API key",
   description:
-    "Create a vet402 API key for programmatic score lookups. Observatory and payee lookup stay public. Free: 1,000 lookups a month.",
+    "Create a vet402 API key for programmatic seller checks. Observatory and payee lookup stay public. Free: 1,000 seller checks a month.",
   path: "/signup",
 });
 

@@ -8,7 +8,7 @@ import { SITE_URL } from "@/lib/site-url";
 
 // 2026-11-09: オーナーが承認した共有画像に合わせ、既定の title / og:title / twitter:title は
 // LP の H1（src/app/page.tsx）。template は既定には付かない。em ダッシュは使わない。
-const SITE_TITLE = "Safe payments between AI agents and the APIs they buy from.";
+const SITE_TITLE = "Know if an x402 seller delivers before your agent pays.";
 const SITE_DESCRIPTION =
   "vet402 pays x402 APIs itself and publishes which paid requests came back with a non-empty 2xx, so you can check a seller before your agent pays it.";
 

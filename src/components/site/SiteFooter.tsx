@@ -21,7 +21,7 @@
 import Link from "next/link";
 import OutboundAnchor from "@/components/site/OutboundAnchor";
 import { Wordmark } from "@/components/site/Wordmark";
-import { clarityExcludedPath, clarityProjectId } from "@/lib/clarity";
+import { clarityExcludedPath } from "@/lib/clarity";
 
 // 2026-09-02 Takeshi「フッターのバランスが悪い。本当に必要なものだけ残し、配置と内容を最適化」。
 // それまでは Index 11 / Operator 6 / Cite 2 の 3 列で、左だけが長い索引だった。
@@ -98,11 +98,8 @@ const SMALL_PRINT_LINKS = [
   { label: "Commercial disclosure", href: "/legal/notice#commercial-transactions" },
   { label: "Relationships", href: "/legal/notice#relationships" },
   { label: "Contact", href: "/legal/notice#contact" },
-  // 2026-10-31 Microsoft Clarity の同意を後から変える入口。ID がある時だけ出す
-  // （Clarity を動かさない頁では SiteFooter が外す）。
-  ...(clarityProjectId(process.env.NEXT_PUBLIC_CLARITY_PROJECT_ID)
-    ? [{ label: "Privacy choices", href: PRIVACY_CHOICES_HREF }]
-    : []),
+  // 2026-10-31 Microsoft Clarity の同意を後から変える入口。凍結面以外では常に出す。
+  { label: "Privacy choices", href: PRIVACY_CHOICES_HREF },
   { label: "RSS", href: "/blog/rss.xml" },
   { label: "llms.txt", href: "/llms.txt" },
 ];
@@ -172,9 +169,8 @@ export function SiteFooter({ pathname = "" }: { pathname?: string }) {
         {/* 免責は 1 文。2026-10-01 オーナー指示で運営者名（KIZUNA Creation）をフッタから外した（将来戻す可能性あり）。
             運営者の情報は /legal/notice に残る。 */}
         <p className="mt-5 max-w-[72ch] text-[0.84375rem] leading-relaxed text-brand-lift">
-          © {year} vet402. Results are
-          measurements offered for B2B API use — not a guarantee, credit assessment, or legal
-          certification.
+          © {year} vet402. Results are measurements for agent and service operators, not a guarantee,
+          credit assessment, or legal certification.
         </p>
       </div>
     </footer>

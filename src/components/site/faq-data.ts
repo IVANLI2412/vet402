@@ -96,7 +96,7 @@ export const FAQS: FaqItem[] = [
   {
     question: "Do I need an account?",
     answer:
-      "No. The observatory (catalog measurements) and the payee lookup are public. An API key is only for programmatic score lookups — 1,000 a month on Free, then upgrade from Billing after you have a key.",
+      "No. The observatory (catalog measurements) and the payee lookup are public. An API key is only for programmatic seller checks, 1,000 a month on Free, then upgrade from Billing after you have a key.",
   },
   {
     question: "How much does it cost?",

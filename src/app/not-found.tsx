@@ -16,7 +16,7 @@ export default function NotFound() {
         <div className="doc-head">
           <div className="doc-head-col">
             <span>Independent Measurement</span>
-            <span>Status report</span>
+            <span>Not found</span>
           </div>
           <div className="doc-head-col">
             <span>vet402</span>

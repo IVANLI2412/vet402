@@ -31,6 +31,6 @@ test("the first screen has two ways in, one for each side", () => {
 
 test("the counts carry the time of the state read, and the old document stays at /memo", () => {
   assert.match(page, /<time dateTime=\{readAt\}>/);
-  assert.match(page, /href: "\/memo"/);
+  assert.match(page, /href="\/memo"/);
   assert.match(readFileSync("src/app/memo/page.tsx", "utf8"), /path: "\/memo"/);
 });

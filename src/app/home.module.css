@@ -178,6 +178,13 @@
   color: var(--lp-ink);
   text-wrap: balance;
 }
+.pricingDisclaimer {
+  margin: 0;
+  padding-bottom: 0;
+  font-size: 1rem;
+  color: var(--lp-ink-3);
+}
+
 .lede {
   margin: 24px 0 0;
   max-width: 34em;
@@ -315,6 +322,21 @@
   }
   .record {
     margin-top: 0;
+  }
+}
+@media (max-width: 390px) {
+  .h1 {
+    font-size: clamp(1.75rem, 8.2vw, 2.375rem);
+  }
+  .lede {
+    margin-top: 12px;
+    line-height: 1.45;
+  }
+  .actions {
+    margin-top: 16px;
+  }
+  .pasteForm {
+    margin-top: 12px;
   }
 }
 @media (max-width: 640px) {
@@ -1003,6 +1025,11 @@
 }
 .pasteForm {
   margin: 0;
+}
+@media (max-width: 390px) {
+  .pasteForm {
+    margin-top: 12px;
+  }
 }
 
 /* One quiet fade on the first screen. Content is visible by default. */

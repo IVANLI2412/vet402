@@ -110,10 +110,11 @@ test("the headline leading is 1.08", () => {
   assert.match(h1, /line-height:\s*1\.08/);
 });
 
-test("the first screen defines x402 and does not say 2xx or lookups", () => {
-  assert.match(page, /the ones that ask an agent to pay before they answer/);
+test("the first screen defines the record and does not say 2xx or lookups", () => {
+  assert.match(page, /Paste a URL to see the record/);
   assert.match(page, /seller checks a month/);
   assert.match(page, /href="\/signup"/);
+  assert.match(page, /href="\/x402\/check-a-seller"/);
   assert.equal(cardDeliveredLabel({ held: false, delivered: true, httpStatus: 200 }), "Yes");
   assert.equal(cardDeliveredLabel({ held: false, delivered: false, httpStatus: 500 }), "No");
   assert.equal(cardDeliveredLabel({ held: true, delivered: false, httpStatus: 400 }), "held, inconclusive");
@@ -161,10 +162,13 @@ test("the machine-readable description matches the page metadata, and paid price
   assert.match(page, /description: String\(metadata\.description\)/);
   assert.match(
     page,
-    /description:\n {4}"vet402 checks an x402 seller before your AI agent pays, caps spending, and publishes what each seller delivered\. Settlement assets include USDC\.",/,
+    /description:\n {4}"vet402 pays x402 sellers with its own money and publishes what came back\. Paste a URL to see the record\. Settlement assets include USDC\.",/,
   );
-  assert.match(page, /Pro is \$\{BILLING_PLANS\.pro\.monthlyUsd\} a month\. Scale is \$\{BILLING_PLANS\.scale\.monthlyUsd\} a month\./);
-  assert.match(page, /isStripeConfigured\(\) \?/);
+  assert.doesNotMatch(page, /Pro is \$\{BILLING_PLANS\.pro\.monthlyUsd\} a month/);
+  assert.equal((page.match(/<PricingSection/g) ?? []).length, 1);
+  assert.match(page, /isStripeConfigured\(\)/);
+  assert.match(page, /price: "49"/);
+  assert.match(page, /price: "199"/);
 });
 
 test("a missing purchase card leaves one text column", () => {
@@ -180,9 +184,11 @@ test("the purchase card does not fade in from off-screen", () => {
   assert.doesNotMatch(css, /translateY/);
 });
 
-test("CC BY links to the license, and sellers stay in the footer", () => {
+test("CC BY links to the license, and the shared footer is used on home", () => {
   assert.match(page, /href="https:\/\/creativecommons.org\/licenses\/by\/4.0\/"/);
-  assert.match(page, /label: "Sellers", href: "\/sellers"/);
+  assert.doesNotMatch(page, /FOOT_MAIN/);
+  assert.match(chrome, /<SiteFooter pathname=/);
+  assert.match(readFileSync("src/components/site/SiteFooter.tsx", "utf8"), /label: "Sellers", href: "\/sellers"/);
 });
 
 test("footer type, link underlines, and the quiet button border stay grey", () => {

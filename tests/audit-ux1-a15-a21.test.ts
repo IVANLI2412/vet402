@@ -74,10 +74,11 @@ test("inputs under 640px stay at least 16px, including the observatory fields", 
   const css = read("src/app/globals.css");
   // The type scale has no 16px step. 17px (--type-17) is the nearest step at or above 16px, so iOS still does not zoom.
   assert.match(css, /@media \(max-width: 639px\) \{\s*\.doc-input \{\s*font-size: var\(--type-17\);/);
-  assert.match(css, /\.site-menu:not\(\[open\]\) > nav \{\s*display: none;/);
   const header = read("src/components/site/SiteHeader.tsx");
-  const mobileNav = header.slice(header.indexOf('aria-label="Mobile navigation"'), header.indexOf("</nav>", header.indexOf('aria-label="Mobile navigation"')));
-  assert.doesNotMatch(mobileNav, /\bflex\b/, "display:flex on the details panel overrides the closed state");
+  assert.match(header, /aria-expanded=\{mobileOpen\}/);
+  assert.match(header, /mobileOpen \? \(/);
+  assert.doesNotMatch(header, /hidden=\{!mobileOpen\}/);
+  assert.doesNotMatch(header, /mobileOpen \? null :/);
   const observatory = read("src/app/observatory/page.tsx");
   const form = observatory.slice(observatory.indexOf('action="/observatory"'), observatory.indexOf("</form>"));
   assert.match(form, /name="q"[\s\S]*max-sm:text-\[1\.0625rem\]/);

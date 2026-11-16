@@ -93,9 +93,9 @@ test("about page source and credentials.json avoid we / our and em dashes", () =
   assert.ok(!src.includes("—"), "about page must not contain em dash");
 });
 
-test('header About links to /about', () => {
-  const header = read("src/components/site/SiteHeader.tsx");
-  assert.ok(header.includes('{ label: "About", href: "/about" }'));
+test("footer About links to /about", () => {
+  const footer = read("src/components/site/SiteFooter.tsx");
+  assert.ok(footer.includes('{ label: "About vet402", href: "/about" }'));
 });
 
 test("npm の読みは失敗をキャッシュしない（unstable_cache の中に catch を置かない）", () => {

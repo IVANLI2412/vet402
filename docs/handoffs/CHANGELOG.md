@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-16 HOME (PMF85): front page copy, PasteCheck states, shared header on /
+
+- What: The home H1 and subcopy now lead with delivery records and paste-check. PasteCheck splits results into a full record, same-host listings, or a diagnose curl when vet402 has not paid the URL. The shared SiteHeader and SiteFooter wrap the home page too (five nav items, mobile menu button with aria-expanded). Connect lead, signup metadata, FAQ, SEO defaults, and OG alt follow the public English rules on the home surface. Signup and FAQ say seller checks instead of score lookups. One pricing section on home, with "Records are measurements, not a guarantee." before it. Paid monthly prices appear only in that pricing section, not in the hero note. 404 drops the Status report label.
+- Why: PMF85 acceptance for the public home surface.
+- Tests: `tests/pmf85-home-acceptance.test.ts`, `tests/pmf85-home-paste-states.test.ts`, plus updates to `tests/home-paste-check-u1.test.ts`, `tests/lp-first-screen.test.ts`, `tests/a11y-r5-forms.test.ts`, `tests/connect-page.test.ts`, `tests/journey-surface.test.ts`, `tests/mobile-menu-closes.test.ts`, `tests/about.test.ts`, `tests/audit-ux1-a15-a21.test.ts`, `tests/availability-seo-audit-0902.test.ts`.
+- Impact: Home no longer renders its own header or footer. Header nav no longer lists Sellers, Verify, FAQ, or Connect.
+- SiteFooter disclaimer: "for agent and service operators" replaces "offered for B2B API use", aligned with terms §0 (free account, paid plans for business use).
 ## 2026-11-16 pmf85 PAGES: /pricing, ways-to-check, 50 x402 seller reputation pages, cached first paint
 
 - What: Standalone `/pricing` (PricingSection only). New `/x402/ways-to-check-a-seller` comparison page. Up to fifty indexable `/x402/sellers/{host}` pages: `getReputationHostsCached` walks `selectReputationHosts` order, reads seller detail (cap 150), and keeps hosts that pass the same `reputationPageEligible` gate as the page (purchased-only copy, no newer undelivered other-chain signal, no withdrawn routes, forbidden-word scan on rendered text). `sitemap-sellers.xml` and `sitemap()` list only that cached set. Removed `/pricing` redirect. Playground loads the catalog on first Run using returned candidates (not stale React state). Decisions and status use cached reads; chain freshness stays ISO inside `unstable_cache` and becomes `Date` after read. Status chain copy uses chain freshness `readAt` for “as of”.

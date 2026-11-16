@@ -483,11 +483,11 @@ test("マスク: DashboardShell の根（ログイン画面と本体の両方）
   assert.equal(shell.includes('data-clarity-mask="true"'), false);
 });
 
-test("footer: Privacy choices の入口は ID がある時だけ、ポリシーの選択の節へ", () => {
+test("footer: Privacy choices は凍結面以外で常に、ポリシーの選択の節へ", () => {
   const src = read("src/components/site/SiteFooter.tsx");
   assert.match(src, /PRIVACY_CHOICES_HREF = "\/legal\/privacy#privacy-choices"/);
   assert.match(src, /label: "Privacy choices", href: PRIVACY_CHOICES_HREF/);
-  assert.match(src, /NEXT_PUBLIC_CLARITY_PROJECT_ID/);
+  assert.match(src, /clarityExcludedPath/);
 });
 
 test("footer: ID がある時も、凍結面（/rwa・/tokyo・/ethonline）と Clarity を動かさない頁では Privacy choices を出さない", async () => {

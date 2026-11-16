@@ -28,6 +28,12 @@ type CheckBody = {
   }>;
   not_in_catalog?: boolean;
   record_url?: string;
+  same_host_listings?: Array<{
+    url: string;
+    method?: string;
+    record_url?: string;
+    catalog_status?: string;
+  }>;
 };
 
 type FindAlt = {
@@ -74,6 +80,61 @@ function hostPath(url: string): string {
     return url;
   }
 }
+
+function listingPath(url: string): string {
+  try {
+    return new URL(url).pathname;
+  } catch {
+    return url;
+  }
+}
+
+function pathFilterTerms(raw: string): string[] {
+  try {
+    return new URL(raw).pathname.split("/").filter((p) => p.length >= 3);
+  } catch {
+    return [];
+  }
+}
+
+function pathSegments(pathname: string): string[] {
+  return pathname.split("/").filter(Boolean);
+}
+
+function filterAlternativesByPath(alts: FindAlt[], raw: string): FindAlt[] {
+  const terms = pathFilterTerms(raw);
+  if (terms.length === 0) return [];
+  const termSet = new Set(terms.map((t) => t.toLowerCase()));
+  return alts.filter((alt) => {
+    try {
+      const segments = pathSegments(new URL(alt.url).pathname.toLowerCase());
+      return segments.some((seg) => termSet.has(seg));
+    } catch {
+      return false;
+    }
+  });
+}
+
+const DIAGNOSE_EXTRA_ENCODE = new Set(["!", "'", "(", ")", "*"]);
+
+function encodeDiagnoseQueryComponent(raw: string): string {
+  const enc = encodeURIComponent(fetchQueryUrl(raw));
+  let out = "";
+  for (const c of enc) {
+    if (DIAGNOSE_EXTRA_ENCODE.has(c)) {
+      out += `%${c.charCodeAt(0).toString(16).toUpperCase()}`;
+    } else {
+      out += c;
+    }
+  }
+  return out;
+}
+
+function diagnoseCurlLine(raw: string): string {
+  return `curl -s "https://vet402.com/api/v1/diagnose?url=${encodeDiagnoseQueryComponent(raw)}"`;
+}
+
+type PasteOutcome = "record" | "same_host" | "none";
 
 function sameUtcSecond(a: string, b: string): boolean {
   const ta = Math.floor(new Date(a).getTime() / 1000);
@@ -239,7 +300,7 @@ export function PasteCheck({
             return;
           }
           const body = (await res.json()) as FindBody;
-          setAlts((body.alternatives ?? []).slice(0, 3));
+          setAlts(body.alternatives ?? []);
           setFindSettled(true);
         })
         .catch(() => {
@@ -274,8 +335,27 @@ export function PasteCheck({
   const lastDeliveredAt = check?.evidence_age?.last_delivered_at ?? null;
   const recordHref = check ? vet402RecordHref(check.record_url) : null;
 
-  const showAltsAndCode =
-    phase === "result" && !hint && !checkErr && check;
+  const sameHostListings =
+    check?.not_in_catalog && (check.same_host_listings?.length ?? 0) > 0 ? check.same_host_listings! : null;
+
+  const outcome: PasteOutcome | null =
+    phase === "result" && !hint && !checkErr && check
+      ? check.not_in_catalog
+        ? sameHostListings
+          ? "same_host"
+          : "none"
+        : "record"
+      : null;
+
+  const recordAlts = outcome === "record" && alts ? alts.slice(0, 3) : [];
+  const sameHostAlts =
+    outcome === "same_host" && submittedUrl && alts ? filterAlternativesByPath(alts, submittedUrl).slice(0, 3) : [];
+  const displayAlts = outcome === "same_host" ? sameHostAlts : recordAlts;
+
+  const showRecordCard = outcome === "record";
+  const showAlternatives =
+    outcome === "record" || (outcome === "same_host" && sameHostAlts.length > 0);
+  const showBeforePayCode = outcome === "record" && submittedUrl;
 
   return (
     <div className={s.paste}>
@@ -315,22 +395,54 @@ export function PasteCheck({
             ) : checkErr ? (
               <p className={s.pasteStatus}>{checkErr}</p>
             ) : verdict && check && !check.not_in_catalog ? (
-              // 読み上げだけに残す。画面ではカードの中の Verdict が同じことを示す（重複させない）。
               <p className="sr-only" data-testid="paste-live-verdict">
                 Verdict {verdict}
               </p>
-            ) : check?.not_in_catalog ? (
+            ) : outcome === "same_host" && sameHostListings ? (
               <p className="sr-only" data-testid="paste-live-verdict">
-                No record yet for this URL.
+                This host has {sameHostListings.length} recorded listings.
+              </p>
+            ) : outcome === "none" ? (
+              <p className="sr-only" data-testid="paste-live-verdict">
+                vet402 has not paid this URL yet.
               </p>
             ) : null}
           </div>
           <div className={s.pasteResult}>
-            {phase === "result" && check?.not_in_catalog ? (
-              <div className={s.pasteBlock}>
-                <p>No record yet. vet402 has not paid this URL, so there is no paid test to show.</p>
+            {phase === "result" && outcome === "same_host" && sameHostListings ? (
+              <div className={s.pasteBlock} data-testid="paste-same-host">
+                <p>
+                  This host has{" "}
+                  <span className={s.mono}>{sameHostListings.length}</span> recorded listings
+                </p>
+                <ul className={s.pasteAltList}>
+                  {sameHostListings.slice(0, 3).map((row) => {
+                    const rowRecord = vet402RecordHref(row.record_url);
+                    return (
+                      <li key={row.url} className={s.pasteAlt}>
+                        <span className={s.mono}>{listingPath(row.url)}</span>
+                        {row.method ? <span className={s.pasteAltMeta}> · {row.method}</span> : null}
+                        {rowRecord ? (
+                          <>
+                            {" "}
+                            <a href={rowRecord} className={s.inlineLink}>
+                              Record
+                            </a>
+                          </>
+                        ) : null}
+                      </li>
+                    );
+                  })}
+                </ul>
               </div>
-            ) : phase === "result" && check ? (
+            ) : phase === "result" && outcome === "none" ? (
+              <div className={s.pasteBlock} data-testid="paste-none">
+                <p>vet402 has not paid this URL yet. Run a live check:</p>
+                <pre className={s.pasteCode}>
+                  <code>{submittedUrl ? diagnoseCurlLine(submittedUrl) : diagnoseCurlLine(url.trim())}</code>
+                </pre>
+              </div>
+            ) : phase === "result" && showRecordCard && check ? (
               <dl className={s.recordRows}>
                 {verdict ? (
                   <div className={s.pasteVerdict}>
@@ -406,14 +518,14 @@ export function PasteCheck({
               </dl>
             ) : null}
 
-            {showAltsAndCode && (
+            {showAlternatives && (
               <>
                 <h2 className={s.pasteAltHead}>Alternatives that delivered more often</h2>
                 {findErr ? (
                   <p className={s.pasteBlock}>Alternatives could not be read just now.</p>
-                ) : alts && alts.length > 0 ? (
+                ) : displayAlts.length > 0 ? (
                   <ul className={s.pasteAltList}>
-                    {alts.slice(0, 3).map((alt) => {
+                    {displayAlts.map((alt) => {
                       const altRecordHref = vet402RecordHref(alt.record_url);
                       return (
                         <li key={alt.url} className={s.pasteAlt}>
@@ -437,7 +549,7 @@ export function PasteCheck({
                       );
                     })}
                   </ul>
-                ) : findSettled ? (
+                ) : findSettled && outcome === "record" ? (
                   <p className={s.pasteBlock}>
                     No listing for the same use passed the rule yet.{" "}
                     <Link href="/observatory/methodology#find-ranking" className={s.inlineLink}>
@@ -446,7 +558,7 @@ export function PasteCheck({
                   </p>
                 ) : null}
 
-                {submittedUrl ? (
+                {showBeforePayCode ? (
                   <div className={s.pasteCode}>
                     <p className={s.pasteCodeHead}>Check before paying, one line</p>
                     <div className={s.pasteTabs} role="group" aria-label="Code for">

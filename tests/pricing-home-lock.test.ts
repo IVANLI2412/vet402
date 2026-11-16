@@ -88,18 +88,25 @@ function assertHomeHeroPricingCopy(pageSource: string): void {
     pageSource,
     /Start free with \{BILLING_PLANS\.free\.monthlyLimit\.toLocaleString\("en-US"\)\} seller checks a month\./,
   );
-  assert.match(
-    pageSource,
-    /Pro is \$\{BILLING_PLANS\.pro\.monthlyUsd\} a month\. Scale is \$\{BILLING_PLANS\.scale\.monthlyUsd\} a month\./,
-  );
+  assert.doesNotMatch(pageSource, /Pro is \$\{BILLING_PLANS\.pro\.monthlyUsd\} a month/);
+  assert.doesNotMatch(pageSource, /Scale is \$\{BILLING_PLANS\.scale\.monthlyUsd\} a month/);
   const freeLine = `Start free with ${BILLING_PLANS.free.monthlyLimit.toLocaleString("en-US")} seller checks a month.`;
-  const paidLine = `Pro is $${BILLING_PLANS.pro.monthlyUsd} a month. Scale is $${BILLING_PLANS.scale.monthlyUsd} a month.`;
   if (freeLine !== "Start free with 1,000 seller checks a month.") {
     throw new Error(`unexpected hero free line: ${freeLine}`);
   }
-  if (paidLine !== "Pro is $49 a month. Scale is $199 a month.") {
-    throw new Error(`unexpected hero paid line: ${paidLine}`);
-  }
+  const heroStart = pageSource.indexOf('className={s.heroNote}');
+  const heroEnd = pageSource.indexOf("className={s.heroFacts}", heroStart);
+  const heroNote = pageSource.slice(heroStart, heroEnd > 0 ? heroEnd : heroStart + 800);
+  assert.doesNotMatch(heroNote, /\$49|\$199|monthlyUsd/);
+}
+
+function assertHomePaidPricesOnlyInPricingSection(pageSource: string): void {
+  const pricingIdx = pageSource.indexOf("<PricingSection");
+  assert.ok(pricingIdx >= 0, "home must render PricingSection");
+  const beforePricing = pageSource.slice(0, pricingIdx);
+  assert.doesNotMatch(beforePricing, /\$\{BILLING_PLANS\.pro\.monthlyUsd\}/);
+  assert.doesNotMatch(beforePricing, /\$\{BILLING_PLANS\.scale\.monthlyUsd\}/);
+  assert.equal((pageSource.match(/<PricingSection/g) ?? []).length, 1);
 }
 
 function assertHomeJsonLdOfferPrices(pageSource: string): void {
@@ -140,7 +147,9 @@ test("[guard] BILLING_PLANS names, labels, and limits", () => {
 });
 
 test("[guard] home hero pricing strings in page.tsx and composed English", () => {
-  assertHomeHeroPricingCopy(read("src/app/page.tsx"));
+  const page = read("src/app/page.tsx");
+  assertHomeHeroPricingCopy(page);
+  assertHomePaidPricesOnlyInPricingSection(page);
 });
 
 test("[guard] JSON-LD offer prices match monthlyUsd", () => {
@@ -202,10 +211,11 @@ test("[guard] mutated pricing table html fails assertHomePricingTable", async ()
 
 test("[guard] mutated page.tsx fails hero and JSON-LD guards", () => {
   const page = read("src/app/page.tsx");
-  const brokeHero = page.replace(
-    "Pro is ${BILLING_PLANS.pro.monthlyUsd} a month",
-    "Pro is $59 a month",
+  const withHeroPaid = page.replace(
+    '</Link>\n            </p>\n            <p>\n              <Link href="/memo"',
+    '</Link>\n            </p>\n            <p>\n              Pro is ${BILLING_PLANS.pro.monthlyUsd} a month. Scale is ${BILLING_PLANS.scale.monthlyUsd} a month.\n            </p>\n            <p>\n              <Link href="/memo"',
   );
-  assert.throws(() => assertHomeHeroPricingCopy(brokeHero));
+  assert.throws(() => assertHomeHeroPricingCopy(withHeroPaid));
+  assert.throws(() => assertHomePaidPricesOnlyInPricingSection(withHeroPaid));
   assert.throws(() => assertHomeJsonLdOfferPrices(page.replace('price: "49"', 'price: "59"')));
 });

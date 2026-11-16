@@ -76,14 +76,15 @@ export function TableScroll({
 
   return (
     <>
-      <p
-        data-table-scroll-hint=""
-        hidden={hiddenColumns === 0}
-        aria-hidden="true"
-        className="doc-caption mt-5 -mb-1 text-right text-brand-lift"
-      >
-        → {hiddenColumns} more {hiddenColumns === 1 ? "column" : "columns"}
-      </p>
+      {hiddenColumns > 0 ? (
+        <p
+          data-table-scroll-hint=""
+          aria-hidden="true"
+          className="doc-caption mt-5 -mb-1 text-right text-brand-lift"
+        >
+          → {hiddenColumns} more {hiddenColumns === 1 ? "column" : "columns"}
+        </p>
+      ) : null}
       <div
         ref={ref}
         className={`table-scroll ${STICKY_FIRST_COLUMN} ${className}`.trim()}

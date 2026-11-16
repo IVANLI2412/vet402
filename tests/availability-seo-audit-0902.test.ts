@@ -45,8 +45,8 @@ test("pageMetadata は openGraph.images と twitter.images を既定で継承す
 });
 
 const APPROVED_OG_ALT =
-  "vet402: Safe payments between AI agents and the APIs they buy from. Check a seller before paying. Check delivery after.";
-const APPROVED_OG_TITLE = "Safe payments between AI agents and the APIs they buy from.";
+  "vet402: Know if an x402 seller delivers before your agent pays. Check a seller before paying. Check delivery after.";
+const APPROVED_OG_TITLE = "Know if an x402 seller delivers before your agent pays.";
 
 test("og:image:alt と既定の og:title は、承認済みの共有画像と LP の見出しと同じ文", () => {
   const meta = pageMetadata({ title: "T", description: "D", path: "/faq" });

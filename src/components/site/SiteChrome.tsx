@@ -21,8 +21,6 @@ export function SiteChrome({
 }) {
   const pathname = usePathname();
   const isDashboard = pathname?.startsWith("/dashboard");
-  // 2026-11-08: the front page draws its own two-link bar and footer (owner 11/07 23:41, a much
-  // simpler front page). Every other public page keeps the shared header and footer.
   const isHome = pathname === "/";
 
   // 2026-08-13 アクセシビリティ監査 [E3]: クライアント側のルート遷移のあと
@@ -62,11 +60,11 @@ export function SiteChrome({
         Skip to main content
       </a>
       <StatusBanner variant={isHome ? "quiet" : "strip"} />
-      {isHome ? null : <SiteHeader />}
+      <SiteHeader />
       <div id="main-content" ref={mainRef} tabIndex={-1} className="min-w-0 flex-1">
         {children}
       </div>
-      {isHome ? null : <SiteFooter pathname={pathname ?? ""} />}
+      <SiteFooter pathname={pathname ?? ""} />
     </>
   );
 }

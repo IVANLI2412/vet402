@@ -37,7 +37,7 @@ export const OG_IMAGE_PATH = "/opengraph-image.png";
 
 /** 共有画像の alt。LP の見出しと、画像の2行目。em ダッシュも we も使わない。 */
 export const OG_IMAGE_ALT =
-  "vet402: Safe payments between AI agents and the APIs they buy from. Check a seller before paying. Check delivery after.";
+  "vet402: Know if an x402 seller delivers before your agent pays. Check a seller before paying. Check delivery after.";
 
 export const ORG_SAME_AS = [
   "https://x.com/vet402_com",

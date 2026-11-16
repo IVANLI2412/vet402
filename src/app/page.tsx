@@ -4,7 +4,6 @@ import { Inter } from "next/font/google";
 import { fragmentMono, martianMono } from "./fonts";
 import TrackView from "@/components/site/TrackView";
 import TrackedLink from "@/components/site/TrackedLink";
-import OutboundAnchor from "@/components/site/OutboundAnchor";
 import { HomeLivenessNote } from "@/components/site/StatusBanner";
 import { PricingSection } from "@/components/site/PricingSection";
 import { BILLING_PLANS, isStripeConfigured } from "@/lib/billing/plans";
@@ -21,7 +20,7 @@ import s from "./home.module.css";
 export const metadata = pageMetadata({
   title: "vet402: verify x402 payments for AI agents",
   description:
-    "vet402 checks an x402 seller before your AI agent pays, caps spending, and publishes what each seller delivered. Settlement assets include USDC.",
+    "vet402 pays x402 sellers with its own money and publishes what came back. Paste a URL to see the record. Settlement assets include USDC.",
   path: "/",
 });
 
@@ -79,26 +78,6 @@ const ENTRY_CARDS = [
     event: "entry_after_pay" as const,
     linkLabel: "Observatory",
   },
-] as const;
-
-// 2026-11-12 オーナー「フッターも選択肢がありすぎてわけがわからない。シンプル・ザ・ベスト」。
-// 4 群 23 本を、主な行 7 本と法務 3 本に絞った。x402 のガイド（chains・check-a-seller・stablecoin-payments）への
-// 内部リンクは、ほかの頁の SiteFooter の x402 列に残る。
-const FOOT_MAIN = [
-  { label: "Docs", href: "/docs/api" },
-  { label: "Sellers", href: "/sellers" },
-  { label: "Observatory", href: "/observatory" },
-  { label: "What is x402", href: "/x402" },
-  { label: "Blog", href: "/blog" },
-  { label: "GitHub", href: "https://github.com/kzmttkc/vet402" },
-  { label: "X", href: "https://x.com/vet402_com" },
-] as const;
-
-const FOOT_LEGAL = [
-  { label: "Terms", href: "/legal/terms" },
-  { label: "Privacy", href: "/legal/privacy" },
-  { label: "Legal notice", href: "/legal/notice" },
-  { label: "The memo", href: "/memo" },
 ] as const;
 
 export default async function Home() {
@@ -202,33 +181,16 @@ export default async function Home() {
         }}
       />
 
-      <header className={s.wrap}>
-        <div className={s.bar}>
-          <Link href="/" className={s.mark} aria-label="vet402 home">
-            <span>vet</span>
-            <span>402</span>
-          </Link>
-          <nav aria-label="Main navigation" className={s.nav}>
-            <TrackedLink href="/docs/api" event="nav_click" props={{ label: "Docs", position: "lp_bar" }}>
-              Docs
-            </TrackedLink>
-            <TrackedLink href="/about" event="nav_click" props={{ label: "About", position: "lp_bar" }}>
-              About
-            </TrackedLink>
-          </nav>
-        </div>
-      </header>
-
       <main className={s.wrap}>
         <section aria-labelledby="lp-title" className={s.hero}>
           <div className={s.heroText}>
             <h1 id="lp-title" className={s.h1}>
-              Safe payments between AI agents and the APIs they buy from.
+              Know if an x402 seller delivers before your agent pays.
             </h1>
             <p className={s.lede}>
-              vet402 buys from x402 APIs, the ones that ask an agent to pay before they answer, and records whether a
-              real answer came back. Your agent can check a seller and cap its spending before it pays. Your API can
-              check the wallet that pays it.
+              <Link href="/x402/check-a-seller" className={s.inlineLink}>
+                Check a seller
+              </Link>. vet402 pays x402 sellers with its own money and publishes what came back. Paste a URL to see the record.
             </p>
             <div className={s.actions}>
               <TrackedLink
@@ -258,11 +220,11 @@ export default async function Home() {
                 Start free with {BILLING_PLANS.free.monthlyLimit.toLocaleString("en-US")} seller checks a month.
               </Link>
             </p>
-            {isStripeConfigured() ? (
-              <p>
-                Pro is ${BILLING_PLANS.pro.monthlyUsd} a month. Scale is ${BILLING_PLANS.scale.monthlyUsd} a month.
-              </p>
-            ) : null}
+            <p>
+              <Link href="/memo" className={s.inlineLink}>
+                The memo
+              </Link>
+            </p>
           </div>
 
           {ledger && readAt ? (
@@ -398,33 +360,11 @@ export default async function Home() {
             ))}
           </ul>
         </section>
+        <p className={`${s.section} ${s.pricingDisclaimer}`}>
+          Records are measurements, not a guarantee.
+        </p>
         <PricingSection className={s.section} titleId="home-pricing" />
       </main>
-
-      <footer className={s.wrap}>
-        <div className={s.foot}>
-          {[FOOT_MAIN, FOOT_LEGAL].map((links, row) => (
-            <ul key={row} className={row ? `${s.footLinks} ${s.footLegal}` : s.footLinks}>
-              {links.map((f) =>
-                f.href.startsWith("http") ? (
-                  <li key={f.href}>
-                    <OutboundAnchor href={f.href} rel="noopener">
-                      {f.label}
-                    </OutboundAnchor>
-                  </li>
-                ) : (
-                  <li key={f.href}>
-                    <Link href={f.href}>{f.label}</Link>
-                  </li>
-                ),
-              )}
-            </ul>
-          ))}
-          <p className={s.footNote}>
-            vet402 is run by KIZUNA Creation. Figures on this page are measurements, shown with the time they were read.
-          </p>
-        </div>
-      </footer>
     </div>
   );
 }

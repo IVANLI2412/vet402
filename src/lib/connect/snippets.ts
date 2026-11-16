@@ -10,7 +10,7 @@
 // Public English: no we / our / us, no semicolons, no dashes.
 import { MCP_DOCS_CONNECT_CURSOR } from "@/lib/docs/mcp-page-text";
 
-export const CONNECT_LEAD = "Put vet402 between AI agents. Both sides trade safely.";
+export const CONNECT_LEAD = "Put vet402 between AI agents. Both sides read the same purchase records.";
 
 export const CONNECT_SIGNUP_HREF = "/signup";
 

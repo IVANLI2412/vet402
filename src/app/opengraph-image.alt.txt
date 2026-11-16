@@ -1,1 +1,1 @@
-vet402: Safe payments between AI agents and the APIs they buy from. Check a seller before paying. Check delivery after.
+vet402: Know if an x402 seller delivers before your agent pays. Check a seller before paying. Check delivery after.

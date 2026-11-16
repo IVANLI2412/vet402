@@ -65,10 +65,23 @@ beforeEach(() => {
           new Response(
             JSON.stringify({
               not_in_catalog: true,
-              same_host_listings: [{ url: "https://api.example.com/other", record_url: "https://vet402.com/observatory/e/1" }],
+              same_host_listings: [
+                {
+                  url: "https://api.example.com/v1/quote",
+                  method: "GET",
+                  record_url: "https://vet402.com/observatory/e/1",
+                },
+              ],
             }),
             { status: 200 },
           ),
+        );
+      }
+      if (u.includes("catalog-none")) {
+        return Promise.resolve(
+          new Response(JSON.stringify({ not_in_catalog: true, same_host_listings: [], record_url: null }), {
+            status: 200,
+          }),
         );
       }
       if (u.includes("no-delivery-evidence")) {
@@ -318,10 +331,14 @@ test("not_in_catalog and 503 and 429 messages", async () => {
   });
   await submit("https://api.example.com/not-in-catalog");
   const notCat = dom.window.document.body.textContent ?? "";
-  assert.match(notCat, /No record yet/);
-  assert.doesNotMatch(notCat, /api\.example\.com\/other/);
-  assert.match(notCat, /alt\.example/);
-  assert.match(notCat, /Check before paying, one line/);
+  assert.match(notCat, /This host has 1 recorded listings/);
+  assert.match(notCat, /\/v1\/quote/);
+  assert.doesNotMatch(notCat, /No record yet/);
+  assert.doesNotMatch(notCat, /Check before paying, one line/);
+  assert.doesNotMatch(notCat, /alt\.example/);
+
+  await submit("https://api.example.com/catalog-none");
+  assert.match(dom.window.document.body.textContent ?? "", /api\/v1\/diagnose\?url=/);
 
   await submit("https://api.example.com/fail503");
   assert.match(dom.window.document.body.textContent ?? "", /could not read its records/);
@@ -379,7 +396,7 @@ test("rendered reason copy and REASON_TEXT have no semicolons", async () => {
     "That is not an https URL vet402 can look up.",
     "Too many checks from this network. Try again in a minute.",
     "vet402 could not read its records just now. Try again shortly.",
-    "No record yet. vet402 has not paid this URL, so there is no paid test to show.",
+    "vet402 has not paid this URL yet. Run a live check:",
     "Alternatives could not be read just now.",
     "Checking",
   ];
@@ -421,7 +438,7 @@ test("the live verdict line is screen-reader only, so the card's Verdict is the 
   unmount();
 });
 
-test("the not_in_catalog live line is screen-reader only too", async () => {
+test("the same_host live line is screen-reader only too", async () => {
   await act(async () => {
     root.render(React.createElement(PasteCheck, { cls }));
   });
@@ -429,5 +446,6 @@ test("the not_in_catalog live line is screen-reader only too", async () => {
   const live = dom.window.document.querySelector('[aria-live="polite"] [data-testid="paste-live-verdict"]');
   assert.ok(live);
   assert.equal(live!.className, "sr-only");
+  assert.match(live!.textContent ?? "", /recorded listings/);
   unmount();
 });

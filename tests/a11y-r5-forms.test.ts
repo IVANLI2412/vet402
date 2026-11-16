@@ -60,16 +60,16 @@ test("TryItPanel: disabled でなく aria-busy・結果は常設の role=status�
   assert.match(src, /aria-label=\{`Response body of \$\{label\}`\}/);
 });
 
-test("SiteHeader: モバイルの一覧は details で、最初の HTML に Menu と遷移先がある", () => {
+test("SiteHeader: モバイルはボタンと aria-expanded で開き、5 項目のリンクがある", () => {
   const src = read("src/components/site/SiteHeader.tsx");
-  assert.match(src, /<details/);
-  assert.match(src, /<summary/);
-  assert.match(src, /site-menu-open">Menu</);
-  assert.match(src, /site-menu-close">Close</);
-  assert.match(src, /href: "\/observatory"/);
-  assert.match(src, /href: "\/sellers"/);
-  assert.match(src, /href: "\/docs\/api"/);
-  assert.doesNotMatch(src, /hidden=\{!mobileOpen\}/);
+  assert.match(src, /aria-expanded=\{mobileOpen\}/);
+  assert.match(src, /aria-hidden="true">Close</);
+  assert.match(src, /aria-label="Site menu"/);
   assert.doesNotMatch(src, /aria-label=\{mobileOpen/);
+  assert.doesNotMatch(src, /hidden=\{!mobileOpen\}/);
+  assert.match(src, /onKeyDown=\{onEscape\}/);
+  assert.match(src, /href: "\/x402\/check-a-seller"/);
+  assert.match(src, /href: "\/observatory"/);
+  assert.match(src, /href: "\/docs\/api"/);
   assert.match(src, /ariaCurrent=\{currentNav/);
 });
