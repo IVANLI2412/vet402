@@ -14,6 +14,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 ---
 
 
+
+## 2026-11-16 privacy: how Privacy choices and Clarity fit together (legal3)
+
+- What: The Privacy choices block on /legal/privacy now says, in one paragraph, what the code does: EEA, UK, Switzerland or unknown country wait for Accept; elsewhere Clarity loads by default and Decline stops it; a Global Privacy Control signal stops it and hides the banner; the answer is kept for 180 days; token pages from email links never run Clarity.
+- Why: A third-party audit found the relation between the choice and Clarity's default unclear. Owner approved the text on 2026-11-16.
+- Tests: `tests/clarity-consent.test.ts`, `tests/legal-*.test.ts`, `tests/claims-*.test.ts`.
+- Impact: Text only. Behaviour is `src/lib/clarity.ts` `clarityPlan` and `isClarityTokenPage`, unchanged.
 ## 2026-11-16 PMF85 r6: seller reputation evidence age, pricing wording, signup and docs check-first, observatory pass probe age
 
 - What: `/x402/sellers/[host]` uses `reputationHostEvidence` (`evidenceAgeOf` + `L1_FRESH_DAYS`) for summary, WARN headline when every listed delivery is stale, per-row delivery age, fixed listing paths (no `//`), and `listingPathFromResourceKey` shared with the forbidden-word scan. PricingSection says monthly score lookup quota. Signup H1 leads with score lookups vs seller checks and links methodology. `/docs/api` quickstart opens with `GET /api/v1/check` (resolve/decision second; `KEYLESS_READ_STOP` after check). Observatory caption splits active L0 pass probes within 7 days vs older (`publishedPassActiveProbeOlderThan7d`).

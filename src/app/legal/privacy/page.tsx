@@ -716,6 +716,14 @@ export default async function PrivacyPage() {
               <strong>Privacy choices.</strong> Open the banner again to accept or decline session
               analytics. Your answer applies to this browser.
             </p>
+            <p>
+              How the choice and Clarity fit together: in the EEA, the UK, Switzerland, or when vet402
+              cannot tell your country, Clarity does not load until you choose Accept. Elsewhere it loads
+              by default, and choosing Decline here stops it. If your browser sends a Global Privacy
+              Control signal, Clarity does not load and the banner is not shown. Your answer is kept in a
+              cookie for 180 days. Clarity never runs on the pages that carry a token from an email link
+              (<code>/observatory/confirm</code> and <code>/observatory/unsubscribe</code>).
+            </p>
             <PrivacyChoices />
           </div>
         </section>
