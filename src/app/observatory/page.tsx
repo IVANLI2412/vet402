@@ -290,6 +290,7 @@ export default async function ObservatoryPage({
           }
           if (!stats) return null;
           const band = l0BandFromStats(stats);
+          const passProbedWithin7d = stats.publishedPassActive - stats.publishedPassActiveProbeOlderThan7d;
           return (
           <VerdictShareBar
             n={1}
@@ -315,7 +316,8 @@ export default async function ObservatoryPage({
                 {stats.latestSnapshot
                   ? `; the latest full read of the Bazaar saw ${stats.latestSnapshot.fetchedCount.toLocaleString()} listings`
                   : ""}
-                ). Settled on-chain counts endpoints with at least one purchase
+                ). Of those active passes, {passProbedWithin7d.toLocaleString()} were last probed within 7 days and{" "}
+                {stats.publishedPassActiveProbeOlderThan7d.toLocaleString()} were last probed more than 7 days ago. Settled on-chain counts endpoints with at least one purchase
                 vet402 re-read on-chain, active or not: {stats.l1.endpointsSettledSellerReceipt.toLocaleString()} with a transaction the
                 seller named in its own settlement receipt and {stats.l1.endpointsSettledIndexOnly.toLocaleString()}{" "}
                 where the seller returned no receipt and vet402&apos;s own settlements index found the settled

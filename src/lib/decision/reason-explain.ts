@@ -114,7 +114,7 @@ function effectForPayee(code: string): ReasonEffectKind {
   return "none";
 }
 
-function formatDaysForText(daysRaw: number): string {
+export function formatDaysForText(daysRaw: number): string {
   const oneDecimal = Math.round(daysRaw * 10) / 10;
   if (Number.isInteger(oneDecimal)) return String(oneDecimal);
   return oneDecimal.toFixed(1);

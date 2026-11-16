@@ -14,6 +14,14 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 ---
 
 
+## 2026-11-16 PMF85 r6: seller reputation evidence age, pricing wording, signup and docs check-first, observatory pass probe age
+
+- What: `/x402/sellers/[host]` uses `reputationHostEvidence` (`evidenceAgeOf` + `L1_FRESH_DAYS`) for summary, WARN headline when every listed delivery is stale, per-row delivery age, fixed listing paths (no `//`), and `listingPathFromResourceKey` shared with the forbidden-word scan. PricingSection says monthly score lookup quota. Signup H1 leads with score lookups vs seller checks and links methodology. `/docs/api` quickstart opens with `GET /api/v1/check` (resolve/decision second; `KEYLESS_READ_STOP` after check). Observatory caption splits active L0 pass probes within 7 days vs older (`publishedPassActiveProbeOlderThan7d`).
+- Why: Third-party audit (pmf85 r6): seller reputation pages contradicted `/api/v1/check` on stale hosts; pricing said Usage-based; signup and API docs buried the check path; pass legend hid probe freshness.
+- 50-host index: stale sellers stay listed with WARN copy and row labels rather than dropped from `getReputationHostsCached` (same `reputationPageEligible` gate and sitemap rules).
+- Tests: `tests/pmf85-r6-acceptance.test.ts`, `tests/pmf85-pages-reputation.test.ts`, `tests/audit-text-batch2.test.ts`.
+- Impact: Public copy and reputation rendering only. No SQL, billing amounts, or payment routes.
+
 ## 2026-11-16 deps: @x402/stellar 2.31.0 clears the zod high advisory; audit allowlist emptied
 
 - What: `@x402/stellar` 2.28.0 -> 2.31.0 (exact). It pulls `@x402/core` 2.31.0, which uses zod 4.6.7, so `npm audit --omit=dev` reports 0 vulnerabilities. `scripts/ci-audit-gate.mjs` ships an empty `AUDIT_ALLOWLIST`; `gateAuditReport` takes an optional allowlist so the tests keep a dated fixture.

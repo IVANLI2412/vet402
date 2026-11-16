@@ -5,13 +5,19 @@ import { notFound } from "next/navigation";
 import { breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/util/json-ld";
 import { paymentChainLabel } from "@/lib/observatory/chains";
+import { formatDaysForText } from "@/lib/decision/reason-explain";
 import {
   deliveredListings,
   getReputationHostsCached,
   latestDeliveredRecordId,
+  listingPathFromResourceKey,
   newestDeliveredPurchase,
+  reputationHeadline,
+  reputationHostEvidence,
+  reputationListingAges,
   reputationPageEligible,
   reputationSellerPath,
+  reputationSummarySentence,
 } from "@/lib/sellers/reputation";
 import { getSellerDetailCached } from "@/lib/sellers/cached";
 import { parseSellerHostParam } from "@/lib/sellers/host";
@@ -21,24 +27,21 @@ import { TableScroll } from "@/components/site/TableScroll";
 
 type Props = { params: Promise<{ host: string }> };
 
-function listingPath(resourceKey: string, host: string): string {
-  const prefix = `${host}/`;
-  if (resourceKey.startsWith(prefix)) return `/${resourceKey.slice(host.length)}`;
-  const slash = resourceKey.indexOf("/");
-  return slash >= 0 ? resourceKey.slice(slash) : "/";
-}
-
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { host: raw } = await params;
   const host = parseSellerHostParam(raw);
   if (!host) notFound();
   const allowed = await getReputationHostsCached().catch(() => null);
   if (!allowed?.includes(host)) notFound();
-  const title = `Does ${host} deliver? x402 purchase record | vet402`;
+  const detail = await getSellerDetailCached(host).catch(() => null);
+  const title =
+    detail && reputationPageEligible(detail)
+      ? `${reputationHeadline(host, detail)} x402 purchase record | vet402`
+      : `Does ${host} deliver? x402 purchase record | vet402`;
   return {
     ...pageMetadata({
       title,
-      description: `vet402 purchase records for ${host}: each listing vet402 bought with a real x402 payment where the latest purchase delivered a response.`,
+      description: `vet402 purchase records for ${host}: each listing vet402 bought with a real x402 payment where the latest purchase delivered a response, with delivery age on each row.`,
       path: reputationSellerPath(host),
     }),
     title: { absolute: title },
@@ -48,10 +51,12 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export function ReputationSellerArticle({ detail, nonce }: { detail: SellerDetail; nonce?: string }) {
   const host = detail.host;
   const listings = deliveredListings(detail);
-  const n = listings.length;
+  const ageByEndpoint = new Map(reputationListingAges(detail).map((a) => [a.endpointId, a]));
   const latestRecordId = latestDeliveredRecordId(detail);
   const asOf = detail.fetchedAt.slice(0, 10);
   const path = reputationSellerPath(host);
+  const headline = reputationHeadline(host, detail);
+  const evidence = reputationHostEvidence(detail);
   const breadcrumb = breadcrumbJsonLd([
     { name: "Home", path: "/" },
     { name: "x402", path: "/x402" },
@@ -63,10 +68,14 @@ export function ReputationSellerArticle({ detail, nonce }: { detail: SellerDetai
       <article className="sheet">
         <script type="application/ld+json" nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumb) }} />
 
-        <h1 className="doc-title mt-8">Does {host} deliver?</h1>
-        <p className="doc-p">
-          vet402 bought from {host} with real x402 payments. At each of the {n} listings vet402 bought, the latest purchase delivered a response.
-        </p>
+        <h1 className="doc-title mt-8">{headline}</h1>
+        <p className="doc-p">{reputationSummarySentence(detail)}</p>
+        {evidence.tier === "stale" ? (
+          <p className="doc-p text-brand-lift">
+            vet402&apos;s check answer for this host is {evidence.max_recommendation}; the latest delivery is older than{" "}
+            {evidence.stale_after_days} days.
+          </p>
+        ) : null}
         <p className="doc-p text-brand-lift">as of {asOf}</p>
 
         {listings.length > 0 ? (
@@ -78,6 +87,7 @@ export function ReputationSellerArticle({ detail, nonce }: { detail: SellerDetai
                   <th scope="col">Path</th>
                   <th scope="col">Date (UTC)</th>
                   <th scope="col">Chain</th>
+                  <th scope="col">Delivery age</th>
                 </tr>
               </thead>
               <tbody>
@@ -85,11 +95,23 @@ export function ReputationSellerArticle({ detail, nonce }: { detail: SellerDetai
                   const row = newestDeliveredPurchase(l);
                   const at = (row?.attemptedAt ?? l.latest!.facts.attemptedAt).slice(0, 16).replace("T", " ");
                   const chain = row?.network ? paymentChainLabel(row.network) : "unknown";
+                  const age = ageByEndpoint.get(l.endpointId);
+                  const days = age?.daysSince;
                   return (
                     <tr key={l.endpointId}>
-                      <td className="font-mono text-sm">{listingPath(l.resourceKey, host)}</td>
+                      <td className="font-mono text-sm">{listingPathFromResourceKey(l.resourceKey, host)}</td>
                       <td className="whitespace-nowrap">{at}</td>
                       <td>{chain}</td>
+                      <td className="whitespace-nowrap">
+                        {days === null || days === undefined ? (
+                          "unknown"
+                        ) : (
+                          <>
+                            last delivered {formatDaysForText(days)} days ago
+                            {age?.stale ? <span className="text-brand-lift"> (stale)</span> : null}
+                          </>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}

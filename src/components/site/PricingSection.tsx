@@ -53,7 +53,7 @@ export function PricingSection({
         <span>{title}</span>
       </h2>
       <p className="doc-p">
-        Usage-based. The free tier is enough to wire a check into an x402 flow and see real results
+        Monthly plans with a score lookup quota. The free tier is enough to wire a check into an x402 flow and see real results
         before committing to anything.
       </p>
       <p className="doc-p">

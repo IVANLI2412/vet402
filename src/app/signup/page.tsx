@@ -246,12 +246,16 @@ export default function SignupPage() {
             2026-10-21 A-07: 無料鍵は受取人スコア、リソース判定は鍵なし、の2文。
             ダッシュは使わない。eyebrow の "Vouch" は削除済み。 */}
         <h1 className="doc-title mt-8 max-w-[42ch]">
-          A free key reads a payee score. A resource decision stays available without a key.
+          A free API key adds score lookups for your agent. Seller checks need no key.
         </h1>
         <p className="mx-auto mt-3 max-w-[56ch] text-center text-brand-lift">
           A key is for score lookups on the score API. Seller checks need no key.
           The observatory, a resource decision, and payee lookup stay public without one.
-          Free: 1,000 score lookups a month. No card.
+          Free: 1,000 score lookups a month. No card.{" "}
+          <Link href="/observatory/methodology" className="doc-link">
+            How vet402 counts score lookups and seller checks
+          </Link>
+          .
         </p>
         <p className="mx-auto mt-3 max-w-[56ch] text-center text-[0.84375rem] text-brand">
           Anyone can create a free account. Paid plans are for business use; where consumer law applies, it prevails.{" "}

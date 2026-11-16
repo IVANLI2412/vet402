@@ -91,7 +91,7 @@ test("A-07 gates a payment on getDecision and does not pay from the wallet score
   assert.equal(readme.includes("`getDecision` needs a key"), false);
   assert.equal(readme.includes("Both are"), false);
   const signup = read("src/app/signup/page.tsx");
-  assert.match(signup, /A free key reads a payee score\. A resource decision stays available without a key\./);
+  assert.match(signup, /A free API key adds score lookups for your agent\. Seller checks need no key\./);
   assert.match(signup, /The observatory, a resource decision, and payee lookup/);
   assert.equal(signup.includes("Score a payee before you pay"), false);
   assert.match(signup, /baad6a17bfaf57b11c0c1d8cfb0b38d3d01f09736b7d8af2f92f0313ddef8bdb\/decision\?role=payer/);

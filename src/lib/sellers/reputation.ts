@@ -6,9 +6,102 @@ import { unstable_cache } from "next/cache";
 import { PUBLIC_READ_REVALIDATE } from "@/lib/observatory/public-read-revalidate";
 import { isDelivered } from "@/lib/observatory/delivery";
 import { paymentChainLabel } from "@/lib/observatory/chains";
+import { L1_FRESH_DAYS, L1_WINDOW_DAYS, type L1Basis } from "@/lib/decision/rules";
+import { EVIDENCE_FRESH_WITHIN_DAYS, evidenceAgeOf, formatDaysForText, type EvidenceAge } from "@/lib/decision/reason-explain";
 import type { SellerDetail, SellerListing, SellerSummary } from "./board";
 import { getSellerBoardCached, getSellerDetailCached } from "./cached";
 import { parseSellerHostParam } from "./host";
+
+const DAY_MS = 86_400_000;
+
+export function daysSinceDelivery(iso: string, asOfIso: string): number | null {
+  const end = new Date(asOfIso).getTime();
+  const start = new Date(iso).getTime();
+  if (!Number.isFinite(end) || !Number.isFinite(start)) return null;
+  return Math.max(0, Math.round(((end - start) / DAY_MS) * 10) / 10);
+}
+
+export function listingPathFromResourceKey(resourceKey: string, host: string): string {
+  const prefix = `${host}/`;
+  if (resourceKey.startsWith(prefix)) {
+    const tail = resourceKey.slice(host.length);
+    return tail.startsWith("/") ? tail : `/${tail}`;
+  }
+  const slash = resourceKey.indexOf("/");
+  return slash >= 0 ? resourceKey.slice(slash) : "/";
+}
+
+export function listingDeliveryStale(daysSince: number | null): boolean {
+  return daysSince !== null && daysSince > L1_FRESH_DAYS;
+}
+
+export type ReputationListingAge = {
+  endpointId: string;
+  attemptedAt: string;
+  daysSince: number | null;
+  stale: boolean;
+};
+
+export function reputationListingAges(detail: SellerDetail): ReputationListingAge[] {
+  const asOf = detail.fetchedAt;
+  return deliveredListings(detail).map((l) => {
+    const row = newestDeliveredPurchase(l);
+    const attemptedAt = row?.attemptedAt ?? l.latest!.facts.attemptedAt;
+    const daysSince = daysSinceDelivery(attemptedAt, asOf);
+    return {
+      endpointId: l.endpointId,
+      attemptedAt,
+      daysSince,
+      stale: listingDeliveryStale(daysSince),
+    };
+  });
+}
+
+/** Host-level evidence_age using the same rules as /api/v1/check (newest delivered listing). */
+export function reputationHostEvidence(detail: SellerDetail): EvidenceAge & { allListingsStale: boolean } {
+  const ages = reputationListingAges(detail);
+  const allListingsStale = ages.length > 0 && ages.every((a) => a.stale);
+  let newest: { at: string; days: number | null } | null = null;
+  for (const a of ages) {
+    if (!newest || a.attemptedAt > newest.at) newest = { at: a.attemptedAt, days: a.daysSince };
+  }
+  const staleDelivery = newest !== null && listingDeliveryStale(newest.days);
+  const reason_codes = staleDelivery
+    ? (["l0_pass", "l1_delivered", "l1_stale", "l2_undeclared"] as const)
+    : (["l0_pass", "l1_delivered", "l2_undeclared"] as const);
+  const basis: L1Basis = {
+    window_days: L1_WINDOW_DAYS,
+    fresh_days: L1_FRESH_DAYS,
+    n_counted: ages.length,
+    n_not_counted: 0,
+    n_paid_undelivered: 0,
+    n_paid_undelivered_since_last_delivery: 0,
+    n_paid_undelivered_seller_side_since_last_delivery: 0,
+    latest_counted_delivered: true,
+    last_attempt_at: newest?.at ?? null,
+    last_signed_attempt_at: newest?.at ?? null,
+    last_delivered_at: newest?.at ?? null,
+    days_since_last_attempt: newest?.days ?? null,
+    days_since_last_delivery: newest?.days ?? null,
+  };
+  return { ...evidenceAgeOf(basis, { reason_codes: [...reason_codes] }), allListingsStale };
+}
+
+export function reputationSummarySentence(detail: SellerDetail): string {
+  const n = deliveredListings(detail).length;
+  const evidence = reputationHostEvidence(detail);
+  const days = evidence.days_since_last_delivery;
+  const daysPhrase = days === null ? "" : ` ${formatDaysForText(days)} days ago`;
+  return `vet402 bought from ${detail.host} with real x402 payments. At each of the ${n} listings vet402 bought, the latest purchase delivered a response${daysPhrase}.`;
+}
+
+export function reputationHeadline(host: string, detail: SellerDetail): string {
+  const evidence = reputationHostEvidence(detail);
+  if (evidence.allListingsStale && evidence.max_recommendation === "WARN") {
+    return `Does ${host} deliver? ${evidence.max_recommendation}`;
+  }
+  return `Does ${host} deliver?`;
+}
 
 export const REPUTATION_HOST_LIMIT = 50;
 export const REPUTATION_DETAIL_READ_LIMIT = 150;
@@ -33,12 +126,6 @@ export function selectReputationHosts(sellers: SellerSummary[], limit = 50): str
   return eligible.slice(0, limit).map((s) => s.host);
 }
 
-function listingPath(resourceKey: string, host: string): string {
-  const prefix = `${host}/`;
-  if (resourceKey.startsWith(prefix)) return `/${resourceKey.slice(host.length)}`;
-  const slash = resourceKey.indexOf("/");
-  return slash >= 0 ? resourceKey.slice(slash) : "/";
-}
 
 /** vet402 が Base で購入を試した出品（latest がある行）。未購入は含めない。 */
 export function purchasedListings(detail: SellerDetail): SellerListing[] {
@@ -119,11 +206,15 @@ export function reputationBodyLowercase(detail: SellerDetail): string {
   const host = detail.host;
   const listings = deliveredListings(detail);
   const path = reputationSellerPath(host);
+  const evidence = reputationHostEvidence(detail);
+  const headline = reputationHeadline(host, detail);
   const parts = [
-    `Does ${host} deliver?`,
-    `vet402 bought from ${host} with real x402 payments.`,
-    `At each of the ${listings.length} listings vet402 bought, the latest purchase delivered a response.`,
+    headline,
+    reputationSummarySentence(detail),
     `as of ${detail.fetchedAt.slice(0, 10)}`,
+    evidence.max_recommendation,
+    EVIDENCE_FRESH_WITHIN_DAYS.toString(),
+    L1_FRESH_DAYS.toString(),
     "Records are measurements, not a guarantee.",
     host,
     path,
@@ -131,8 +222,11 @@ export function reputationBodyLowercase(detail: SellerDetail): string {
     "x402",
   ];
   for (const l of listings) {
-    parts.push(listingPath(l.resourceKey, host));
+    parts.push(listingPathFromResourceKey(l.resourceKey, host));
     const newest = newestDeliveredPurchase(l);
+    const days = daysSinceDelivery(newest?.attemptedAt ?? l.latest!.facts.attemptedAt, detail.fetchedAt);
+    if (days !== null) parts.push(`last delivered ${formatDaysForText(days)} days ago`);
+    if (listingDeliveryStale(days)) parts.push("stale");
     if (newest?.network) parts.push(newest.attemptedAt, paymentChainLabel(newest.network));
   }
   return parts.join(" ").toLowerCase();

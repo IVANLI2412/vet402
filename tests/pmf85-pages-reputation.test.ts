@@ -127,7 +127,7 @@ test("reputationDetailEligible: 買った出品はすべて delivered、未購�
   );
   assert.equal(reputationDetailEligible(withNotTried), true);
   const html = renderToStaticMarkup(createElement(ReputationSellerArticle, { detail: withNotTried }));
-  assert.match(html, /At each of the 2 listings/);
+  assert.match(html, /At each of the 2 listings.*latest purchase delivered a response/);
   assert.equal((html.match(/<tbody>[\s\S]*?<\/tbody>/g)?.[0]?.match(/<tr>/g) ?? []).length, 2);
 });
 
@@ -180,7 +180,7 @@ test("評判ページ描画 HTML に禁止語が 0 件", () => {
   const detail = eligibleDetail();
   const html = renderToStaticMarkup(createElement(ReputationSellerArticle, { detail }));
   assert.deepEqual(htmlForbiddenCount(html), []);
-  assert.match(html, /At each of the 2 listings/);
+  assert.match(html, /At each of the 2 listings.*latest purchase delivered a response/);
   assert.match(html, /Get an email when this record changes:/);
   assert.match(html, /href="\/observatory\/e\/e1"/);
   assert.match(html, />open the latest record and use the alert form</);

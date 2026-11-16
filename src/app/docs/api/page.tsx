@@ -936,7 +936,7 @@ export default async function ApiDocsPage() {
             折れていた。URL は 1 つの要素のまま折り返さない（375px 幅でも 1 行に収まる長さ）。 */}
         {/* 2026-09-29.3（監査 6 周目）: 冒頭が「Bearer API key」で、鍵なしで答える判定と resolve が鍵必須に読めた。 */}
         <p className="text-brand">
-          {keylessRatesSentence()} {KEYLESS_READ_STOP} The score, webhook and attest endpoints take an API key in{" "}
+          {keylessRatesSentence()} The score, webhook and attest endpoints take an API key in{" "}
           <code className="text-brand-deep">Authorization: Bearer</code>. Base URL:{" "}
           <code className="whitespace-nowrap text-brand-deep">{`${SITE_URL}/api/v1`}</code>
         </p>
@@ -974,16 +974,34 @@ export default async function ApiDocsPage() {
         <h2 className="sec-head">Quickstart</h2>
         <p className="text-[0.84375rem] text-brand">
           The first four need no account, no key and no signature &mdash; paste them into a
-          terminal as they are. The first one is the integration itself: a URL in, a decision out.
+          terminal as they are. The first one is the integration itself: a URL in, a check answer out.
         </p>
 
-        {/* 2026-09-29 敵対的監査（初見の開発者）: Quickstart の 1 番目が「受領証を読む」で、
-            製品の本題（払う前に聞く）へ鍵なしで届く経路は /llms.txt にしか書いていなかった。
-            resolve → decision の 2 本を先頭に置く。例の URL は 2026-09-29 に本番で
-            resolve → decision（鍵なし・200・RateLimit-Limit は当時の枠の値。現在の /decision 鍵なし枠は keylessDecisionPerMinute()）を確認済み。 */}
         <div>
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-brand-lift">
-            1 &mdash; Should my agent pay this URL? Resolve it, then ask (no key)
+            1 &mdash; Check an x402 seller before paying (no key)
+          </p>
+          <CodeBlock
+            label="curl: what vet402 recorded when it paid this URL"
+            code={`curl "${SITE_URL}/api/v1/check?url=${encodeURIComponent("https://api.exa.ai/search")}"`}
+          />
+          <TryItPanel
+            path={`/api/v1/check?url=${encodeURIComponent("https://api.exa.ai/search")}`}
+            label="GET /api/v1/check?url=…"
+          />
+          <p className="mt-1 text-[0.84375rem] text-brand-lift">
+            Same document as MCP <code className="text-brand-deep">check_x402_seller</code>:{" "}
+            <code>recommendation</code>, <code>evidence_age</code>, <code>delivery</code>, the five latest purchases, and{" "}
+            <code>verified_terms</code>. Optional <code>method=</code> narrows GET or POST like{" "}
+            <code>/api/v1/resolve</code>. {keylessResolvePerMinute()} requests per minute per IP, shared with{" "}
+            <code>/api/v1/resolve</code>. {KEYLESS_READ_STOP}
+          </p>
+        </div>
+
+        {/* resolve → decision stays in quickstart after check (2026-11-16 pmf85 r6). */}
+        <div>
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-brand-lift">
+            2 &mdash; Should my agent pay this URL? Resolve it, then ask (no key)
           </p>
           <CodeBlock
             label="curl: resolve a URL to its resource_id, then read the decision"
@@ -993,7 +1011,6 @@ curl "${SITE_URL}/api/v1/resolve?q=https://api.exa.ai/search"
 # 2. resource_id -> facts + ALLOW / WARN / BLOCK in one document
 curl "${SITE_URL}/api/v1/resources/baad6a17bfaf57b11c0c1d8cfb0b38d3d01f09736b7d8af2f92f0313ddef8bdb/decision?role=payer"`}
           />
-          {/* 2026-09-29.3（監査 6 周目）: 1 番目にも Try it（鍵なし・GET）。判定は /sellers の頁も閲覧者のブラウザから呼んでいる。 */}
           <TryItPanel path="/api/v1/resolve?q=https://api.exa.ai/search" label="GET /api/v1/resolve" />
           <TryItPanel
             path="/api/v1/resources/baad6a17bfaf57b11c0c1d8cfb0b38d3d01f09736b7d8af2f92f0313ddef8bdb/decision?role=payer"
@@ -1031,7 +1048,7 @@ curl "${SITE_URL}/api/v1/resources/baad6a17bfaf57b11c0c1d8cfb0b38d3d01f09736b7d8
 
         <div>
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-brand-lift">
-            2 &mdash; What happened when vet402 actually paid an endpoint (no key)
+            3 &mdash; What happened when vet402 actually paid an endpoint (no key)
           </p>
           <CodeBlock
             label="curl: read an endpoint's real purchase receipts"
@@ -1056,7 +1073,7 @@ curl "${SITE_URL}/api/v1/resources/baad6a17bfaf57b11c0c1d8cfb0b38d3d01f09736b7d8
 
         <div>
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-brand-lift">
-            3 &mdash; The public accuracy ledger (no key)
+            4 &mdash; The public accuracy ledger (no key)
           </p>
           <CodeBlock
             label="curl: read the public accuracy ledger"
@@ -1074,7 +1091,7 @@ curl "${SITE_URL}/api/v1/resources/baad6a17bfaf57b11c0c1d8cfb0b38d3d01f09736b7d8
 
         <div>
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-brand-lift">
-            4 &mdash; The exact message a payee has to sign (no key)
+            5 &mdash; The exact message a payee has to sign (no key)
           </p>
           <CodeBlock
             label="curl: preview the canonical payee-verify message"
@@ -1094,7 +1111,7 @@ curl "${SITE_URL}/api/v1/resources/baad6a17bfaf57b11c0c1d8cfb0b38d3d01f09736b7d8
 
         <div>
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-brand-lift">
-            5 &mdash; Score a payee before paying it (key required)
+            6 &mdash; Score a payee before paying it (key required)
           </p>
           <CodeBlock
             label="curl: score a payee wallet"
