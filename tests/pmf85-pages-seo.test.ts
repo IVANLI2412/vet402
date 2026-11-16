@@ -80,6 +80,7 @@ test("比較ページの title・5 選択肢・引用 URL と取得日", () => {
   assert.match(src, /https:\/\/www\.x402scan\.com\//);
   assert.match(src, /https:\/\/watchx402\.com\//);
   assert.match(src, /2026-11-15 UTC/);
+  assert.match(src, /as of \{stats\.readAt\.slice\(0, 10\)\} UTC/);
 });
 
 test("比較ページの禁止語（not a guarantee を除く guarantee）", () => {

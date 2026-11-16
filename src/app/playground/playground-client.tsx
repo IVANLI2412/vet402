@@ -94,7 +94,7 @@ export default function PlaygroundClient() {
         body: JSON.stringify({ endpointId }),
       });
       if (res.status === 429) {
-        setState({ phase: "error", message: "Rate limited — the demo allows 5 live probes per minute per caller. Wait a moment and retry." });
+        setState({ phase: "error", message: "Rate limited (the demo allows 5 live probes per minute per caller). Wait a moment and retry." });
         return;
       }
       const body = (await res.json()) as DemoResponse;
@@ -170,7 +170,7 @@ export default function PlaygroundClient() {
       {state.phase === "done" && "error" in state.result && (
         <p className="mt-3 font-semibold text-brand-deep" aria-live="polite">
           {state.result.error === "endpoint_inactive"
-            ? "This endpoint left the catalog since the page loaded — pick another."
+            ? "This endpoint left the catalog since the page loaded. Pick another."
             : "The demo could not run for this endpoint. Pick another."}
         </p>
       )}
@@ -184,7 +184,7 @@ export default function PlaygroundClient() {
               </tr>
               <tr className="border-b border-brand-lift/40">
                 <td className="py-1.5 pr-4 text-brand-lift">HTTP status</td>
-                <td className="py-1.5 text-brand">{state.result.probe.httpStatus ?? "—"}</td>
+                <td className="py-1.5 text-brand">{state.result.probe.httpStatus ?? "n/a"}</td>
               </tr>
               <tr className="border-b border-brand-lift/40">
                 <td className="py-1.5 pr-4 text-brand-lift">Answered a 402 challenge</td>
@@ -205,7 +205,7 @@ export default function PlaygroundClient() {
               <tr className="border-b border-brand-lift/40">
                 <td className="py-1.5 pr-4 text-brand-lift">Latency</td>
                 <td className="py-1.5 text-brand">
-                  {state.result.probe.latencyMs !== null ? `${state.result.probe.latencyMs} ms` : "—"}
+                  {state.result.probe.latencyMs !== null ? `${state.result.probe.latencyMs} ms` : "n/a"}
                 </td>
               </tr>
               {state.result.probe.failReason && (
@@ -228,7 +228,7 @@ export default function PlaygroundClient() {
       <p className="doc-caption mt-8">3. The evidence trail</p>
       <p className="mt-3 max-w-[62ch] text-brand">
         L0 is the free layer: the 402 challenge itself is the observable. The layer above it,
-        L1, is a <strong>real purchase</strong> — vet402 pays the listed price with its own funds
+        L1, is a <strong>real purchase</strong>: vet402 pays the listed price with its own funds
         and records whether the payment settles, receipt by receipt, transaction hash included.
         {chosen ? (
           <>
@@ -246,7 +246,7 @@ export default function PlaygroundClient() {
           {/* eslint-disable-next-line @next/next/no-img-element -- live SVG badge, same-origin */}
           <img
             src={`/api/badge/endpoint/${chosen.id}.svg`}
-            alt={`Live receipt badge for ${chosen.resourceKey} — states are defined by measured settle-through, not opinion`}
+            alt={`Live receipt badge for ${chosen.resourceKey} (states are defined by measured settle-through, not opinion)`}
             className="h-6"
           />
         </p>

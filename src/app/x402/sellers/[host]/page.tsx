@@ -8,6 +8,7 @@ import { paymentChainLabel } from "@/lib/observatory/chains";
 import {
   deliveredListings,
   getReputationHostsCached,
+  newestDeliveredPurchase,
   reputationPageEligible,
   reputationSellerPath,
 } from "@/lib/sellers/reputation";
@@ -79,9 +80,9 @@ export function ReputationSellerArticle({ detail, nonce }: { detail: SellerDetai
               </thead>
               <tbody>
                 {listings.map((l) => {
-                  const row = l.latest!;
-                  const at = row.facts.attemptedAt.slice(0, 16).replace("T", " ");
-                  const chain = row.facts.network ? paymentChainLabel(row.facts.network) : "unknown";
+                  const row = newestDeliveredPurchase(l);
+                  const at = (row?.attemptedAt ?? l.latest!.facts.attemptedAt).slice(0, 16).replace("T", " ");
+                  const chain = row?.network ? paymentChainLabel(row.network) : "unknown";
                   return (
                     <tr key={l.endpointId}>
                       <td className="font-mono text-sm">{listingPath(l.resourceKey, host)}</td>

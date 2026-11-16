@@ -6,6 +6,7 @@ import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import {
   REPUTATION_FORBIDDEN_WORDS,
+  newestDeliveredPurchase,
   reputationBodyLowercase,
   reputationDetailEligible,
   reputationForbiddenInBody,
@@ -13,6 +14,7 @@ import {
   selectReputationHosts,
 } from "@/lib/sellers/reputation";
 import { ReputationSellerArticle } from "@/app/x402/sellers/[host]/page";
+import { GET as getSitemapSellers } from "@/app/sitemap-sellers.xml/route";
 import NotFound from "@/app/not-found";
 import { buildSellerDetail, type SellerSummary } from "@/lib/sellers/board";
 import type { SellerRowFacts } from "@/lib/sellers/fix-modes";
@@ -186,11 +188,67 @@ test("詳細が不適格なとき page は reputationPageEligible", () => {
   assert.doesNotMatch(src, /\bfailed\b/i);
 });
 
-test("対象外 host は reputation ルートで notFound", () => {
-  const src = readFileSync(join(ROOT, "src/app/x402/sellers/[host]/page.tsx"), "utf8");
-  assert.match(src, /getReputationHostsCached/);
-  assert.match(src, /notFound\(\)/);
-  assert.match(src, /!allowed\?\.includes\(host\)/);
+function notFoundError(err: unknown): boolean {
+  const e = err as { digest?: string; message?: string };
+  return String(e.digest ?? e.message ?? err).includes("404");
+}
+
+test("条件外 host は reputation page を呼ぶと notFound", async () => {
+  const { default: ReputationSellerPage } = await import("@/app/x402/sellers/[host]/page");
+  await assert.rejects(
+    () => ReputationSellerPage({ params: Promise.resolve({ host: "bad..host" }) }),
+    notFoundError,
+  );
+});
+
+test("索引に無い host は reputation page を呼ぶと notFound", async () => {
+  const { default: ReputationSellerPage } = await import("@/app/x402/sellers/[host]/page");
+  const { getReputationHostsCached } = await import("@/lib/sellers/reputation");
+  const allowed = await getReputationHostsCached().catch(() => null);
+  const host = "not-indexed.example";
+  if (allowed?.includes(host)) return;
+  await assert.rejects(() => ReputationSellerPage({ params: Promise.resolve({ host }) }), notFoundError);
+});
+
+test("評判 sitemap GET は 50 件以下の URL を出す", async () => {
+  const res = await getSitemapSellers();
+  if (res.status === 503) return;
+  assert.equal(res.status, 200);
+  const rows = Number(res.headers.get("x-vet402-rows"));
+  assert.ok(Number.isFinite(rows));
+  assert.ok(rows <= 50);
+  const locs = [...(await res.text()).matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+  assert.equal(locs.length, rows);
+  assert.ok(locs.every((u) => u.includes("/x402/sellers/")));
+});
+
+test("newestDeliveredPurchase: 他チェーンの届いた購入が Base より新しければそちらを出す", () => {
+  const d = buildSellerDetail(
+    "shop.example",
+    [
+      { endpointId: "e1", resourceKey: "shop.example/api", resourceUrl: "https://shop.example/api", method: "GET", priceAmount: "1" },
+      { endpointId: "e2", resourceKey: "shop.example/v1", resourceUrl: "https://shop.example/v1", method: "GET", priceAmount: "1" },
+    ],
+    [delivered, { ...delivered, endpointId: "e2", attemptedAt: "2026-11-16T11:00:00Z" }],
+    "2026-11-16T12:00:00Z",
+    undefined,
+    [
+      {
+        endpointId: "e1",
+        network: "eip155:56",
+        status: "settled",
+        attemptedAt: "2026-11-18T00:00:00Z",
+        httpStatusPaid: 200,
+      },
+    ],
+  );
+  const listing = d.listings.find((l) => l.endpointId === "e1")!;
+  const newest = newestDeliveredPurchase(listing);
+  assert.equal(newest?.attemptedAt, "2026-11-18T00:00:00Z");
+  assert.equal(newest?.network, "eip155:56");
+  const html = renderToStaticMarkup(createElement(ReputationSellerArticle, { detail: d }));
+  assert.match(html, /2026-11-18 00:00/);
+  assert.match(html, />BNB Chain</);
 });
 
 test("404 本文に評判禁止語は無い", () => {

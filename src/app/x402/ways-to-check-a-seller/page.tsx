@@ -133,7 +133,8 @@ export default async function WaysToCheckSellerPage() {
         </p>
         {stats ? (
           <p className="doc-p">
-            As of {stats.readAt.slice(0, 10)}, the public register lists {stats.activeEndpoints.toLocaleString()} active records vet402 can probe and buy from.
+            as of {stats.readAt.slice(0, 10)} UTC, the public register lists {stats.activeEndpoints.toLocaleString()} active
+            records vet402 can probe and buy from.
           </p>
         ) : null}
         <p className="doc-p">

@@ -5,13 +5,10 @@
 // ============================================================
 import { getSellerBoardCached } from "@/lib/sellers/cached";
 import { parseSellerHostParam } from "@/lib/sellers/host";
-import { getReputationHostsCached } from "@/lib/sellers/reputation";
+import { getReputationHostsCached, REPUTATION_HOST_LIMIT } from "@/lib/sellers/reputation";
 import { SITE_URL } from "@/lib/site-url";
 
 export const dynamic = "force-dynamic";
-
-/** sitemap 規格の上限（1 ファイル 50,000 URL）。 */
-const SITEMAP_URL_LIMIT = 50_000;
 
 function xmlEscape(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&apos;");
@@ -26,7 +23,7 @@ export async function GET() {
   const sellersByHost = new Map<string, { lastAttemptAt: string | null }>();
   try {
     const [reputationHosts, board] = await Promise.all([getReputationHostsCached(), getSellerBoardCached()]);
-    hosts = reputationHosts.filter((h) => parseSellerHostParam(h) === h).slice(0, SITEMAP_URL_LIMIT);
+    hosts = reputationHosts.filter((h) => parseSellerHostParam(h) === h).slice(0, REPUTATION_HOST_LIMIT);
     for (const s of board.sellers) sellersByHost.set(s.host, { lastAttemptAt: s.lastAttemptAt });
   } catch {
     return new Response("sellers board unavailable\n", {

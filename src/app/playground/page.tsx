@@ -18,7 +18,7 @@ import PlaygroundClient from "./playground-client";
  */
 
 export const metadata: Metadata = pageMetadata({
-  title: "Playground — watch a live verification",
+  title: "Playground: watch a live verification",
   description:
     "Pick a listed x402 endpoint and watch vet402 probe its payment wall live: the 402 challenge, the catalog cross-check, and the purchase receipts behind it.",
   path: "/playground",
@@ -72,14 +72,14 @@ export default async function PlaygroundPage() {
           <p className="min-w-0 max-w-[62ch] text-brand">
             vet402 verifies x402 payment endpoints by <strong>actually using them</strong>: probing
             the payment wall (L0), and above that, paying the listed price with its own funds and
-            recording whether the payment settles (L1) — every receipt public, transaction hash
+            recording whether the payment settles (L1). Every receipt is public, transaction hash
             included. This page lets you run the L0 step yourself, live, against a real listed
             endpoint, and then follow the same evidence trail a paying agent would read.{" "}
-            <strong>pass / fail / unverified</strong> are defined measurements, not opinions —{" "}
+            <strong>pass / fail / unverified</strong> are defined measurements, not opinions (
             <Link href="/observatory/methodology" className="underline">
               definitions here
             </Link>
-            .
+            ).
           </p>
         </div>
 
@@ -107,11 +107,11 @@ export default async function PlaygroundPage() {
         </p>
         <p className="doc-p">
           L1 receipts on each endpoint&apos;s page are real purchases made under a hard daily
-          budget, and failures are published with the same weight as successes —{" "}
+          budget, and failures are published with the same weight as successes (
           <Link href="/observatory/state" className="underline">
             State of x402
-          </Link>{" "}
-          carries the aggregate numbers.
+          </Link>
+          ) carries the aggregate numbers.
         </p>
       </article>
     </main>

@@ -20,16 +20,31 @@ const UNCACHED_CALLS = [
 
 const CACHED_EXPECTED: [string, string[]][] = [
   ["src/app/decisions/page.tsx", ["getDecisionFeed30Cached", "getSpendGuardBacktestCached"]],
-  ["src/app/status/page.tsx", ["getStatusHistoryCached", "getChainFreshnessCached"]],
 ];
 
-test("decisions / status は重い関数を直接 await せずキャッシュ版を使う", () => {
+const STATUS_DYNAMIC: [string, string[]][] = [
+  ["src/app/status/page.tsx", ["getStatusHistory(", "readChainFreshness("]],
+];
+
+test("decisions は重い関数を直接 await せずキャッシュ版を使う", () => {
   for (const [file, cached] of CACHED_EXPECTED) {
     const src = read(file);
     for (const bad of UNCACHED_CALLS) {
       assert.equal(src.includes(bad), false, `${file} still calls ${bad}`);
     }
     for (const sym of cached) {
+      assert.ok(src.includes(sym), `${file} missing ${sym}`);
+    }
+  }
+});
+
+test("/status はリクエスト時に history と chain freshness を直接読む", () => {
+  for (const [file, required] of STATUS_DYNAMIC) {
+    const src = read(file);
+    assert.match(src, /export const dynamic = "force-dynamic"/);
+    assert.equal(src.includes("getStatusHistoryCached"), false);
+    assert.equal(src.includes("getChainFreshnessCached"), false);
+    for (const sym of required) {
       assert.ok(src.includes(sym), `${file} missing ${sym}`);
     }
   }

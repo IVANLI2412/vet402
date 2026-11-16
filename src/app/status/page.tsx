@@ -6,10 +6,13 @@ import { pageMetadata, breadcrumbJsonLd } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/util/json-ld";
 import { TableScroll } from "@/components/site/TableScroll";
 import { WideColumn } from "@/components/site/WideColumn";
-import { currentVerdict, STATUS_STALE_AFTER_MS, type CurrentVerdict } from "@/lib/health/snapshot";
-import { type ChainFreshness } from "@/lib/health/chain-freshness";
-import { getChainFreshnessCached, getStatusHistoryCached } from "@/lib/health/status-cached-reads";
-import { PUBLIC_READ_REVALIDATE } from "@/lib/observatory/public-read-revalidate";
+import {
+  currentVerdict,
+  getStatusHistory,
+  STATUS_STALE_AFTER_MS,
+  type CurrentVerdict,
+} from "@/lib/health/snapshot";
+import { readChainFreshness, type ChainFreshness } from "@/lib/health/chain-freshness";
 
 /**
  * /status — B5, 2026-08-15. The record of vet402's own uptime, published the
@@ -50,7 +53,7 @@ export const metadata: Metadata = pageMetadata({
   path: "/status",
 });
 
-export const revalidate = 300;
+export const dynamic = "force-dynamic";
 
 function VerdictWord({ ok, degraded, error }: { ok: number; degraded: number; error: number }) {
   if (error > 0) return <span className="text-block-ink font-semibold">error</span>;
@@ -107,14 +110,8 @@ function fmtDateTime(d: Date): string {
   return d.toISOString().slice(0, 16).replace("T", " ") + " UTC";
 }
 
-function freshnessSecondsBehind(secondsBehind: number | null, readAt: string): number | null {
-  if (secondsBehind === null) return null;
-  const ageSec = Math.max(0, (Date.now() - Date.parse(readAt)) / 1000);
-  return secondsBehind + ageSec;
-}
-
 async function FreshnessTable() {
-  const { rows: freshness, readAt } = await getChainFreshnessCached();
+  const freshness = await readChainFreshness();
   return (
     <>
         {freshness === null ? (
@@ -145,7 +142,7 @@ async function FreshnessTable() {
                     </td>
                     <td className="num">
                       {row.secondsBehind !== null ? (
-                        fmtSeconds(freshnessSecondsBehind(row.secondsBehind, readAt) ?? row.secondsBehind)
+                        fmtSeconds(row.secondsBehind)
                       ) : (
                         <span className="text-brand-lift">{row.note === "indexed per payee" ? "per payee" : "not measured"}</span>
                       )}
@@ -164,10 +161,8 @@ async function FreshnessTable() {
 }
 
 export default async function StatusPage() {
-  const [historyRead, chainRead] = await Promise.all([getStatusHistoryCached(), getChainFreshnessCached()]);
-  const { readAt: historyReadAt, ...history } = historyRead;
-  const renderedAt = new Date(historyReadAt);
-  const chainReadAt = new Date(chainRead.readAt);
+  const history = await getStatusHistory(30);
+  const renderedAt = new Date();
   const verdict = currentVerdict(history, renderedAt);
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   const breadcrumb = breadcrumbJsonLd([
@@ -253,7 +248,7 @@ export default async function StatusPage() {
           ) : (
             <>No sample has been recorded yet.</>
           )}{" "}
-          <span className="text-brand-lift">as of {fmtDateTime(renderedAt)}.</span>
+          <span className="text-brand-lift">Page built {fmtDateTime(renderedAt)}.</span>
         </p>
 
         <h2 className="sec-head">
@@ -266,8 +261,7 @@ export default async function StatusPage() {
           that place is behind the newest block (the time between the two blocks&apos; own
           timestamps), and whether the chain&apos;s block interval still matches the number
           vet402&apos;s time windows assume. A data lag is not an outage, so it does not change the
-          status above. Chain readings are shared for up to {Math.round(PUBLIC_READ_REVALIDATE / 60)} minutes
-          (as of {fmtDateTime(chainReadAt)}).
+          status above. Read at most two minutes before this page was built.
         </p>
         {/* Streamed: up to a few seconds of chain reads must not hold the first byte of the page. */}
         <Suspense fallback={<p className="doc-p text-brand-lift">Reading the chains&hellip;</p>}>

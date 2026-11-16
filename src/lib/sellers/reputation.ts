@@ -49,6 +49,23 @@ export function deliveredListings(detail: SellerDetail): SellerListing[] {
   return purchasedListings(detail).filter((l) => l.latest?.bucket === "delivered");
 }
 
+/** 評判表: その出品の全チェーンのうち、いちばん新しい届いた購入。 */
+export function newestDeliveredPurchase(
+  l: SellerListing,
+): { attemptedAt: string; network: string | null } | null {
+  const candidates: { attemptedAt: string; network: string | null }[] = [];
+  if (l.latest?.bucket === "delivered") {
+    candidates.push({ attemptedAt: l.latest.facts.attemptedAt, network: l.latest.facts.network });
+  }
+  const other = l.otherChain;
+  if (other && isDelivered(other)) {
+    candidates.push({ attemptedAt: other.attemptedAt, network: other.network });
+  }
+  if (candidates.length === 0) return null;
+  candidates.sort((a, b) => b.attemptedAt.localeCompare(a.attemptedAt));
+  return candidates[0]!;
+}
+
 function otherChainBlocksReputation(l: SellerListing): boolean {
   const other = l.otherChain;
   const base = l.latest;
@@ -102,7 +119,8 @@ export function reputationBodyLowercase(detail: SellerDetail): string {
   ];
   for (const l of listings) {
     parts.push(listingPath(l.resourceKey, host));
-    if (l.latest?.facts.network) parts.push(l.latest.facts.attemptedAt, paymentChainLabel(l.latest.facts.network));
+    const newest = newestDeliveredPurchase(l);
+    if (newest?.network) parts.push(newest.attemptedAt, paymentChainLabel(newest.network));
   }
   return parts.join(" ").toLowerCase();
 }
