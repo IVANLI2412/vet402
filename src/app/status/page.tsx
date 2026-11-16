@@ -200,7 +200,7 @@ export default async function StatusPage() {
                 Methodology
               </Link>
             </span>
-            <span>Sampled from requests, our own half-hourly check included</span>
+            <span>Sampled from requests, vet402&apos;s own half-hourly check included</span>
           </div>
         </div>
 
@@ -214,7 +214,7 @@ export default async function StatusPage() {
             anything: no claim without a sample behind it. Nothing on a schedule writes these
             rows &mdash; a request to <code>/api/health</code> writes one, at most every five
             minutes unless the status changed &mdash; so a quiet day carries fewer samples and a
-            silent day carries none. Some of those requests are ours: a production check calls
+            silent day carries none. Some of those requests are vet402&apos;s: a production check calls
             the endpoint on the hour and the half hour. It is the sample most likely to be red,
             because it is the only one certain to outlive the probe&apos;s one-minute memo rather
             than replay it. <em>A missing observation is never reported as &quot;ok.&quot;</em>
@@ -234,7 +234,7 @@ export default async function StatusPage() {
             <>
               <strong className="text-warn-ink">stale</strong> &mdash; no sample for{" "}
               {fmtAge(verdict.ageMs)} (last: {verdict.lastStatus} at {fmtDateTime(verdict.checkedAt)}).
-              Our own check calls <code>/api/health</code> on the hour and the half hour, so a gap
+              vet402&apos;s own check calls <code>/api/health</code> on the hour and the half hour, so a gap
               over {Math.round(STATUS_STALE_AFTER_MS / 60_000)} minutes means samples are not being
               written &mdash; which is what a database outage looks like from here. The old value is
               not reported as current.
@@ -242,7 +242,7 @@ export default async function StatusPage() {
           ) : verdict.kind === "unreadable" ? (
             <>
               <strong className="text-block-ink">unknown</strong> &mdash; the status record could not be
-              read when this page was built. That usually means our database is unreachable; it is
+              read when this page was built. That usually means vet402&apos;s database is unreachable; it is
               not reported as &quot;ok.&quot;
             </>
           ) : (

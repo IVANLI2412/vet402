@@ -89,7 +89,10 @@ export default async function Home() {
   const ledger = homeLedgerOf(stats);
   const readAt = stats?.readAt ?? null;
   const days = readAt ? daysBetween(FIRST_SETTLED_AT, readAt) : null;
-  const notDelivered = ledger ? Math.max(0, ledger.settled - ledger.delivered) : 0;
+  const inconclusiveSettled = stats?.l1.inconclusiveSettled ?? 0;
+  const notDelivered = ledger
+    ? Math.max(0, ledger.settled - ledger.delivered - inconclusiveSettled)
+    : 0;
   const receipt = example?.receipt ?? null;
   const decision = example?.decision ?? null;
   const sellerLine = decision
@@ -229,7 +232,7 @@ export default async function Home() {
 
           {ledger && readAt ? (
             <div className={s.heroFacts}>
-              <dl className={s.facts} aria-label="The public ledger in four counts">
+              <dl className={s.facts} aria-label="The public ledger in five counts">
                 <div className={s.fact}>
                   <dt>Days running</dt>
                   <dd>{days !== null ? fmt(days) : "n/a"}</dd>
@@ -246,6 +249,10 @@ export default async function Home() {
                 <div className={s.fact}>
                   <dt>Settled, not delivered</dt>
                   <dd>{fmt(notDelivered)}</dd>
+                </div>
+                <div className={s.fact}>
+                  <dt>Settled, inconclusive (4xx)</dt>
+                  <dd>{fmt(inconclusiveSettled)}</dd>
                 </div>
               </dl>
               <p className={s.readAt}>

@@ -35,6 +35,7 @@ function stripLiveNumbers(block: string): string {
     /\{ledger[^}]*\}/g,
     /\{days[^}]*\}/g,
     /\{notDelivered\}/g,
+    /\{inconclusiveSettled\}/g,
     /\{readAt[^}]*\}/g,
     /\{fmt\([^}]*\}\)/g,
   ];

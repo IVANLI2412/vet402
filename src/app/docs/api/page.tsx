@@ -322,7 +322,7 @@ const endpoints: Endpoint[] = [
     path: "/api/v1/resources/:resourceId/decision?role=payer|payee&payer=…&caller_dialect=v1|v2&allow_without_l1=false&amount_usd=…&max_per_tx_usd=1&min_l1_deliveries=0&require_vet402_allow=true",
     note: (
       <>
-        {`The ledger column l2_schema stores match, mismatch, no_declaration, or not_checked. The decision document and the facts document store conform, mismatch, undeclared, or not_checked. conform is written when the re-read L2 value (l2_reading) of the latest delivery is match. mismatch is written when that re-read value is mismatch. An older mismatch row with no recorded reason is re-read first, and a cut body reads not_checked. In the other cases the decision word is not_checked when the current declaration names output (a required key or an example property), or when the purchase row of the latest delivery recorded a declaration and its re-read value is not_checked, and undeclared when neither holds. The canonical integration since 2026-09-02 (spec §8.3 / §9.1) — 1 unit per call with a key, or key-less with the same body (since 2026-09-07, at ${keylessDecisionPerMinute()}/min per IP since ${DECISION_KEYLESS_LIMIT_SINCE}; 429 rate_limited when the window is spent; Idempotency-Key and customer allow/block lists apply to keyed calls only). role=payer (default) answers "what did vet402 record when it paid this URL in the last 30 days?" from L0 liveness, L1 settle-through and L2 conformance. An ALLOW can carry l2_undeclared: the listing declared no output to compare with. role=payee answers "should this seller serve this payer?" and requires payer. facts and recommendation always arrive in the same document; the transitional score is left out of the body unless you pass include_score=1 (0 or 1; anything else is 400 invalid_include_score), and then it carries superseded_by: "recommendation" and is not the basis of the recommendation. facts.l1.last_attempt_at is when we last attempted an L1 purchase against this resource (ISO 8601 UTC, null before the first attempt) — distinct from observed_at, which is when we last paid. spending_halted is vet402's own spending halt: a fact about the measurer, not the seller, and while it is true the L1 facts here are not today's observation. not_attempted_reason (spending_halted | no_eligible_accept) qualifies the reason code l1_not_attempted; it is null for the other ways an attempt ends before the signature, which are published per attempt in the decision ledger rather than summarised here. ${DECISION_RULES_TEXT} ${METHOD_LIMIT_TEXT} verified_terms (since 2026-09-29, role=payer) carries the terms vet402 actually paid on the last purchase whose delivery it confirmed: pay_to, asset, amount (base units, 6 decimals), network, scheme, protocol and verified_at, or null when nothing was ever delivered, and null on XRPL until the issuer is recorded (a currency code alone cannot tell RLUSD from a look-alike). 0x addresses are lowercase. Compare it with the 402 you received before you pay: if the 402's payTo, asset, network or scheme differ from verified_terms, or its amount is higher, do not pay. An ALLOW is the fact that these terms delivered; it is not a guarantee for a different recipient or a higher price. Each row of evidence[] names the ledger it was observed in: evidence[].source is vet402 for our own L0–L2 record (the row carries purchase_id and a public receipt URL), and subgraph for a row read from The Graph's x402 subgraph. This route emits vet402 rows; `}
+        {`The ledger column l2_schema stores match, mismatch, no_declaration, or not_checked. The decision document and the facts document store conform, mismatch, undeclared, or not_checked. conform is written when the re-read L2 value (l2_reading) of the latest delivery is match. mismatch is written when that re-read value is mismatch. An older mismatch row with no recorded reason is re-read first, and a cut body reads not_checked. In the other cases the decision word is not_checked when the current declaration names output (a required key or an example property), or when the purchase row of the latest delivery recorded a declaration and its re-read value is not_checked, and undeclared when neither holds. The canonical integration since 2026-09-02 (spec §8.3 / §9.1) — 1 unit per call with a key, or key-less with the same body (since 2026-09-07, at ${keylessDecisionPerMinute()}/min per IP since ${DECISION_KEYLESS_LIMIT_SINCE}; 429 rate_limited when the window is spent; Idempotency-Key and customer allow/block lists apply to keyed calls only). role=payer (default) answers "what did vet402 record when it paid this URL in the last 30 days?" from L0 liveness, L1 settle-through and L2 conformance. An ALLOW can carry l2_undeclared: the listing declared no output to compare with. role=payee answers "should this seller serve this payer?" and requires payer. facts and recommendation always arrive in the same document; the transitional score is left out of the body unless you pass include_score=1 (0 or 1; anything else is 400 invalid_include_score), and then it carries superseded_by: "recommendation" and is not the basis of the recommendation. facts.l1.last_attempt_at is when vet402 last attempted an L1 purchase against this resource (ISO 8601 UTC, null before the first attempt) — distinct from observed_at, which is when vet402 last paid. spending_halted is vet402's own spending halt: a fact about the measurer, not the seller, and while it is true the L1 facts here are not today's observation. not_attempted_reason (spending_halted | no_eligible_accept) qualifies the reason code l1_not_attempted; it is null for the other ways an attempt ends before the signature, which are published per attempt in the decision ledger rather than summarised here. ${DECISION_RULES_TEXT} ${METHOD_LIMIT_TEXT} verified_terms (since 2026-09-29, role=payer) carries the terms vet402 actually paid on the last purchase whose delivery it confirmed: pay_to, asset, amount (base units, 6 decimals), network, scheme, protocol and verified_at, or null when nothing was ever delivered, and null on XRPL until the issuer is recorded (a currency code alone cannot tell RLUSD from a look-alike). 0x addresses are lowercase. Compare it with the 402 you received before you pay: if the 402's payTo, asset, network or scheme differ from verified_terms, or its amount is higher, do not pay. An ALLOW is the fact that these terms delivered; it is not a guarantee for a different recipient or a higher price. Each row of evidence[] names the ledger it was observed in: evidence[].source is vet402 for vet402's own L0–L2 record (the row carries purchase_id and a public receipt URL), and subgraph for a row read from The Graph's x402 subgraph. This route emits vet402 rows; `}
         the subgraph rows are added to the same array by the{" "}
         <a
           href="https://github.com/kzmttkc/vet402/blob/main/SKILL.md"
@@ -392,7 +392,7 @@ const endpoints: Endpoint[] = [
   {
     method: "GET",
     path: "/api/v1/observatory/endpoints/:id/facts",
-    note: "L0–L2 seller facts for one endpoint — no key, 120/min. :id is the observatory uuid or the endpoint_id. The same facts object /decision carries, without the recommendation: this route contains no score and no verdict by design (§8.3). n_probe_error counts attempts where our own request was malformed, kept apart from the seller's non-delivery; settlement_30d_test is vet402's own measurement purchases, disclosed and excluded from the wash_dominated denominator. settlement_30d_measurement counts payers on the published measurement list (wash_flag measurement) and is left out of settlement_30d_real and out of that denominator. The list is at https://vet402.com/observatory/methodology#measurement-payers. The ledger column l2_schema stores match, mismatch, no_declaration, or not_checked. The decision document and the facts document store conform, mismatch, undeclared, or not_checked. conform is written when the re-read L2 value (l2_reading) of the latest delivery is match. mismatch is written when that re-read value is mismatch. An older mismatch row with no recorded reason is re-read first, and a cut body reads not_checked. In the other cases the decision word is not_checked when the current declaration names output (a required key or an example property), or when the purchase row of the latest delivery recorded a declaration and its re-read value is not_checked, and undeclared when neither holds.",
+    note: "L0–L2 seller facts for one endpoint — no key, 120/min. :id is the observatory uuid or the endpoint_id. The same facts object /decision carries, without the recommendation: this route contains no score and no verdict by design (§8.3). n_probe_error counts attempts where vet402's own request was malformed, kept apart from the seller's non-delivery; settlement_30d_test is vet402's own measurement purchases, disclosed and excluded from the wash_dominated denominator. settlement_30d_measurement counts payers on the published measurement list (wash_flag measurement) and is left out of settlement_30d_real and out of that denominator. The list is at https://vet402.com/observatory/methodology#measurement-payers. The ledger column l2_schema stores match, mismatch, no_declaration, or not_checked. The decision document and the facts document store conform, mismatch, undeclared, or not_checked. conform is written when the re-read L2 value (l2_reading) of the latest delivery is match. mismatch is written when that re-read value is mismatch. An older mismatch row with no recorded reason is re-read first, and a cut body reads not_checked. In the other cases the decision word is not_checked when the current declaration names output (a required key or an example property), or when the purchase row of the latest delivery recorded a declaration and its re-read value is not_checked, and undeclared when neither holds.",
     response: `{
   "subject": { "type": "resource", "id": "9a7e…", "endpoint_id": "3f1c…", "observatory_id": "521e929e-…", "canonical_url": "…", "method": "GET" },
   "facts": { "l0": {…}, "l1": {…}, "l2": {…}, "availability_7d": 1, "availability_30d": 0.97, "offer_stability": "stable", "payees": ["…"], "settlement_30d_real": 41, "settlement_30d_raw": 44, "settlement_30d_test": 3, "settlement_30d_measurement": 0, "unique_payers_30d_real": 9, "wash_dominated": false },
@@ -1031,7 +1031,7 @@ curl "${SITE_URL}/api/v1/resources/baad6a17bfaf57b11c0c1d8cfb0b38d3d01f09736b7d8
 
         <div>
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-brand-lift">
-            2 &mdash; What happened when we actually paid an endpoint (no key)
+            2 &mdash; What happened when vet402 actually paid an endpoint (no key)
           </p>
           <CodeBlock
             label="curl: read an endpoint's real purchase receipts"
@@ -1520,9 +1520,9 @@ app.use("/api/paid", createExpressGate({
             scheme.
           </li>
           <li>
-            <strong>WARN is where your policy lives, not ours.</strong> We publish the band and the
+            <strong>WARN is where your policy lives, not vet402&apos;s.</strong> vet402 publishes the band and the
             raw signals behind it; what an acceptable risk is at your transaction size is yours to
-            set. The one handling we do argue against is treating WARN as a quiet ALLOW &mdash; our{" "}
+            set. The one handling vet402 argues against is treating WARN as a quiet ALLOW &mdash; vet402&apos;s{" "}
             <Link href="/accuracy" className="doc-link">
               operator benchmark
             </Link>{" "}
@@ -1903,12 +1903,12 @@ app.use("/api/paid", createExpressGate({
         {/* 2026-08-06 N-15/C-9 doc gap: the watchlist mentioned the
             watch.verdict_changed webhook but nothing documented registration,
             the payload envelope, or signature verification — the receiver could
-            not prove a "ALLOW→BLOCK" notice was really from us. This section is
+            not prove a "ALLOW→BLOCK" notice was really from vet402. This section is
             written from src/lib/webhooks.ts, not from memory. */}
         <h2 className="sec-head">Webhooks</h2>
         <p className="text-[0.84375rem] text-brand">
           vet402 is otherwise a pull API. Webhooks turn it into a monitoring
-          service: register an endpoint once and we POST you a signed event when
+          service: register an endpoint once and vet402 POSTs you a signed event when
           something you care about changes — most importantly a watched target
           whose verdict moved (e.g. an <code>ALLOW</code> you gated a payment on
           becoming a <code>BLOCK</code>). Register with{" "}
@@ -2075,14 +2075,14 @@ function verify(secret, rawBody, header, toleranceSec = 300) {
               ; there is no waitlist.
             </>
           )}{" "}
-          We publish our real operating posture rather than a contractual uptime figure we
+          vet402 publishes its real operating posture rather than a contractual uptime figure it
           can&apos;t yet stand behind:
         </p>
         <ul className="list-disc space-y-2 pl-5 text-[0.84375rem] text-brand">
           <li>
             <strong>No SLA credits during beta.</strong> Service is best-effort,
-            with no financial uptime guarantee. When we commit to a numeric target
-            it will be backed by measured operating history — we would rather
+            with no financial uptime guarantee. When vet402 commits to a numeric target
+            it will be backed by measured operating history. vet402 would rather
             under-promise than publish a number the way some vendors publish
             accuracy claims they never measured.
           </li>

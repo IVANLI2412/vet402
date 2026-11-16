@@ -59,6 +59,17 @@ export function SiteChrome({
       >
         Skip to main content
       </a>
+      {isHome ? (
+        <a
+          href="#lp-paste-url"
+          className={buttonClass({
+            className:
+              "sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-16 focus:z-50",
+          })}
+        >
+          Skip to the URL check
+        </a>
+      ) : null}
       <StatusBanner variant={isHome ? "quiet" : "strip"} />
       <SiteHeader />
       <div id="main-content" ref={mainRef} tabIndex={-1} className="min-w-0 flex-1">

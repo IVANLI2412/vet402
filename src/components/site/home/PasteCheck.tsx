@@ -118,6 +118,9 @@ function filterAlternativesByPath(alts: FindAlt[], raw: string): FindAlt[] {
 
 const DIAGNOSE_EXTRA_ENCODE = new Set(["!", "'", "(", ")", "*"]);
 
+const RECORD_UPDATE_NOTE =
+  "The record updates after each purchase. Open it to get an email when it changes.";
+
 function encodeDiagnoseQueryComponent(raw: string): string {
   const enc = encodeURIComponent(fetchQueryUrl(raw));
   let out = "";
@@ -395,7 +398,7 @@ export function PasteCheck({
             autoCapitalize="none"
             spellCheck={false}
             data-clarity-mask="true"
-            placeholder="https://api.example.com/v1/quote"
+            placeholder="https://api.example.com/quote"
             value={url}
             onChange={(ev) => setUrl(ev.target.value)}
           />
@@ -456,6 +459,25 @@ export function PasteCheck({
                     );
                   })}
                 </ul>
+                {(() => {
+                  const headRecord = vet402RecordHref(sameHostListings[0]?.record_url);
+                  return (
+                    <p className={s.pasteBlock}>
+                      The record updates after each purchase.{" "}
+                      {headRecord ? (
+                        <>
+                          <a href={headRecord} className={s.inlineLink}>
+                            Open it
+                          </a>
+                          {" "}
+                          to get an email when it changes.
+                        </>
+                      ) : (
+                        "Open it to get an email when it changes."
+                      )}
+                    </p>
+                  );
+                })()}
               </div>
             ) : phase === "result" && outcome === "none" ? (
               <div className={s.pasteBlock} data-testid="paste-none">
@@ -534,6 +556,7 @@ export function PasteCheck({
                       <a href={recordHref} className={s.inlineLink}>
                         Full record
                       </a>
+                      <p className={s.pasteBlock}>{RECORD_UPDATE_NOTE}</p>
                     </dd>
                   </div>
                 ) : null}

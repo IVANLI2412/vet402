@@ -311,3 +311,17 @@ npx neonctl branches restore main "^self@2026-09-28T09:00:00Z" \
 4. 確認: `curl -sS -o /dev/null -w '%{http_code}\n' https://vet402.com/api/health` が `200`
 
 **障害告知**: [https://vet402.com/status](https://vet402.com/status) に 1 行追記する（公開の障害告知場所）。
+
+---
+
+## 9. データベースを戻す
+
+**Neon の point-in-time restore（オーナーが Neon 画面と psql で実行する）**
+
+1. Neon コンソール → 対象プロジェクト → **Branches** → **Restore**（または past point からブランチを作成）
+2. 戻したい時刻（UTC）を選び、復元用ブランチを作成する（本番ブランチは触らない）
+3. 新ブランチの **Connection string**（`DATABASE_URL`）を Vercel の本番 env に一時的に差し替え → 再デプロイ（または Neon で本番ブランチをスワップする運用なら、その手順に従う）
+4. 確認: `curl -sS -o /dev/null -w '%{http_code}\n' https://vet402.com/api/health` が `200`
+5. 障害原因を切り分けたあと、接続先を元のブランチ／URL に戻す。復元用ブランチは保持期間のあと削除する
+
+**注意**: 接続先の差し替えはオーナー作業。走行中のデプロイと cron が同時に古い DB に書き込まないよう、必要なら §1 の支出停止と併用する。

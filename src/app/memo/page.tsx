@@ -169,7 +169,7 @@ export default async function Memo() {
         <dl className="mx-auto mt-8 grid max-w-[62ch] gap-1 text-[0.84375rem] text-brand sm:grid-cols-[max-content_1fr] sm:gap-x-4">
           <dt className="font-semibold">What this is</dt>
           <dd>x402 is how an agent pays an API. vet402 buys from those APIs itself and publishes whether each paid request came back with a successful answer. A 4xx or 5xx, an empty body or a 202 does not count. That shows who answers once paid. It does not check that the content is right.</dd>
-          <dt className="font-semibold">What you give us</dt>
+          <dt className="font-semibold">What you give vet402</dt>
           <dd>Nothing to look: no wallet, no account, no card. A free key only for score lookups and higher API limits.</dd>
           <dt className="font-semibold">What vet402 does not do</dt>
           <dd>Guarantee a seller, refund, handle chargebacks, check identity (KYC), or hold your funds. A spending cap you set runs in your own process, in the SDK.</dd>
@@ -246,7 +246,7 @@ export default async function Memo() {
         </div>
 
         <p className="mx-auto mt-4 max-w-[52ch] text-center text-brand-lift sm:mt-6">
-          We buy. We settle. We publish the measurements.
+          vet402 buys. vet402 settles. vet402 publishes the measurements.
         </p>
 
         <div className="rule-double mx-auto mt-2 w-full max-w-[34ch] sm:mt-4" />
@@ -432,7 +432,7 @@ export default async function Memo() {
           <span>Verification levels</span>
         </h2>
         <p className="doc-p">
-          Four levels, in order of what they cost us to run and what they prove. A result never
+          Four levels, in order of what they cost vet402 to run and what they prove. A result never
           moves up a level: an L0 probe cannot report settlement, and an L3 opinion is never
           folded into an L0&ndash;L2 fact.
         </p>
@@ -624,7 +624,7 @@ export default async function Memo() {
           <span>Implemented and live</span>
         </h2>
         <p className="doc-p">
-          Everything in this section is running right now and can be checked without asking us.
+          Everything in this section is running right now and can be checked without asking vet402.
         </p>
         {stats && stats.totalEndpoints > 0 && (
           <FunnelFigure
@@ -764,7 +764,7 @@ export default async function Memo() {
                 and false-pass rates against re-measurement ship as <code>l0</code> on{" "}
                 <code>/api/v1/accuracy</code>. The verdict-outcome rates wait for a sample &mdash;
                 until enough issued verdicts have resolved, the page below says so instead of
-                printing a number. What is printed goes up whether or not the numbers flatter us.
+                printing a number. What is printed goes up whether or not the numbers flatter vet402.
               </>
             }
             action={{ label: "Measured accuracy", href: "/accuracy", event: "docs_click", position: "s4_accuracy" }}
@@ -815,11 +815,11 @@ export default async function Memo() {
                   direction only. An agent&rsquo;s owner names a validator and opens the request;
                   the validator answers it. A validator cannot open a request about someone
                   else&rsquo;s agent &mdash; <code>validationRequest</code> reverts with{" "}
-                  <em>Not authorized</em>, which is what our fourteen attempts between 2026-08-21
-                  and 2026-09-03 did. So this is not a build problem. In the 750,000 blocks of Base we
+                  <em>Not authorized</em>, which is what vet402&apos;s fourteen attempts between 2026-08-21
+                  and 2026-09-03 did. So this is not a build problem. In the 750,000 blocks of Base vet402
                   read on 2026-09-03 (roughly 17 days) the whole registry received{" "}
                   <strong>two</strong> events, from one validator, about one agent, and{" "}
-                  <strong>none</strong> named us. We can answer the first request the day someone
+                  <strong>none</strong> named vet402. vet402 can answer the first request the day someone
                   sends one; until then the honest number is zero.
                 </span>
               </>

@@ -61,12 +61,12 @@ export const FAQS: FaqItem[] = [
   {
     question: "Is there an established competitor doing this already?",
     answer:
-      "Not as a dedicated category yet. x402 and ERC-8004 only shipped in 2025, so \"score a payee before an agent pays them, specifically for x402 machine payments\" isn't a shelf with incumbents on it the way wallet AML screening or credit scoring is. General crypto wallet-risk tools score addresses for sanctions and fraud exposure, not for x402 payment trust; general agent-identity and reputation projects don't yet gate a payment decision in the request path. Independent measurement of x402 is not empty, and it would be wrong to imply it is: probe402 is a dedicated x402 observatory that probes a catalog of its own (16,118 endpoints as of 2026-09-04), and on 2026-09-03 it published a finding about vet402's own probe cadence that was correct. What vet402 does that we have not found elsewhere is buy from the endpoint with its own funds and publish the receipt, so the record is settle-through evidence rather than liveness alone. There's no incumbent to unseat on the paid-decision side, but that also means the need is still being proven out as x402 transaction volume grows, not a solved problem we're improving on.",
+      "Not as a dedicated category yet. x402 and ERC-8004 only shipped in 2025, so \"score a payee before an agent pays them, specifically for x402 machine payments\" isn't a shelf with incumbents on it the way wallet AML screening or credit scoring is. General crypto wallet-risk tools score addresses for sanctions and fraud exposure, not for x402 payment trust; general agent-identity and reputation projects don't yet gate a payment decision in the request path. Independent measurement of x402 is not empty, and it would be wrong to imply it is: probe402 is a dedicated x402 observatory that probes a catalog of its own (16,118 endpoints as of 2026-09-04), and on 2026-09-03 it published a finding about vet402's own probe cadence that was correct. What vet402 does that nothing else in the catalog has matched yet is buy from the endpoint with its own funds and publish the receipt, so the record is settle-through evidence rather than liveness alone. There's no incumbent to unseat on the paid-decision side, but that also means the need is still being proven out as x402 transaction volume grows, not a solved problem vet402 is improving on.",
   },
   {
     question: "Does vet402 take custody of funds?",
     answer:
-      "No. vet402 never holds, moves, or has signing authority over customer funds: there is no wallet you deposit into, no balance we hold for you, and no key of yours we can sign with. vet402 does spend its own funds — the observatory's L1 layer buys from x402 endpoints with an operator wallet, which is the whole point of a settle-through record — so \"we touch no money at all\" would be false. The SDK's SpendGuard module (non-custodial) helps an agent apply spend policy locally before it pays; the scoring API itself only returns scores and records settlement attestations after a payment has already happened on-chain.",
+      "No. vet402 never holds, moves, or has signing authority over customer funds: there is no wallet you deposit into, no balance vet402 holds for you, and no key of yours vet402 can sign with. vet402 does spend its own funds — the observatory's L1 layer buys from x402 endpoints with an operator wallet, which is the whole point of a settle-through record — so \"vet402 touches no money at all\" would be false. The SDK's SpendGuard module (non-custodial) helps an agent apply spend policy locally before it pays; the scoring API itself only returns scores and records settlement attestations after a payment has already happened on-chain.",
   },
   {
     question: "Which chain does vet402 support?",
@@ -106,7 +106,7 @@ export const FAQS: FaqItem[] = [
   {
     question: "I lost my API key. How do I get back in?",
     answer:
-      "The key is shown once at signup and is not stored in recoverable form. If you still have a dashboard session, open API keys and create a spare. If the session expired, email support@vet402.com from the address you used at signup — we issue a replacement after verifying control. Signing up again with the same email is refused.",
+      "The key is shown once at signup and is not stored in recoverable form. If you still have a dashboard session, open API keys and create a spare. If the session expired, email support@vet402.com from the address you used at signup — vet402 issues a replacement after verifying control. Signing up again with the same email is refused.",
   },
   {
     question: "How do I integrate it?",

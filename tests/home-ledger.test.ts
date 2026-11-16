@@ -174,7 +174,7 @@ test("direction C keeps the seller search, the two entries, and the three defini
   for (const piece of [
     '<dt className="font-semibold">What this is</dt>',
     "<dd>x402 is how an agent pays an API. vet402 buys from those APIs itself and publishes whether each paid request came back with a successful answer. A 4xx or 5xx, an empty body or a 202 does not count. That shows who answers once paid. It does not check that the content is right.</dd>",
-    '<dt className="font-semibold">What you give us</dt>',
+    '<dt className="font-semibold">What you give vet402</dt>',
     "<dd>Nothing to look: no wallet, no account, no card. A free key only for score lookups and higher API limits.</dd>",
     '<dt className="font-semibold">What vet402 does not do</dt>',
     "<dd>Guarantee a seller, refund, handle chargebacks, check identity (KYC), or hold your funds. A spending cap you set runs in your own process, in the SDK.</dd>",

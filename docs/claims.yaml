@@ -831,7 +831,7 @@ claims:
     verified_at: 2026-09-04
   - id: lp_four_levels_in_order_of
     surface: src/app/memo/page.tsx
-    quote: "Four levels, in order of what they cost us to run and what they prove. A result never"
+    quote: "Four levels, in order of what they cost vet402 to run and what they prove. A result never"
     means: "検証段の結果は上の段へ昇格しない（L0 が決済を報告することはない）という設計上の約束"
     check: null
     why_unverifiable: "この文が述べているのは編集方針・設計上の性質であって、公開 GET が数値で返す種類の主張ではない"
@@ -938,7 +938,7 @@ claims:
   # 定期実行が「行を書く」わけではないが「呼ぶ」ので、標本には入る。
   - id: status_our_own_half_hourly_check_is_a_sample
     surface: src/app/status/page.tsx
-    quote: "Some of those requests are ours: a production check calls"
+    quote: "Some of those requests are vet402&apos;s: a production check calls"
     means: "この表の標本には自前の定間隔チェックが含まれる（外部の第三者監視ではなく、我々自身の呼び出し）"
     check: null
     why_unverifiable: "呼び出し側は当社の運用機（launchd com.kizuna.vouch-uptime-monitor が scripts/smoke-production.sh を毎時 00/30 分に実行）にあり、公開 GET からは観測できない"
@@ -1027,6 +1027,22 @@ claims:
       url: https://vet402.com/api/v1/observatory/state
       assert: "l1.delivered >= 0"
     verified_at: 2026-09-04
+  - id: home_hero_settled_not_delivered_excludes_4xx
+    surface: src/app/page.tsx
+    quote: "Settled, not delivered"
+    means: "トップの件数は settled − delivered − l1.inconclusiveSettled（state の「Settled but not delivered and not 4xx」と同じ分子）"
+    check:
+      url: https://vet402.com/api/v1/observatory/state
+      assert: "l1.settled >= 0"
+    verified_at: 2026-11-16
+  - id: home_hero_settled_inconclusive_4xx
+    surface: src/app/page.tsx
+    quote: "Settled, inconclusive (4xx)"
+    means: "トップの件数は l1.inconclusiveSettled（state の of which settled and answered 4xx と同じ分子）"
+    check:
+      url: https://vet402.com/api/v1/observatory/state
+      assert: "l1.inconclusiveSettled >= 0"
+    verified_at: 2026-11-16
   - id: audit_e_settled_minus_delivered_is_published
     surface: src/app/observatory/state/page.tsx
     quote: "Settled but not delivered and not"

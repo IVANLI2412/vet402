@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next";
 import { getAllPosts } from "@/lib/blog";
 import { GUIDE_CHAINS } from "@/components/site/x402-guides";
 import { CREDENTIALS } from "@/lib/about/credentials";
+import { LEGAL_TERMS_PRIVACY_LAST_MODIFIED } from "@/lib/legal/document-dates";
 import { SITE_URL } from "@/lib/site-url";
 
 // 静的頁の lastmod（2026-08-14）。`new Date()` を使うとデプロイのたびに全頁が
@@ -34,7 +35,7 @@ const REV_2026_11_16 = "2026-11-16";
 
 function coreStaticSitemap(): MetadataRoute.Sitemap {
   const staticRoutes: MetadataRoute.Sitemap = [
-    { url: `${SITE_URL}/`, lastModified: REV_2026_11_08, changeFrequency: "weekly", priority: 1 },
+    { url: `${SITE_URL}/`, lastModified: REV_2026_11_16, changeFrequency: "weekly", priority: 1 },
     // /memo is the long document the front page used to be, linked from /, indexable with a self canonical.
     { url: `${SITE_URL}/memo`, lastModified: REV_2026_11_08, changeFrequency: "monthly", priority: 0.6 },
     { url: `${SITE_URL}/docs/api`, lastModified: REV_2026_10_31, changeFrequency: "monthly", priority: 0.9 },
@@ -111,8 +112,18 @@ function coreStaticSitemap(): MetadataRoute.Sitemap {
     // so it left the page sitemap. Every page still links it as <link rel="alternate" type="application/rss+xml">
     // (pageMetadata) and the footer links it.
     { url: `${SITE_URL}/signup`, lastModified: SITE_REVISION, changeFrequency: "monthly", priority: 0.7 },
-    { url: `${SITE_URL}/legal/terms`, lastModified: SITE_REVISION, changeFrequency: "yearly", priority: 0.3 },
-    { url: `${SITE_URL}/legal/privacy`, lastModified: SITE_REVISION, changeFrequency: "yearly", priority: 0.3 },
+    {
+      url: `${SITE_URL}/legal/terms`,
+      lastModified: LEGAL_TERMS_PRIVACY_LAST_MODIFIED,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
+    {
+      url: `${SITE_URL}/legal/privacy`,
+      lastModified: LEGAL_TERMS_PRIVACY_LAST_MODIFIED,
+      changeFrequency: "yearly",
+      priority: 0.3,
+    },
     { url: `${SITE_URL}/legal/notice`, lastModified: SITE_REVISION, changeFrequency: "yearly", priority: 0.3 },
     { url: `${SITE_URL}/about`, lastModified: CREDENTIALS.revision, changeFrequency: "monthly", priority: 0.5 },
   ];

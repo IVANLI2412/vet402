@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-16 PMF85 r4: hero ledger split, paste record alert, narrow-screen fixes, skip to paste, vet402 voice, legal lastmod, DB restore runbook
+
+- What: The home hero counts split **Settled, not delivered** from **Settled, inconclusive (4xx)** using `l1.inconclusiveSettled` (same partition as `/observatory/state`). PasteCheck adds the record email-update sentence on record and same-host results. Home placeholder shortens; observatory Network filter is full width below `sm`. A **Skip to the URL check** link targets `#lp-paste-url`. Public copy on `/memo`, `/status`, `/faq`, `/docs/api`, and `faq-data` drops we/our/us for vet402 or I. Sitemap `/legal/terms` and `/legal/privacy` lastmod shares `src/lib/legal/document-dates.ts` with the pages. `docs/INCIDENT_RUNBOOK.md` gains §9 (Neon point-in-time restore).
+- Why: PMF85 r4 acceptance: numbers match state, paste-to-subscribe path, 360px layout, keyboard path to paste, public English voice, legal index dates, operator DB rollback steps.
+- Tests: `tests/pmf85-r4-acceptance.test.ts`, updated `tests/home-ledger.test.ts`, `tests/home-density.test.ts`, `tests/audit-text-batch2.test.ts`, `docs/claims.yaml` home hero claims.
+- Impact: Copy, sitemap dates, runbook, and UI only. No billing, rate limits, paste state machine, or legal body text changes.
+
 ## 2026-11-16 scoring: indexed feedback when tail getLogs times out
 
 - What: `fetchRecentFeedbackStats` still reads the feedback index and scans a short tail via `eth_getLogs`. If that tail read fails while the index already covers the 7-day window, the scorer returns indexed rows only when the missing tail is at most `FEEDBACK_TAIL_FAILOPEN_MAX_BLOCKS` (default 18,000 = 1 h of Base 0.2 s blocks; env-overridable). It logs `feedback_stats_tail_skipped` with `tailBlocks`. Wider gaps still throw → `feedback_stats_unavailable`.
