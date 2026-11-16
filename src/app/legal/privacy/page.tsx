@@ -143,7 +143,8 @@ export default async function PrivacyPage() {
               <code>vet402-hermes/</code>, <code>vet402-sdk/</code> or <code>vet402-mcp/</code>{" "}
               followed by a version number for the tools we publish, <code>self-monitor</code> for
               the monitoring tools we run ourselves, <code>crawler</code>, <code>site</code> for
-              calls made by pages on vet402.com, <code>browser</code>, or <code>other</code>. MCP
+              calls made by pages on vet402.com, <code>browser</code>, <code>other</code>, or{" "}
+              <code>rate_limited</code> when a key-less call hits the per-IP limit. MCP
               calls can also get <code>cursor</code>, <code>grok-bot</code>, <code>claude</code>,{" "}
               <code>chatgpt</code> or <code>paybox</code>. We read the User-Agent header, the client
               name an MCP client sends when it connects, and for browsers whether the request came

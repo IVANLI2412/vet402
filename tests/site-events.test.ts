@@ -64,6 +64,10 @@ test("home paste events are in SITE_EVENTS", () => {
   }
 });
 
+test("watch_sellers_interest is in SITE_EVENTS", () => {
+  assert.ok(SITE_EVENTS.includes("watch_sellers_interest"));
+});
+
 test("sourceLabel", () => {
   assert.equal(sourceLabel(""), "direct");
   assert.equal(sourceLabel("internal"), "internal");

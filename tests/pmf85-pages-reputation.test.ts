@@ -184,6 +184,8 @@ test("評判ページ描画 HTML に禁止語が 0 件", () => {
   assert.match(html, /Get an email when this record changes:/);
   assert.match(html, /href="\/observatory\/e\/e1"/);
   assert.match(html, />open the latest record and use the alert form</);
+  assert.match(html, /not built yet/);
+  assert.match(html, />I would use this</);
 });
 
 test("latestDeliveredRecordId: 全出品のうちいちばん新しい届いた購入の endpoint id", () => {

@@ -13,7 +13,12 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-16 measure: H-PRICE rate-limit hits and watch-sellers interest (hprice)
 
+- What: Keyless check/decision routes record `client_usage_daily` rows with client `rate_limited` on 429. Seller reputation pages add a small watch-all-sellers interest block (`watch_sellers_interest` in `site_events_daily`). `GET /api/v1/stats/interest?days=14` returns `{ days, watch_sellers_interest }`.
+- Why: H-PRICE validation — count demand hitting keyless limits and pre-pay interest before building a multi-seller watch product.
+- Tests: `tests/site-events.test.ts`, `tests/site-interest-stats.test.ts`, `tests/client-usage.test.ts`, `tests/check-decision-1116.test.ts`, `tests/pmf85-pages-reputation.test.ts`, `tests/openapi-route-parity.test.ts`, `tests/docs-surface-parity.test.ts`.
+- Impact: Existing tables only. No payment paths, pricing, or paste-field experiment changes.
 
 ## 2026-11-16 privacy: how Privacy choices and Clarity fit together (legal3)
 

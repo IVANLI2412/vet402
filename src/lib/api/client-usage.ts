@@ -92,8 +92,17 @@ export const CRAWLER_CLIENT = "crawler";
 export const SITE_CLIENT = "site";
 export const BROWSER_CLIENT = "browser";
 export const OTHER_CLIENT = "other";
+/** 鍵なし枠で 429 になった呼び出し（2026-11-16 H-PRICE）。誰の呼び出しかは保存しない。 */
+export const RATE_LIMITED_CLIENT = "rate_limited";
 /** 版を持たない決まった名前。呼び手が増やせないので、1 日の種類の上限（MAX_CLIENTS_PER_DAY）の外に置く。 */
-export const FIXED_CLIENTS: readonly string[] = [SELF_MONITOR_CLIENT, CRAWLER_CLIENT, SITE_CLIENT, BROWSER_CLIENT, OTHER_CLIENT];
+export const FIXED_CLIENTS: readonly string[] = [
+  SELF_MONITOR_CLIENT,
+  CRAWLER_CLIENT,
+  SITE_CLIENT,
+  BROWSER_CLIENT,
+  OTHER_CLIENT,
+  RATE_LIMITED_CLIENT,
+];
 
 /** 版は数字 3 組の semver（各 1〜3 桁）だけ。その後ろは UA の終わりか空白・`(`・`;`。プレリリース等は other。 */
 const VERSION_RE = /^(\d{1,3}\.\d{1,3}\.\d{1,3})(?=$|[\s(;])/;
@@ -246,6 +255,18 @@ export function recordClientUsage(headers: Headers, route: ClientUsageRoute): vo
     const client = clientUsageLabel(headers.get("user-agent"), isOwnPageRequest(headers));
     const now = new Date();
     runAfterResponse(() => upsertClientUsage(client, route, now));
+  } catch (error) {
+    logAndSwallowSafe("client_usage.schedule")(error);
+  }
+}
+
+/**
+ * 鍵なし公開ルートが IP 枠で 429 を返したときだけ呼ぶ。client は常に rate_limited。ヘッダは読まない。
+ */
+export function recordRateLimitedClientUsage(route: ClientUsageRoute): void {
+  try {
+    const now = new Date();
+    runAfterResponse(() => upsertClientUsage(RATE_LIMITED_CLIENT, route, now));
   } catch (error) {
     logAndSwallowSafe("client_usage.schedule")(error);
   }

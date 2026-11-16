@@ -1,6 +1,11 @@
 import { NextRequest } from "next/server";
 import { handleCheck } from "@/lib/api/check-handler";
-import { isKeylessRequest, recordClientUsage, type ClientUsageRoute } from "@/lib/api/client-usage";
+import {
+  isKeylessRequest,
+  recordClientUsage,
+  recordRateLimitedClientUsage,
+  type ClientUsageRoute,
+} from "@/lib/api/client-usage";
 import { scheduleKeylessCallerRecord } from "@/lib/api/keyless-callers";
 import { RESOLVE_KEYLESS_LIMIT, RESOLVE_KEYLESS_WINDOW_MS } from "@/lib/api/keyless-limits";
 import { rateLimitPolicyHeader } from "@/lib/api/ip-rate-limit";
@@ -20,6 +25,7 @@ export async function handleKeylessCheckRoute(
 ): Promise<Response> {
   const gate = await publicRateLimit(request, "resolve", RESOLVE_KEYLESS_LIMIT, RESOLVE_KEYLESS_WINDOW_MS);
   if (!gate.ok) {
+    if (gate.response.status === 429) recordRateLimitedClientUsage(usageRoute);
     const h = new Headers(gate.response.headers);
     h.set("RateLimit-Policy", KEYLESS_POLICY);
     h.set("Cache-Control", "private, no-store");

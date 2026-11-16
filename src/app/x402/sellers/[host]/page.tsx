@@ -24,6 +24,7 @@ import { parseSellerHostParam } from "@/lib/sellers/host";
 import type { SellerDetail } from "@/lib/sellers/board";
 import { sellerPath } from "@/components/site/sellers/SellersViews";
 import { TableScroll } from "@/components/site/TableScroll";
+import { WatchSellersInterest } from "@/components/site/sellers/WatchSellersInterest";
 
 type Props = { params: Promise<{ host: string }> };
 
@@ -129,6 +130,8 @@ export function ReputationSellerArticle({ detail, nonce }: { detail: SellerDetai
             .
           </p>
         ) : null}
+
+        <WatchSellersInterest recordId={latestRecordId} />
 
         <p className="doc-p mt-8 text-brand-lift">Records are measurements, not a guarantee.</p>
         <p className="doc-p">

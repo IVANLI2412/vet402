@@ -2392,3 +2392,10 @@ claims:
     check: null
     why_unverifiable: "他社公開ページの文言。頁に出典 URL と取得日を併記。"
     verified_at: 2026-11-15
+  - id: hprice_watch_sellers_not_built
+    surface: src/components/site/sellers/WatchSellersInterest.tsx
+    quote: "Watching several sellers you pay? A paid plan that watches all of them (webhook and a weekly summary) is not built yet. Press if you would use it."
+    means: "複数売り手の変更を横断で見る有料プランは未製品であると明示する H-PRICE 関心計測コピー"
+    check: null
+    why_unverifiable: "将来製品の有無の宣言。未実装を隠さない文言。tests/site-interest-stats.test.ts が固定する"
+    verified_at: 2026-11-16

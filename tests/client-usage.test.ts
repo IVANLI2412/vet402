@@ -28,7 +28,9 @@ import {
   clientUsageOverflowLabel,
   isKeylessRequest,
   isOwnPageRequest,
+  RATE_LIMITED_CLIENT,
   recordClientUsage,
+  recordRateLimitedClientUsage,
   upsertClientUsage,
 } from "@/lib/api/client-usage";
 
@@ -206,7 +208,7 @@ test("clientUsageLabel: 返る値は決まった名前だけ（UA の文字列�
   }
   assert.equal(clientUsageLabel("curl/8.7.1 " + " ".repeat(600) + "bot"), OTHER_CLIENT);
   assert.equal(clientUsageLabel("self-monitor"), OTHER_CLIENT);
-  assert.equal(FIXED_CLIENTS.length, 5);
+  assert.equal(FIXED_CLIENTS.length, 6);
 });
 
 test("clientUsageOverflowLabel: 配布物の版は <名前>/other、決まった名前は自分自身", () => {
@@ -233,6 +235,25 @@ test("isOwnPageRequest: Sec-Fetch-Site: same-origin か、Referer が自サイ�
   assert.equal(isOwnPageRequest(new Headers({ referer: "not a url" })), false);
   assert.equal(isOwnPageRequest(new Headers({ referer: `https://vet402.com/${"a".repeat(3000)}` })), false);
   assert.equal(isOwnPageRequest(new Headers()), false);
+});
+
+test("recordRateLimitedClientUsage: 常に rate_limited で route だけ書く", async () => {
+  const tasks: Array<() => Promise<void>> = [];
+  setAfterResponseSchedulerForTest((task) => tasks.push(task));
+  const seen: string[] = [];
+  __setDbForTests({
+    execute: async (q: unknown) => {
+      seen.push(JSON.stringify(q));
+      return { rows: [] };
+    },
+  });
+  recordRateLimitedClientUsage("rest:check");
+  assert.equal(tasks.length, 1);
+  await tasks[0]();
+  assert.match(seen[0], /client_usage_daily/);
+  assert.match(seen[0], new RegExp(`"${RATE_LIMITED_CLIENT}"`));
+  assert.match(seen[0], /"rest:check"/);
+  assert.doesNotMatch(seen[0], /user-agent|x-forwarded/i);
 });
 
 test("recordClientUsage: どの UA でも応答後の処理を 1 つ予約する（UA 無しも other で数える）", () => {

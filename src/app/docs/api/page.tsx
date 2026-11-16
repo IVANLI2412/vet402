@@ -250,6 +250,12 @@ const endpoints: Endpoint[] = [
   },
   {
     method: "GET",
+    path: "/api/v1/stats/interest?days=14",
+    note: "First-party watch_sellers_interest counts (seller reputation pages). No email or identifier is stored or returned. days defaults to 14.",
+    response: `{ "days": 14, "watch_sellers_interest": 3 }`,
+  },
+  {
+    method: "GET",
     path: "/api/v1/check?url=https%3A%2F%2Fapi.example.com%2Fx402",
     note: `Key-less REST twin of MCP check_x402_seller, the same JSON document (recommendation, delivery, the five latest purchases, verified_terms). check reads vet402 purchase records. GET /api/v1/diagnose fetches the URL now and reads the 402 response. When not_in_catalog is true, diagnose_url links to diagnose for that URL. Optional method= narrows the HTTP method like /resolve. Counts against the same per-IP limit as /resolve (${keylessResolvePerMinute()} requests per minute per IP). Responses carry RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, and RateLimit-Policy on 200 and 429. Answers are not CDN-cached (Cache-Control private, no-store) because the remaining limit is per caller. Unknown or duplicate query parameters are 400 invalid_query (allowed lists url and method). url must be https (http gives invalid_url), bad method gives invalid_method. 503 temporarily_unavailable when the store cannot be read. When VET402_RECEIPT_SIGNER_KEY is set, the body also carries receipt. POST /api/v1/receipts/verify checks it. When the variable is unset, receipt is omitted and the rest of the body stays as it is.`,
     response: `{ "not_in_catalog": false, "recommendation": "ALLOW", "delivery": { "paid_attempts": 3, "delivered": 3, "settled_not_delivered": 0, "window_days": 30 }, "l1_purchases": [ … ], "as_of": "…" }`,

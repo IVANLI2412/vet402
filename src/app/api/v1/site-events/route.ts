@@ -43,6 +43,8 @@ export async function POST(request: NextRequest) {
       return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
     }
     source = state;
+  } else if (event === "watch_sellers_interest" && refRaw === "seller_page") {
+    source = "seller_page";
   } else {
     let refHost: string | undefined;
     if (refRaw && /^[a-z0-9.-]+$/i.test(refRaw)) refHost = refRaw;

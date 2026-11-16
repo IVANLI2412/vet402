@@ -60,6 +60,7 @@ export const SITE_EVENTS = [
   "home_paste_submit",
   "home_result_state",
   "home_snippet_copy",
+  "watch_sellers_interest",
 ] as const;
 
 /** home_result_state: stored in `source` (state word only, not a referrer host). */
@@ -154,6 +155,7 @@ export function pathGroup(pathname: string): string {
 
   if (/^\/observatory\/e\/[^/]+$/.test(p)) return "/observatory/e/[id]";
   if (/^\/sellers\/[^/]+$/.test(p)) return "/sellers/[host]";
+  if (/^\/x402\/sellers\/[^/]+$/.test(p)) return "/x402/sellers/[host]";
   if (/^\/payee\/[^/]+$/.test(p)) return "/payee/[address]";
   if (p === "/dashboard" || p.startsWith("/dashboard/")) return "/dashboard";
 
