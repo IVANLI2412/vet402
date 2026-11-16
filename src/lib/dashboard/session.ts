@@ -1,5 +1,5 @@
-import { createHmac, randomBytes } from "node:crypto";
-import { and, eq, gt } from "drizzle-orm";
+import { createHash, createHmac, randomBytes } from "node:crypto";
+import { and, eq, gt, sql } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { isProduction, secureCookiesEnabled } from "@/lib/config/env";
 import { getDb } from "@/lib/db/client";
@@ -7,6 +7,9 @@ import { dashboardSessions } from "@/lib/db/schema";
 
 export const DASHBOARD_COOKIE = "vouch_dash";
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+
+/** Legacy sha256(secret:token) lookups stop at this instant (UTC). */
+export const LEGACY_DASHBOARD_SESSION_HASH_UNTIL = new Date("2026-12-16T00:00:00.000Z");
 
 function sessionPepper(): string {
   const dedicated = process.env.DASHBOARD_SESSION_PEPPER?.trim();
@@ -23,8 +26,25 @@ function sessionPepper(): string {
   return "dev_dashboard_session_pepper_change_me";
 }
 
+function legacySessionSecret(): string {
+  const secret = process.env.DASHBOARD_SESSION_SECRET;
+  if (secret) return secret;
+  if (isProduction()) {
+    throw new Error("DASHBOARD_SESSION_SECRET is required in production");
+  }
+  return "dev_dashboard_secret_change_me";
+}
+
 function hashSessionToken(token: string): string {
   return createHmac("sha256", sessionPepper()).update(token).digest("hex");
+}
+
+function hashLegacySessionToken(token: string): string {
+  return createHash("sha256").update(`${legacySessionSecret()}:${token}`).digest("hex");
+}
+
+function legacySessionHashEnabled(now: Date = new Date()): boolean {
+  return now.getTime() < LEGACY_DASHBOARD_SESSION_HASH_UNTIL.getTime();
 }
 
 export async function createDashboardSession(apiKeyId: string): Promise<string> {
@@ -53,18 +73,36 @@ export async function resolveDashboardSession(
   const db = getDb();
   if (!db) return null;
 
+  const now = new Date();
+  const hmacHash = hashSessionToken(token);
+
   const rows = await db
     .select({ apiKeyId: dashboardSessions.apiKeyId })
     .from(dashboardSessions)
-    .where(
-      and(
-        eq(dashboardSessions.tokenHash, hashSessionToken(token)),
-        gt(dashboardSessions.expiresAt, new Date()),
-      ),
-    )
+    .where(and(eq(dashboardSessions.tokenHash, hmacHash), gt(dashboardSessions.expiresAt, now)))
     .limit(1);
 
-  return rows[0] ? { apiKeyId: rows[0].apiKeyId } : null;
+  if (rows[0]) return { apiKeyId: rows[0].apiKeyId };
+
+  if (!legacySessionHashEnabled(now)) return null;
+
+  const legacyHash = hashLegacySessionToken(token);
+  const legacyRows = await db
+    .select({ apiKeyId: dashboardSessions.apiKeyId })
+    .from(dashboardSessions)
+    .where(and(eq(dashboardSessions.tokenHash, legacyHash), gt(dashboardSessions.expiresAt, now)))
+    .limit(1);
+
+  if (!legacyRows[0]) return null;
+
+  await db.execute(sql`
+    UPDATE dashboard_sessions
+    SET token_hash = ${hmacHash}::text
+    WHERE token_hash = ${legacyHash}::text
+      AND expires_at > ${now.toISOString()}::timestamptz
+  `);
+
+  return { apiKeyId: legacyRows[0].apiKeyId };
 }
 
 export async function deleteDashboardSession(token: string | undefined): Promise<void> {

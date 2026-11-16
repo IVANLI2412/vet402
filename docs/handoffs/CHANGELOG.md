@@ -20,6 +20,7 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 - Tests: `tests/check-decision-1116.test.ts`, `tests/keyless-callers.pg.test.ts`, `tests/badge-fetch.pg.test.ts`, `tests/dashboard-session-hmac-1116.test.ts` (pg tests need `TEST_DATABASE_URL`).
 - Impact: `export.csv` columns are unchanged. SQL is in `scripts/sql/2026-11-16-keyless-callers-and-badge-fetches.sql` and is not applied in this commit. Missing tables degrade to no write for metrics, not API failure.
 - r3 follow-up (2026-11-16): `GET /api/v1/check` and `GET /api/v1/decision` respond with `Cache-Control: private, no-store` so per-IP `RateLimit-Remaining` is not shared on a CDN. docs/openapi and `/docs/api` already describe that policy.
+- r3 follow-up (2026-11-16): Existing dashboard sessions keep working and are re-stored as HMAC on next use until 2026-12-16.
 
 ## 2026-11-16 Seller signed receipts from the offer-and-receipt extension are kept on each purchase (wave2 receipt)
 

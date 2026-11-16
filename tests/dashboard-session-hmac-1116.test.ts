@@ -1,9 +1,13 @@
-import { test, afterEach } from "node:test";
+import { test, afterEach, mock } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { createHmac } from "node:crypto";
+import { createHash, createHmac } from "node:crypto";
 import { __setDbForTests } from "@/lib/db/client";
-import { createDashboardSession } from "@/lib/dashboard/session";
+import {
+  createDashboardSession,
+  LEGACY_DASHBOARD_SESSION_HASH_UNTIL,
+  resolveDashboardSession,
+} from "@/lib/dashboard/session";
 
 test("dashboard session tokens use HMAC-SHA256 with pepper", () => {
   const src = readFileSync("src/lib/dashboard/session.ts", "utf8");
@@ -86,4 +90,75 @@ test("createDashboardSession stores only the HMAC hash, not the raw token", asyn
   assert.equal(storedHash, createHmac("sha256", "test-session-pepper").update(token).digest("hex"));
   assert.notEqual(storedHash, token);
   assert.equal((storedRows[0] as { tokenHash: string }).tokenHash, storedHash);
+});
+
+test("legacy session cookie resolves once and upgrades stored token_hash to HMAC", async () => {
+  process.env.DASHBOARD_SESSION_SECRET = "legacy-dashboard-secret";
+  process.env.DASHBOARD_SESSION_PEPPER = "test-session-pepper";
+  const token = "c".repeat(64);
+  const apiKeyId = "00000000-0000-0000-0000-000000000010";
+  const legacyHash = createHash("sha256")
+    .update(`legacy-dashboard-secret:${token}`)
+    .digest("hex");
+  const hmacHash = createHmac("sha256", "test-session-pepper").update(token).digest("hex");
+
+  let selectCalls = 0;
+  let upgraded = false;
+
+  __setDbForTests({
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => {
+            selectCalls++;
+            if (selectCalls === 1) return [];
+            if (selectCalls === 2) return [{ apiKeyId }];
+            return [];
+          },
+        }),
+      }),
+    }),
+    execute: async () => {
+      upgraded = true;
+    },
+  } as never);
+
+  const session = await resolveDashboardSession(token);
+  assert.deepEqual(session, { apiKeyId });
+  assert.equal(selectCalls, 2);
+  assert.equal(upgraded, true);
+  assert.notEqual(legacyHash, hmacHash);
+});
+
+test("legacy session cookie is rejected after the cutoff date", async () => {
+  process.env.DASHBOARD_SESSION_SECRET = "legacy-dashboard-secret";
+  process.env.DASHBOARD_SESSION_PEPPER = "test-session-pepper";
+  const token = "d".repeat(64);
+
+  const afterCutoff = new Date(LEGACY_DASHBOARD_SESSION_HASH_UNTIL.getTime() + 60_000);
+  const clock = mock.timers;
+  clock.enable({ apis: ["Date"], now: afterCutoff });
+
+  let selectCalls = 0;
+  __setDbForTests({
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => {
+            selectCalls++;
+            return [];
+          },
+        }),
+      }),
+    }),
+    execute: async () => {
+      assert.fail("legacy upgrade must not run after cutoff");
+    },
+  } as never);
+
+  const session = await resolveDashboardSession(token);
+  assert.equal(session, null);
+  assert.equal(selectCalls, 1);
+
+  clock.reset();
 });
