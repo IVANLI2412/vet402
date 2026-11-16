@@ -7,6 +7,7 @@ import { agentPassports } from "@/lib/db/schema";
 import { parseAgentId } from "@/lib/chain/client";
 import { agentBadgeState, renderBadgeSvg, type AgentBadgeScoreView } from "@/lib/badge/trust-badge";
 import { scoreAgentById } from "@/lib/scoring/engine";
+import { scheduleBadgeFetch } from "@/lib/badge/fetch-stats";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 
 // A-10 — embeddable SVG badge for an agent passport, the twin of the payee
@@ -76,6 +77,7 @@ export async function GET(
   }
 
   const state = agentBadgeState(signed, score);
+  scheduleBadgeFetch(request.headers.get("referer"), "agent");
   return new NextResponse(renderBadgeSvg(state), {
     headers: {
       "Content-Type": "image/svg+xml",

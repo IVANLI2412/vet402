@@ -5,6 +5,7 @@ import { endpointReceiptBadge, renderReceiptBadgeSvg } from "@/lib/badge/receipt
 import { getEndpointPurchases } from "@/lib/observatory/reader";
 import { getDb } from "@/lib/db/client";
 import { readRecordSides } from "@/lib/sellers/reader";
+import { scheduleBadgeFetch } from "@/lib/badge/fetch-stats";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { UUID_RE } from "@/lib/validation/uuid";
 
@@ -81,6 +82,7 @@ export async function GET(
       // Unknown endpoint: render the honest "not yet measured" badge rather
       // than a 404 image, so a stale embed degrades to a truthful state.
       const badge = endpointReceiptBadge({ attemptCount: 0, settledCount: 0 });
+      scheduleBadgeFetch(request.headers.get("referer"), "endpoint");
       return svgResponse(renderReceiptBadgeSvg(badge), "public, max-age=60");
     }
     // 2026-09-29 第4巡: vet402 の側の失敗を分母から外す（記録頁と同じ分類・src/lib/sellers）。読めなければ従来どおり。
@@ -104,6 +106,7 @@ export async function GET(
       subject: badgeSubject(record.resourceUrl, record.endpointId),
       measuredOn: lastMeasuredOn(record.purchases),
     });
+    scheduleBadgeFetch(request.headers.get("referer"), "endpoint");
     return svgResponse(
       renderReceiptBadgeSvg(badge),
       "public, s-maxage=600, stale-while-revalidate=1200",
@@ -111,6 +114,7 @@ export async function GET(
   } catch (error) {
     logServerErrorSafe("badge_endpoint", error);
     const badge = endpointReceiptBadge({ attemptCount: 0, settledCount: 0 });
+    scheduleBadgeFetch(request.headers.get("referer"), "endpoint");
     return svgResponse(renderReceiptBadgeSvg(badge), "public, max-age=60");
   }
 }

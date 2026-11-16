@@ -226,8 +226,26 @@ const endpoints: Endpoint[] = [
   // 2026-10-28: MCP の入口（https://vet402.com/mcp）。tests/docs-api-public-paths.test.ts が openapi の paths と突き合わせる。
   {
     method: "GET",
+    path: "/api/v1/decision?url=https%3A%2F%2Fapi.example.com%2Fx402",
+    note: `Key-less alias of GET /api/v1/check with the same JSON body and the same per-IP limit. Use either path. Responses carry RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, and RateLimit-Policy on 200 and 429. Answers are not CDN-cached (Cache-Control private, no-store) because the remaining limit is per caller.`,
+    response: `{ "not_in_catalog": false, "recommendation": "ALLOW", "delivery": { "paid_attempts": 3, "delivered": 3, "settled_not_delivered": 0, "window_days": 30 }, "l1_purchases": [ … ], "as_of": "…" }`,
+  },
+  {
+    method: "GET",
+    path: "/api/v1/stats/keyless-callers",
+    note: "Weekly counts of distinct keyless callers for GET /api/v1/check and GET /api/v1/decision. Counts only. Per-caller hashes are kept for the current week and deleted when the week closes. IP and user agent are not stored. The open ISO week is marked in_progress.",
+    response: `{ "weeks": [ { "week_start": "2026-11-10", "keyless_callers_7d": 42, "keyless_callers_2plus_days_7d": 10, "keyless_callers_returning_wow": 8, "in_progress": true } ] }`,
+  },
+  {
+    method: "GET",
+    path: "/api/v1/stats/badge-fetches?days=7",
+    note: "Per-calendar-day counts of badge image responses from GET /api/badge/**, grouped by referer host name (not path or IP). days defaults to 7.",
+    response: `{ "days": 7, "rows": [ { "day": "2026-11-16", "referer_host": "docs.example.com", "badge_kind": "host", "fetches": 12 } ] }`,
+  },
+  {
+    method: "GET",
     path: "/api/v1/check?url=https%3A%2F%2Fapi.example.com%2Fx402",
-    note: `Key-less REST twin of MCP check_x402_seller — the same JSON document (recommendation, delivery, the five latest purchases, verified_terms). Optional method= narrows the HTTP method like /resolve. Counts against the same per-IP limit as /resolve (${keylessResolvePerMinute()} requests per minute per IP). The CDN may serve an answer up to 60 seconds old, and up to five more minutes while it refreshes in the background. Unknown or duplicate query parameters are 400 invalid_query (allowed lists url and method). url must be https (http → invalid_url); bad method → invalid_method. 503 temporarily_unavailable when the store cannot be read. When VET402_RECEIPT_SIGNER_KEY is set, the body also carries receipt. POST /api/v1/receipts/verify checks it. When the variable is unset, receipt is omitted and the rest of the body stays as it is.`,
+    note: `Key-less REST twin of MCP check_x402_seller, the same JSON document (recommendation, delivery, the five latest purchases, verified_terms). check reads vet402 purchase records. GET /api/v1/diagnose fetches the URL now and reads the 402 response. When not_in_catalog is true, diagnose_url links to diagnose for that URL. Optional method= narrows the HTTP method like /resolve. Counts against the same per-IP limit as /resolve (${keylessResolvePerMinute()} requests per minute per IP). Responses carry RateLimit-Limit, RateLimit-Remaining, RateLimit-Reset, and RateLimit-Policy on 200 and 429. Answers are not CDN-cached (Cache-Control private, no-store) because the remaining limit is per caller. Unknown or duplicate query parameters are 400 invalid_query (allowed lists url and method). url must be https (http gives invalid_url), bad method gives invalid_method. 503 temporarily_unavailable when the store cannot be read. When VET402_RECEIPT_SIGNER_KEY is set, the body also carries receipt. POST /api/v1/receipts/verify checks it. When the variable is unset, receipt is omitted and the rest of the body stays as it is.`,
     response: `{ "not_in_catalog": false, "recommendation": "ALLOW", "delivery": { "paid_attempts": 3, "delivered": 3, "settled_not_delivered": 0, "window_days": 30 }, "l1_purchases": [ … ], "as_of": "…" }`,
   },
   {

@@ -1690,9 +1690,9 @@ paths:
         same JSON document the tool returns (`recommendation`, `delivery`, the five
         latest purchases with explorer links, `verified_terms`, `listing_sources`).
         Uses the same cached readers as `POST /mcp` tools/call. Counts against the
-        same per-IP rate limit as `GET /api/v1/resolve`. The CDN may serve a
-        response up to 60 seconds old, and up to five more minutes while it
-        refreshes in the background (`max-age=60`, `s-maxage=60`, `stale-while-revalidate=300`).
+        same per-IP rate limit as `GET /api/v1/resolve`. Responses are not shared
+        across callers (`Cache-Control: private, no-store`) because
+        `RateLimit-Remaining` is per IP.
         `url` must be an absolute https URL (up to 2048 characters), like MCP
         `check_x402_seller`.
         Optional `method` is an HTTP method name (1–10 letters), like `/resolve`.
@@ -1744,6 +1744,109 @@ paths:
                       documentation: { type: string, format: uri }
         "429": { description: Rate limited }
         "503": { description: Store unavailable }
+
+  /api/v1/decision:
+    get:
+      operationId: decisionX402Seller
+      tags: [Observatory]
+      summary: Key-less alias of GET /api/v1/check
+      description: |
+        Same JSON body, per-IP limit, and RateLimit-* headers as `GET /api/v1/check`.
+        Responses are not shared across callers (`Cache-Control: private, no-store`).
+        Use either path. When `not_in_catalog` is true, the body includes `diagnose_url`.
+      security: []
+      parameters:
+        - in: query
+          name: url
+          required: true
+          schema: { type: string, maxLength: 2048 }
+          description: The x402 URL to look up.
+        - in: query
+          name: method
+          required: false
+          schema: { type: string, pattern: "^[A-Za-z]{1,10}$" }
+          description: HTTP method to use when resolving the URL (default GET).
+      responses:
+        "200":
+          description: Same check_x402_seller document as GET /api/v1/check.
+          content:
+            application/json:
+              schema:
+                type: object
+        "400":
+          description: invalid_query, invalid_url or invalid_method.
+        "429": { description: Rate limited }
+        "503": { description: Store unavailable }
+
+  /api/v1/stats/keyless-callers:
+    get:
+      operationId: statsKeylessCallers
+      tags: [Observatory]
+      summary: Weekly keyless caller counts (no stored IP or UA)
+      description: |
+        Counts distinct caller hashes for keyless GET /api/v1/check and
+        GET /api/v1/decision. The in-progress ISO week includes `in_progress: true`.
+        Only counts are returned.
+      security: []
+      responses:
+        "200":
+          description: Weekly rollups and the current week.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [weeks]
+                properties:
+                  weeks:
+                    type: array
+                    items:
+                      type: object
+                      required:
+                        - week_start
+                        - keyless_callers_7d
+                        - keyless_callers_2plus_days_7d
+                        - keyless_callers_returning_wow
+                      properties:
+                        week_start: { type: string, format: date }
+                        keyless_callers_7d: { type: integer }
+                        keyless_callers_2plus_days_7d: { type: integer }
+                        keyless_callers_returning_wow: { type: integer }
+                        in_progress: { type: boolean }
+
+  /api/v1/stats/badge-fetches:
+    get:
+      operationId: statsBadgeFetches
+      tags: [Observatory]
+      summary: Badge image fetch counts by referer host
+      description: |
+        Daily tallies of GET /api/badge/** image responses, grouped by referer host
+        name (not path or IP). `days` defaults to 7 (clamped 1 to 365).
+      security: []
+      parameters:
+        - in: query
+          name: days
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 365, default: 7 }
+      responses:
+        "200":
+          description: Fetch counts per day, host, and badge kind.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [days, rows]
+                properties:
+                  days: { type: integer }
+                  rows:
+                    type: array
+                    items:
+                      type: object
+                      required: [day, referer_host, badge_kind, fetches]
+                      properties:
+                        day: { type: string, format: date }
+                        referer_host: { type: string }
+                        badge_kind: { type: string }
+                        fetches: { type: integer }
 
   /api/v1/find:
     get:

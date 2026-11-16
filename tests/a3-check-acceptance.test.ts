@@ -74,8 +74,8 @@ test("A3: the route uses the handler with the MCP readers, and the docs name it"
   const route = "src/app/api/v1/check/route.ts";
   assert.ok(existsSync(route), route);
   const src = readFileSync(route, "utf8");
-  assert.ok(src.includes("handleCheck"));
-  assert.ok(src.includes("mcpDeps"));
+  assert.ok(src.includes("handleKeylessCheckRoute"));
+  assert.ok(src.includes("rest:check"));
   assert.ok(readFileSync("public/llms.txt", "utf8").includes("/api/v1/check"));
   assert.ok(readFileSync("docs/openapi.yaml", "utf8").includes("/api/v1/check"));
   assert.ok(readFileSync("src/app/docs/api/page.tsx", "utf8").includes("/api/v1/check"));
@@ -89,9 +89,10 @@ test("A3: a reader failure answers 503 and is not cached", async () => {
   assert.match(res.headers.get("cache-control") ?? "", /no-store/);
 });
 
-test("A3: the cached 200 carries only shared rate-limit headers, and the measurement is not in this change", () => {
-  const route = readFileSync("src/app/api/v1/check/route.ts", "utf8");
-  assert.ok(route.includes("cacheHeaders"), "a cacheable 200 must use the shared-cache rate-limit headers, not the per-IP ones");
+test("A3: keyless 200 carries full RateLimit headers including RateLimit-Policy", () => {
+  const route = readFileSync("src/lib/api/keyless-check-route.ts", "utf8");
+  assert.ok(route.includes("RateLimit-Policy"), "keyless check must expose RateLimit-Policy");
+  assert.ok(!route.includes("cacheHeaders"), "per-IP remaining belongs on every keyless check response");
   assert.equal(existsSync("src/lib/mcp/check-latency.ts"), false, "latency measurement comes in a later change with its own table");
   assert.equal(readFileSync("src/app/api/v1/observatory/state/route.ts", "utf8").includes("checkLatency"), false);
   assert.equal(readFileSync("src/app/api/cron/index-feedback/route.ts", "utf8").includes("atency"), false);

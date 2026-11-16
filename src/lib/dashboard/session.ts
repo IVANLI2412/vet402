@@ -1,4 +1,4 @@
-import { createHash, randomBytes } from "node:crypto";
+import { createHmac, randomBytes } from "node:crypto";
 import { and, eq, gt } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { isProduction, secureCookiesEnabled } from "@/lib/config/env";
@@ -8,17 +8,23 @@ import { dashboardSessions } from "@/lib/db/schema";
 export const DASHBOARD_COOKIE = "vouch_dash";
 const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
 
-function sessionSecret(): string {
-  const secret = process.env.DASHBOARD_SESSION_SECRET;
-  if (secret) return secret;
+function sessionPepper(): string {
+  const dedicated = process.env.DASHBOARD_SESSION_PEPPER?.trim();
+  if (dedicated) return dedicated;
+  const apiKey = process.env.API_KEY_PEPPER?.trim();
+  if (apiKey) return apiKey;
   if (isProduction()) {
-    throw new Error("DASHBOARD_SESSION_SECRET is required in production");
+    throw new Error(
+      "DASHBOARD_SESSION_PEPPER or API_KEY_PEPPER is required in production",
+    );
   }
-  return "dev_dashboard_secret_change_me";
+  const legacy = process.env.DASHBOARD_SESSION_SECRET?.trim();
+  if (legacy) return legacy;
+  return "dev_dashboard_session_pepper_change_me";
 }
 
 function hashSessionToken(token: string): string {
-  return createHash("sha256").update(`${sessionSecret()}:${token}`).digest("hex");
+  return createHmac("sha256", sessionPepper()).update(token).digest("hex");
 }
 
 export async function createDashboardSession(apiKeyId: string): Promise<string> {

@@ -7,6 +7,7 @@ import { verifiedPayees } from "@/lib/db/schema";
 import { isValidAddress } from "@/lib/chain/client";
 import { payeeBadgeState, renderBadgeSvg, type PayeeBadgeScoreView } from "@/lib/badge/trust-badge";
 import { scorePayeeWallet } from "@/lib/scoring/payee-engine";
+import { scheduleBadgeFetch } from "@/lib/badge/fetch-stats";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 
 // N-16 — embeddable SVG badge. H-1/H-5 (2026-08-13 R4): the green "Verified
@@ -86,6 +87,7 @@ export async function GET(
   }
 
   const state = payeeBadgeState(signed, score);
+  scheduleBadgeFetch(request.headers.get("referer"), "address");
   return new NextResponse(renderBadgeSvg(state), {
     headers: {
       "Content-Type": "image/svg+xml",

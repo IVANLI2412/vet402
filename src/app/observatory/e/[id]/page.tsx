@@ -599,7 +599,7 @@ export default async function ObservatoryEndpointPage({ params, searchParams }: 
             </TableScroll>
             {l1.settled > 0 && (
               <div className="mt-6">
-                <p className="doc-caption">Embed this record</p>
+                <p className="doc-caption">Add this badge to your docs</p>
                 <p className="doc-p mt-2 text-brand-lift">
                   Run this endpoint? Show the settle-through record vet402 measured — the badge
                   reads{" "}

@@ -144,6 +144,10 @@ export default async function McpDocsPage() {
             </a>
             ).
           </p>
+          <p className="text-[0.84375rem] text-brand">
+            check_x402_seller reads vet402 purchase records.{" "}
+            <code className="text-brand-deep">GET /api/v1/diagnose</code> fetches the URL now and reads the 402 response.
+          </p>
           {(
             [
               ["check_x402_seller", TOOL_TEXT.check_x402_seller],

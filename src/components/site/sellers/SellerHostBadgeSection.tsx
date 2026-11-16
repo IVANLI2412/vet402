@@ -6,8 +6,9 @@ import { SITE_URL } from "@/lib/site-url";
 export default function SellerHostBadgeSection({ host }: { host: string }) {
   return (
     <div className="mt-6">
-      <p className="doc-p">
-        Paste this badge on your page. It shows what vet402 received when it paid {host}, and links to this record.
+      <p className="doc-p">Add this badge to your docs</p>
+      <p className="doc-caption">
+        It shows what vet402 received when it paid {host}, and links to this record.
       </p>
       <p className="mt-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}

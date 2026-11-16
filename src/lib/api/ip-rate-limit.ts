@@ -212,12 +212,17 @@ export async function refundIpRateLimit(rawKey: string): Promise<void> {
 // IETF draft `RateLimit-*` names (distinct from the authenticated path's
 // `X-RateLimit-*` in rate-limit.ts, which reports monthly plan usage rather
 // than a short IP window). `Retry-After` is only added on a throttle.
-export function ipRateLimitHeaders(result: IpRateLimitResult): Record<string, string> {
+export function rateLimitPolicyHeader(limit: number, windowMs: number): string {
+  return `${limit};w=${Math.max(1, Math.round(windowMs / 1000))}`;
+}
+
+export function ipRateLimitHeaders(result: IpRateLimitResult, policy?: string): Record<string, string> {
   const headers: Record<string, string> = {
     "RateLimit-Limit": String(result.limit),
     "RateLimit-Remaining": String(result.remaining),
     "RateLimit-Reset": String(result.resetAt),
   };
+  if (policy) headers["RateLimit-Policy"] = policy;
   if (!result.allowed && result.retryAfter !== undefined) {
     headers["Retry-After"] = String(result.retryAfter);
   }

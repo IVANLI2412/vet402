@@ -6,6 +6,7 @@ import { getDb } from "@/lib/db/client";
 import { sellerHostIsListed } from "@/lib/sellers/board";
 import { parseSellerHostParam } from "@/lib/sellers/host";
 import { readHostBadgeStats, readPurchasedHosts, readSellerBoard } from "@/lib/sellers/reader";
+import { scheduleBadgeFetch } from "@/lib/badge/fetch-stats";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 
 const BADGE_LIMIT = 60;
@@ -54,6 +55,7 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     }
     const stats = await readHostBadgeStats(db, host);
     const badge = hostBadgeCopy({ host, settled: stats.settled, answered: stats.answered, asOfDate: utcToday() });
+    scheduleBadgeFetch(request.headers.get("referer"), "host");
     return svgResponse(
       renderHostBadgeSvg(badge),
       "public, s-maxage=600, stale-while-revalidate=1200",

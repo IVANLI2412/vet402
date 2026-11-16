@@ -1728,3 +1728,52 @@ export const tradeDisputeDayRoots = pgTable(
   },
   (t) => [check("trade_dispute_day_roots_hash_check", sql`${t.rootHash} ~ '^[0-9a-f]{64}$'`)],
 );
+
+/** Weekly salts for keyless caller hashing (H-1). SQL: scripts/sql/2026-11-16-keyless-callers-and-badge-fetches.sql */
+export const keylessWeekSalts = pgTable("keyless_week_salts", {
+  weekStart: date("week_start", { mode: "string" }).primaryKey(),
+  salt: text("salt").notNull(),
+});
+
+/** One row per caller hash per UTC day (no IP, no UA). */
+export const keylessCallerDays = pgTable(
+  "keyless_caller_days",
+  {
+    weekStart: date("week_start", { mode: "string" }).notNull(),
+    callerHash: text("caller_hash").notNull(),
+    day: date("day", { mode: "string" }).notNull(),
+    isReturning: boolean("is_returning").notNull().default(false),
+  },
+  (t) => [primaryKey({ columns: [t.weekStart, t.callerHash, t.day] })],
+);
+
+/** Bloom positions carried into the next ISO week (bits only). */
+export const keylessCarryBits = pgTable(
+  "keyless_carry_bits",
+  {
+    weekStart: date("week_start", { mode: "string" }).notNull(),
+    bit: integer("bit").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.weekStart, t.bit] })],
+);
+
+/** Closed ISO week rollups (counts only). */
+export const keylessCallerWeekly = pgTable("keyless_caller_weekly", {
+  weekStart: date("week_start", { mode: "string" }).primaryKey(),
+  callers: integer("callers").notNull(),
+  callers2plusDays: integer("callers_2plus_days").notNull(),
+  returningWow: integer("returning_wow").notNull(),
+  closedAt: timestamp("closed_at", { withTimezone: true }).notNull(),
+});
+
+/** Badge image fetches by referer host (D-R1). */
+export const badgeFetchDaily = pgTable(
+  "badge_fetch_daily",
+  {
+    day: date("day", { mode: "string" }).notNull(),
+    refererHost: text("referer_host").notNull(),
+    badgeKind: text("badge_kind").notNull(),
+    fetches: integer("fetches").notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.day, t.refererHost, t.badgeKind] })],
+);

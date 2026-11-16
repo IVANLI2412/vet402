@@ -19,6 +19,7 @@ import { searchLikePattern } from "@/lib/observatory/reader";
 import { isDelivered } from "@/lib/observatory/delivery";
 import { resolveSellerPage, type SellerPageData, type ShownRow } from "@/lib/sellers/board";
 import { parseSellerHostParam } from "@/lib/sellers/host";
+import { diagnoseUrlFor } from "@/lib/api/diagnose-url";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import type { FoundListing, HostExtras } from "./reads";
 import { runCheckPaymentProof } from "@/lib/payment-proof/handle";
@@ -181,6 +182,7 @@ export async function checkSeller(deps: CheckSellerDeps, input: { url: string; m
         note: OUTPUT_TEXT.notInCatalog,
         record_url: null,
         method_url: METHOD_URL,
+        diagnose_url: diagnoseUrlFor(input.url),
         as_of: now.toISOString(),
         truncated: false,
       },
@@ -233,6 +235,7 @@ export async function checkSeller(deps: CheckSellerDeps, input: { url: string; m
     listing_sources: [],
     note: null,
     record_url: recordUrlOf(resource.observatory_id),
+    diagnose_url: null,
     method_url: METHOD_URL,
     // 判定は 5 分キャッシュされる。キャッシュから返した文書に「今」を付けない（判定を作った時刻）。
     as_of: decision.scoredAt,

@@ -154,6 +154,7 @@ export const checkSellerOutput = z
     listing_sources: z.array(listingSourceSchema),
     note: z.string().nullable(),
     record_url: z.string().nullable(),
+    diagnose_url: z.string().nullable(),
     method_url: z.string(),
     as_of: iso,
     truncated: z.boolean(),

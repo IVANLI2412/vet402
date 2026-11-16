@@ -13,6 +13,14 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-16 PMF85 API: check/decision alias, keyless caller metrics, badge fetch stats
+
+- What: vet402 added `GET /api/v1/decision` as a key-less alias of `GET /api/v1/check`, `diagnose_url` on `not_in_catalog` answers, full `RateLimit-*` headers including `RateLimit-Policy`, weekly keyless caller counts with rotating salts (no stored IP or UA), badge image fetch tallies by referer host, dashboard session tokens hashed with HMAC-SHA256 and pepper, stats routes `GET /api/v1/stats/keyless-callers` and `GET /api/v1/stats/badge-fetches?days=7`, daily cron `/api/cron/close-keyless-week`, CI `npm audit --omit=dev --audit-level=high`, and an incident runbook section for rollback targets.
+- Why: PMF85 audit items B-2, B-3, B4/F-5, H-1, D-R1, D1 copy, F-S1, F-3, and F-4.
+- Tests: `tests/check-decision-1116.test.ts`, `tests/keyless-callers.pg.test.ts`, `tests/badge-fetch.pg.test.ts`, `tests/dashboard-session-hmac-1116.test.ts` (pg tests need `TEST_DATABASE_URL`).
+- Impact: `export.csv` columns are unchanged. SQL is in `scripts/sql/2026-11-16-keyless-callers-and-badge-fetches.sql` and is not applied in this commit. Missing tables degrade to no write for metrics, not API failure.
+- r3 follow-up (2026-11-16): `GET /api/v1/check` and `GET /api/v1/decision` respond with `Cache-Control: private, no-store` so per-IP `RateLimit-Remaining` is not shared on a CDN. docs/openapi and `/docs/api` already describe that policy.
+
 ## 2026-11-16 Seller signed receipts from the offer-and-receipt extension are kept on each purchase (wave2 receipt)
 
 - What: When a seller returns `extensions["offer-receipt"]` in PAYMENT-RESPONSE (v2) or X-PAYMENT-RESPONSE (v1), vet402 keeps it as sent in `raw_settlement.offerReceipt` on that L1 purchase, up to 8 KB. A larger extension is not kept and the check says `over_cap`. Next to it, `raw_settlement.offerReceiptCheck` records the EIP-712 signer recovered under the domain `x402 receipt`, version 1, chainId 1, from the payload as sent, and whether the payload resourceUrl, payer and network match the purchase. When storage cleaning changes the kept copy (a U+0000, for example), the check adds `storedAltered: true`. A JWS receipt is kept and marked `unverified_jws`. Key authorization (did:web, DNS, payTo) is marked `not_checked`.

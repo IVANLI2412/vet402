@@ -293,3 +293,21 @@ npx neonctl branches restore main "^self@2026-09-28T09:00:00Z" \
 | `STRIPE_SECRET_KEY` / `STRIPE_WEBHOOK_SECRET` | 課金操作・webhook 偽造 | Stripe ダッシュボードで roll |
 | `GRAPH_API_KEY` / `ALCHEMY_API_KEY` / `BLOCKSCOUT_API_KEY` | 従量課金の消費 | 各サービスで失効 → 再発行 |
 | `DATABASE_URL` | 台帳の読み書き全部 | Neon でロールのパスワードを reset → Vercel env 差し替え → 再デプロイ |
+
+---
+
+## 8. 公開面と API の復旧目標（2026-11-16）
+
+| 対象 | 目標 |
+|---|---|
+| 公開ページ（HTML） | 30 分以内に正常表示へ |
+| 公開 API | 60 分以内に正常応答へ |
+
+**ロールバック（Vercel Instant Rollback）**
+
+1. Vercel ダッシュボード → **Deployments**
+2. 直前の正常な本番デプロイを選ぶ
+3. **Instant Rollback** を実行
+4. 確認: `curl -sS -o /dev/null -w '%{http_code}\n' https://vet402.com/api/health` が `200`
+
+**障害告知**: [https://vet402.com/status](https://vet402.com/status) に 1 行追記する（公開の障害告知場所）。

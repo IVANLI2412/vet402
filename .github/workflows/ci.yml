@@ -50,6 +50,9 @@ jobs:
           node-version: 24
           cache: npm
       - run: npm ci
+      - name: npm audit (production deps, high and above)
+        run: |
+          (npm audit --omit=dev --audit-level=high --json || true) | node scripts/ci-audit-gate.mjs
       # 2026-08-22: `npm test` に mcp:test を足したが、mcp-server は
       # @modelcontextprotocol/sdk と zod を**自前の** node_modules に持つ
       # （このリポは workspaces ではなく、各パッケージが独立した lock を持つ）。
