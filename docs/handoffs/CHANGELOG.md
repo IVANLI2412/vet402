@@ -13,6 +13,14 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-17 — ERC-8004 段階 W・B・C（Identity 索引・export・鎖外フィードバック）
+
+- **何を（W）**: `scripts/sql/2026-11-17-erc8004-chain-agents.sql` を追加。`npm run check:env` が本番で `ETHEREUM_RPC_URL` / `BNB_RPC_URL` 未設定を WARN（cron `index-owners` が Ethereum・BNB の ERC-8004 索引を skip し、`byChain` が `index_not_started` のままになる理由の切り分け用）。state `erc8004.matchBinding`（owner のみ vs agentWallet も一致した payTo の比）を `erc8004-match.ts` に追加。
+- **何を（B）**: export.csv 末尾に `erc8004_agent`（`eip155:8453:{id}`・不一致は空）。methodology・openapi を更新。
+- **何を（C）**: `GET /api/v1/observatory/erc8004/feedback/{purchase_id}`（`ars-evidence/0.1`・`proofOfPayment`・delivery・`contentSha256`）、`GET /api/v1/observatory/erc8004/weekly/{agentId}?week=YYYY-Www`。Lumi の `ars-evidence/0.1` は `version`・`proofOfPayment.chain`（CAIP）・`delivery` ブロックを踏襲。vet402 は `lumiReceipt` / 署名者ブロックを置かず、`vet402` メタと `inconclusive_held` を足す。
+- **なぜ**: WORK_ORDERS 2026-11-12 オーナー承認「全て推奨ですすめて」。段階 D は未実行（鎖への書き込みなし）。
+- **本番で W を直す手順**: (1) `psql "$DATABASE_URL" -f scripts/sql/2026-11-17-erc8004-chain-agents.sql` (2) Vercel に `ETHEREUM_RPC_URL` と（BNB 索引用）`BNB_RPC_URL` を設定 (3) cron `/api/cron/index-owners` が `chainIndexes` で `status:ok` と checkpoint 進行を返すまで待つ（既に vercel.json に 1 日 8 回）。agentWallet 0 行は Base の WalletSet 索引が `agents.wallet` を埋めるまで同じ cron に依存。
+- **試験**: `tests/erc8004-feedback.test.ts`・`tests/erc8004-match.test.ts`（matchBinding）・`tests/export-request-body.test.ts`（列）。
 ## 2026-11-17 — ERC-8004 Check API（柱4）: proofOfPayment の再読
 
 - **何を**: `GET /api/v1/erc8004/check`（Base・`eip155:8453`）。Reputation Registry の `readFeedback`＋`NewFeedback` ログから feedbackURI／feedbackHash を取り、URI の `proofOfPayment` の tx を再読して verdict（verified／verified_payment_unlinked_client／mismatch／no_proof／unreadable）を返す。払い手を書き手に結べない別チェーン支払いは `verified_payment_unlinked_client`（失点ではない）。`mismatch` は hash・受け手・額・資産のいずれかの矛盾で `reasons[]` を付ける。vet402 `state.erc8004` の payTo と owner／agentWallet で受け手を照合。30 分キャッシュ。`lib/erc8004-check/*`・`erc8004.ts` に readFeedback／getLastIndex ABI を一元化。
