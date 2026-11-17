@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-17 — J4: 判定・check に売り手ホストの返金集計と理由コード
+
+- **What**: `GET /api/v1/resources/{id}/decision`, key-less `/check`, MCP `check_x402_seller`, and daily judgments now carry `refunds` for role=payer: host-level sums of the same payTo refund stats as `/sellers/[host]` (`window_days`, `networks_read`, `read_through`, `failures_counted`, `paid_units`, `refunded_units`, `refund_rate`). When `failures_counted >= 1` and `refund_rate >= 0.5`, an informational `seller_refunded_failures` reason code and explanation are added (effect none; verdict change waits for the 2026-11-30 review). Read failures leave `refunds: null` and keep the recommendation unchanged.
+- **Why**: Buyers should see both sides of outcomes—on-chain refunds after seller-side failures—not only delivery counts.
+- **Impact**: Uses `getSellerRefundStatsCached` only (no new hot-path SQL). OpenAPI, docs `#reason-codes`, and MCP measurement pass-through updated. export.csv unchanged.
+- **Tests**: `tests/decision-refunds.test.ts`, `tests/decision-refunds.pg.test.ts`, `packages/mcp-server/test/decision-refunds.test.mjs`.
+
 ## 2026-11-17 — ERC-8004 feedback・weekly の 503 を直す／段階 D（Attest）の送信経路
 
 - **何を（直し）**: `erc8004-purchase-match.ts` が存在しない列 `pu.l2_detail`・`pu.l2_body_head`・`pu.l2_content_type` を読んでいて、本番の `/api/v1/observatory/erc8004/feedback/{purchase_id}` と `/weekly/{agentId}` が 503 だった。`l2ReadingColumnsSql("pu")`（raw_response_meta から読む共通の列）に置き換え、週の範囲と agent 番号は型つきの引数に。`tests/erc8004-purchase-match.pg.test.ts` で本物の表に当てる。

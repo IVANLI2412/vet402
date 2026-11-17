@@ -106,10 +106,11 @@ const SURFACES: Surface[] = [
       // 2026-09-29 監査 5 周目（高）: vet402 が最後に配達を確かめた購入で払った条件（payTo・asset・額・network・
       // scheme・時刻）。呼び手が受け取った 402 と照合する材料。role=payee と未配達では null。
       "verified_terms",
+      "refunds",
     ],
     pendingImpl: {
       "packages/sdk/src/index.ts": {
-        fields: ["l1_basis", "verified_terms", "reasons", "evidence_age"],
+        fields: ["l1_basis", "verified_terms", "reasons", "evidence_age", "refunds"],
         why: "SDK は凍結中（2026-09-29）。応答の未知のキーは型に無いだけで実行時はそのまま透過する（reason_codes も文字列のまま通す）。凍結が解けたら型に足してこの例外を消す。",
       },
       "packages/mcp-server/src/vouch-client.ts": {

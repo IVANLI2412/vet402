@@ -69,6 +69,8 @@ export const REASON_TEXT: Readonly<Record<string, string>> = {
   new_payer: "vet402 first saw this payer less than 7 days ago.",
   erc8004_registered: "The payer is registered as an ERC-8004 agent on chain.",
   history_ok: "None of the payee checks fired, and the funder index covers few wallets, so this does not show that the payer is independent.",
+  seller_refunded_failures:
+    "On Base, at least half of the counted seller-side failure amounts for this seller host were sent back to vet402's payer within 30 days after those failures.",
 };
 
 // REASON_CODES とキー集合を揃える（テストが固定）。

@@ -200,6 +200,16 @@ export type DecisionResult = {
      * PayRefuseReason, unchanged. Sits beside `recommendation`; never rewrites it.
      */
     caller_policy?: CallerPolicy;
+    /** Host-level refund totals (J4, 2026-11-17); null when unreadable. */
+    refunds?: {
+        window_days: number;
+        networks_read: readonly string[];
+        read_through: string | null;
+        failures_counted: number;
+        paid_units: string;
+        refunded_units: string;
+        refund_rate: number | null;
+    } | null;
     rules_version: string;
     registry: {
         status: "anchored" | "pending" | "off";

@@ -358,7 +358,9 @@ test("rules.ts（payer）が出しうる語は全部、表にある", () => {
   assert.deepEqual(missing, [], `表に無い語: ${missing.join(", ")}`);
   // 表の payer の語は、どれも実際に出る（死んだ行を載せない）。パターンは代表で確かめる。
   const payerFixed = REASON_CODES.filter((r) => !r.pattern && r.role !== "payee").map((r) => r.code);
-  const neverSeen = payerFixed.filter((c) => !seen.has(c));
+  // J4 (2026-11-17): seller_refunded_failures は decide.ts の返金読み取りが付ける（rules.ts 外）。
+  const rulesExternalPayer = new Set(["seller_refunded_failures"]);
+  const neverSeen = payerFixed.filter((c) => !seen.has(c) && !rulesExternalPayer.has(c));
   assert.deepEqual(neverSeen, [], `表にあるが出ない語: ${neverSeen.join(", ")}`);
 });
 

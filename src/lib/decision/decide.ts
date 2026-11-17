@@ -25,6 +25,7 @@ import { rowsOf } from "@/lib/settlements/upsert";
 import { l2EvidenceOf, loadSellerFacts, type SellerFactsLoaded } from "./seller-facts";
 import { loadBuyerFacts } from "./buyer-facts";
 import { decidePayer, decidePayee, l1BasisOf, DECISION_RULES_VERSION, type L1Basis, type Recommendation, type PayerOptions } from "./rules";
+import { attachSellerRefundsToDecision, type DecisionHostRefunds } from "./seller-refunds";
 import { evidenceAgeOf, explainReasons, type EvidenceAge, type ReasonExplanation } from "./reason-explain";
 import { isSpendingHalted } from "@/lib/observatory/kill-switch";
 import { assertEvidenceContract, vet402Evidence } from "./evidence";
@@ -97,12 +98,19 @@ export type DecisionResult = {
    * （応答は従来と完全一致）。`recommendation` とは別欄で、判定を書き換えない。
    */
   caller_policy?: CallerPolicy;
+  /**
+   * 2026-11-17 (J4): この出品の売り手ホストについて、payTo をまたいで足した返金集計。
+   * 読めなければ null（判定は変えない）。payee ロールは常に null。
+   */
+  refunds?: DecisionHostRefunds | null;
   rules_version: string;
   registry: RegistryStatus;
   scoredAt: string;
   cacheExpiresAt: string;
   disclaimer: string;
 };
+
+export type { DecisionHostRefunds } from "./seller-refunds";
 
 /** 移行期の受取人スコア（判定には使わない）。 */
 export type DecisionScore = {
@@ -391,33 +399,39 @@ export async function decide(req: DecideRequest): Promise<DecisionResult | null>
         score = null; // 移行用の併記が取れなくても判定は落とさない
       }
     }
-    result = buildDecision({
-      role: "payer",
-      subject,
-      spendingHalted: halt.halted,
-      facts: loaded.facts,
-      options: {
-        callerDialect: req.callerDialect,
-        allowWithoutL1: req.allowWithoutL1,
-        operatorBlacklist: req.operatorBlacklist,
-        // 2026-09-29: /sellers と同じ規則で、売り手の不履行として数えない試行（vet402 の側・保留・課金なし）。
-        l1NotCounted: loaded.l1NotCounted,
-        // 2026-09-29 再監査: l0 が unverified のとき、何が測れなかったかの下位コードを添える（判定は変えない）。
-        l0UnverifiedCause: loaded.l0UnverifiedCause ?? null,
-        // 2026-09-29.2: 支払い済み未配達・最新の試行・鮮度の材料。渡さないと facts から保守的に作る（本番は必ず渡す）。
-        l1Timeline: loaded.l1Timeline,
-        l2ConformNoRequiredKeys: loaded.l2ConformNoRequiredKeys,
-      },
-      score,
-      registry,
-      notAttemptedReason: notAttemptedReasonOf(halt.halted, loaded.lastAttempt.status),
-      verifiedTerms: loaded.verifiedTerms ?? null,
-      l2ContentType: loaded.l2ContentType,
-      l2PurchaseId: loaded.l2PurchaseId,
-    });
+    result = await attachSellerRefundsToDecision(
+      buildDecision({
+        role: "payer",
+        subject,
+        spendingHalted: halt.halted,
+        facts: loaded.facts,
+        options: {
+          callerDialect: req.callerDialect,
+          allowWithoutL1: req.allowWithoutL1,
+          operatorBlacklist: req.operatorBlacklist,
+          // 2026-09-29: /sellers と同じ規則で、売り手の不履行として数えない試行（vet402 の側・保留・課金なし）。
+          l1NotCounted: loaded.l1NotCounted,
+          // 2026-09-29 再監査: l0 が unverified のとき、何が測れなかったかの下位コードを添える（判定は変えない）。
+          l0UnverifiedCause: loaded.l0UnverifiedCause ?? null,
+          // 2026-09-29.2: 支払い済み未配達・最新の試行・鮮度の材料。渡さないと facts から保守的に作る（本番は必ず渡す）。
+          l1Timeline: loaded.l1Timeline,
+          l2ConformNoRequiredKeys: loaded.l2ConformNoRequiredKeys,
+        },
+        score,
+        registry,
+        notAttemptedReason: notAttemptedReasonOf(halt.halted, loaded.lastAttempt.status),
+        verifiedTerms: loaded.verifiedTerms ?? null,
+        l2ContentType: loaded.l2ContentType,
+        l2PurchaseId: loaded.l2PurchaseId,
+      }),
+      loaded.endpoint.canonicalUrl,
+    );
   } else {
     const facts = await loadBuyerFacts(req.payerId);
-    result = buildDecision({ role: "payee", subject, payer: req.payerId, facts, operatorBlacklist: req.operatorBlacklist, registry, spendingHalted: halt.halted });
+    result = await attachSellerRefundsToDecision(
+      buildDecision({ role: "payee", subject, payer: req.payerId, facts, operatorBlacklist: req.operatorBlacklist, registry, spendingHalted: halt.halted }),
+      loaded.endpoint.canonicalUrl,
+    );
   }
   cache.set(key, { result, expiresAt: Date.now() + DECISION_CACHE_TTL_MS });
   return result;

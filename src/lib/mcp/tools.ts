@@ -170,6 +170,7 @@ export async function checkSeller(deps: CheckSellerDeps, input: { url: string; m
         l0_status: null,
         verified_terms: null,
         spending_halted: null,
+        refunds: null,
         freshness: null,
         l1_purchases: [],
         same_host_listings: same.map((e) => ({
@@ -229,6 +230,12 @@ export async function checkSeller(deps: CheckSellerDeps, input: { url: string; m
         }
       : null,
     spending_halted: decision.spending_halted,
+    refunds: decision.refunds
+      ? {
+          ...decision.refunds,
+          networks_read: [...decision.refunds.networks_read],
+        }
+      : null,
     freshness: { l0: decision.freshness.l0, l1: decision.freshness.l1, l2: decision.freshness.l2 },
     l1_purchases: purchases.slice(0, 5).map(copyPurchase),
     same_host_listings: [],

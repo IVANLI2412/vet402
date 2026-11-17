@@ -191,9 +191,10 @@ function evidenceForCode(
     verifiedTerms: VerifiedTerms | null;
     l2: SellerFacts["l2"] | null;
     l2PurchaseId: string | null;
+    sellerHost?: string | null;
   },
 ): ReasonEvidenceRef[] {
-  const { basis, observatoryId, verifiedTerms, l2, l2PurchaseId } = input;
+  const { basis, observatoryId, verifiedTerms, l2, l2PurchaseId, sellerHost } = input;
 
   if (
     code === "l1_not_attempted" ||
@@ -202,6 +203,11 @@ function evidenceForCode(
     code === "l1_waived_by_operator"
   ) {
     return [];
+  }
+
+  if (code === "seller_refunded_failures") {
+    if (!sellerHost) return [];
+    return [{ kind: "record", id: sellerHost, url: `${SITE}/sellers/${encodeURIComponent(sellerHost)}` }];
   }
 
   if (code === "l1_delivered" || code === "l1_stale") {
@@ -265,6 +271,8 @@ export function explainReasons(input: {
   verifiedTerms: VerifiedTerms | null;
   l2: SellerFacts["l2"] | null;
   l2PurchaseId: string | null;
+  /** J4: seller_refunded_failures の根拠リンク先（/sellers/[host]）。 */
+  sellerHost?: string | null;
 }): ReasonExplanation[] {
   return input.codes.map((code) => {
     const text = reasonTextOf(code) ?? MISSING_TEXT;

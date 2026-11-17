@@ -5664,7 +5664,7 @@ components:
         (l0_unverified_<cause>, <input>_unavailable). Meaning, effect on the
         verdict, what it means for the payer and whether the seller can fix
         it: /docs/api#reason-codes (same source, src/lib/decision/reason-codes.ts).
-      enum: [l0_pass, l0_fail, l0_unverified, l0_unverified_single_fail, l0_unverified_no_recent_probe, l1_delivered, l1_not_attempted, l1_stale, l1_inconclusive, l1_never_delivered, l1_paid_not_delivered, l1_latest_failed, l1_empty_2xx_settlement_unknown, l1_not_counted_vet402_side, l1_not_counted_held, l1_not_counted_no_charge, l1_not_counted_unproven, l1_not_counted_unconfirmed, l1_waived_by_operator, l2_conform, l2_conform_no_required_keys, l2_undeclared, l2_not_checked, l2_mismatch, l2_mismatch_unexplained, offer_drifting, wash_dominated, dialect_mismatch, data_thin, operator_blacklist, sybil_high, retry_burst, thin_history, shared_funder, new_payer, erc8004_registered, history_ok]
+      enum: [l0_pass, l0_fail, l0_unverified, l0_unverified_single_fail, l0_unverified_no_recent_probe, l1_delivered, l1_not_attempted, l1_stale, l1_inconclusive, l1_never_delivered, l1_paid_not_delivered, l1_latest_failed, l1_empty_2xx_settlement_unknown, l1_not_counted_vet402_side, l1_not_counted_held, l1_not_counted_no_charge, l1_not_counted_unproven, l1_not_counted_unconfirmed, l1_waived_by_operator, seller_refunded_failures, l2_conform, l2_conform_no_required_keys, l2_undeclared, l2_not_checked, l2_mismatch, l2_mismatch_unexplained, offer_drifting, wash_dominated, dialect_mismatch, data_thin, operator_blacklist, sybil_high, retry_burst, thin_history, shared_funder, new_payer, erc8004_registered, history_ok]
       x-vet402-patterns: ["^l0_unverified_[a-z0-9_]{1,40}$", "^(settlements|funder_index|erc8004)_unavailable$"]
 
     DecisionResult:
@@ -5848,6 +5848,24 @@ components:
             last_delivered_at: { type: string, format: date-time, nullable: true, description: "Last delivery over the full history." }
             days_since_last_attempt: { type: number, nullable: true }
             days_since_last_delivery: { type: number, nullable: true }
+        refunds:
+          type: object
+          nullable: true
+          description: >-
+            Since 2026-11-17. For role=payer, refund totals for the seller host of
+            this resource (summed over payTos, same rules as /sellers/[host]); null when
+            unreadable or for role=payee. Does not change the recommendation.
+          properties:
+            window_days: { type: integer, description: "Refund window after a counted failure (30)." }
+            networks_read:
+              type: array
+              items: { type: string }
+              description: "Chains vet402 read for refunds (Base)."
+            read_through: { type: string, format: date-time, nullable: true, description: "Latest indexed block time used for the refund window." }
+            failures_counted: { type: integer, description: "Seller-side failures in the window, summed over payTos." }
+            paid_units: { type: string, description: "Amount paid on those failures (6-decimal units, summed)." }
+            refunded_units: { type: string, description: "USDC sent back within 30 days (capped at paid_units, summed)." }
+            refund_rate: { type: number, nullable: true, description: "refunded_units ÷ paid_units; null when nothing was paid." }
         verified_terms:
           type: object
           nullable: true

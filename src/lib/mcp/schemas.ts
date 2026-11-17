@@ -124,6 +124,18 @@ export const evidenceAgeSchema = z
   })
   .strict();
 
+export const decisionHostRefundsSchema = z
+  .object({
+    window_days: z.number().int(),
+    networks_read: z.array(z.string()),
+    read_through: z.string().nullable(),
+    failures_counted: z.number().int(),
+    paid_units: z.string(),
+    refunded_units: z.string(),
+    refund_rate: z.number().nullable(),
+  })
+  .strict();
+
 export const checkSellerOutput = z
   .object({
     evidence_age: evidenceAgeSchema.nullable(),
@@ -133,6 +145,7 @@ export const checkSellerOutput = z
     recommendation: z.enum(["ALLOW", "WARN", "BLOCK"]).nullable(),
     reason_codes: z.array(z.string()),
     reasons: z.array(reasonExplanationSchema),
+    refunds: decisionHostRefundsSchema.nullable(),
     delivery: z
       .object({
         paid_attempts: z.number().int(),

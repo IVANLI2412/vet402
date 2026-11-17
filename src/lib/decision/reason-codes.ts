@@ -196,6 +196,17 @@ export const REASON_CODES: readonly ReasonCodeDoc[] = [
     forPayer: "Your own opt-in; failures are not waived.",
     sellerCanFix: "n/a",
   },
+  // 2026-11-17 (J4): 情報のみ。verdict / score への効きは 2026-11-30 レビューまで入れない。
+  {
+    code: "seller_refunded_failures",
+    role: "payer",
+    effect: "none",
+    meaning:
+      "On Base, at least half of the counted seller-side failure amounts for this seller host were sent back to vet402's payer within 30 days after those failures.",
+    forPayer:
+      "An on-chain refund pattern on the seller's side; it does not change ALLOW, WARN, or BLOCK in this release.",
+    sellerCanFix: "n/a",
+  },
   // ---------------- L2: does the body match the listing? ----------------
   {
     code: "l2_conform",

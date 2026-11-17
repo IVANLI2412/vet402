@@ -34,6 +34,7 @@ const PUBLIC_DECISION_KEYS = [
   "freshness",
   "l1_basis",
   "verified_terms",
+  "refunds",
   "evidence",
   "degraded",
   "policy",
@@ -195,6 +196,15 @@ const EVIDENCE_SPEC: Shape<Evidence> = {
   receipts: true,
 };
 const REGISTRY_SPEC: Shape<RegistryStatus> = { status: true, tx_hash: true };
+const REFUNDS_SPEC = {
+  window_days: true,
+  networks_read: true,
+  read_through: true,
+  failures_counted: true,
+  paid_units: true,
+  refunded_units: true,
+  refund_rate: true,
+} satisfies Spec;
 
 const PUBLIC_JUDGMENT_SPEC: { readonly [K in (typeof PUBLIC_DECISION_KEYS)[number]]: Spec } = {
   subject: SUBJECT_SPEC,
@@ -207,6 +217,7 @@ const PUBLIC_JUDGMENT_SPEC: { readonly [K in (typeof PUBLIC_DECISION_KEYS)[numbe
   freshness: FRESHNESS_SPEC,
   l1_basis: L1_BASIS_SPEC,
   verified_terms: VERIFIED_TERMS_SPEC,
+  refunds: REFUNDS_SPEC,
   evidence: [EVIDENCE_SPEC],
   degraded: true,
   policy: true,
