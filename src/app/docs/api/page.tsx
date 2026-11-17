@@ -559,6 +559,18 @@ api.example.com,521e929e-…,api.example.com/v1/x,delivered,,,,,2026-09-29T00:02
   },
   {
     method: "GET",
+    path: "/api/v1/observatory/erc8004/feedback/:purchase_id",
+    note: "Off-chain ERC-8004 feedback for one vet402 purchase whose payTo matched a registered agent. Carries proofOfPayment (the same tx_hash as export.csv), the delivery result, and a flag that a 4xx after payment is not counted against the seller. Format follows ars-evidence/0.1. 404 when the purchase has no matched agent.",
+    response: `{ "schema": "ars-evidence/0.1", "agentId": "eip155:8453:94639", "proofOfPayment": { "txHash": "0x…", "chain": "eip155:8453" }, "result": { "status": "settled", "delivered": true }, "sha256": "…" }`,
+  },
+  {
+    method: "GET",
+    path: "/api/v1/observatory/erc8004/weekly/:agentId",
+    note: "Weekly rollup for one matched agent: method, window, counts, and the delivered rate over settled purchases with 4xx-after-payment rows left out, plus the tx list. week=YYYY-Www (UTC Monday to Sunday). This is the document vet402 points to as feedbackURI when it writes ERC-8004 feedback.",
+    response: `{ "agentId": "94639", "week": "2026-W46", "settled": 0, "delivered": 0, "inconclusive": 0, "deliveredRate": null, "txs": [] }`,
+  },
+  {
+    method: "GET",
     path: "/api/v1/observatory/delivery.csv",
     note: `One row per settled purchase, with the three delivery values and the raw fields beside them. days follows the same rules as the ledger export (1 to 366, default 90, canonical 308, invalid_query and invalid_days otherwise). Key-less. 6 requests per minute per IP. Columns in order: ${DELIVERY_CSV_COLUMNS.join(", ")}. ${DELIVERY_VALUE_DEFINITIONS.delivered} ${DELIVERY_VALUE_DEFINITIONS.no_body_observed} ${DELIVERY_VALUE_DEFINITIONS.not_established} ${DELIVERY_CSV_BODY_BYTES_NOTE} ${DELIVERY_CSV_WHOSE_PURCHASES} ${DELIVERY_CSV_HEADER_NOTES["x-vet402-buyer"]} ${DELIVERY_CSV_HEADER_NOTES["x-vet402-as-of"]} ${DELIVERY_CSV_HEADER_NOTES["x-vet402-generated-at"]} Definitions: https://vet402.com/observatory/methodology#delivery-values`,
     response: `${DELIVERY_CSV_COLUMNS.join(",")}\n521e929e-…,2026-09-29T00:02:29Z,1200,2026-09-29T00:02:30.200Z,api.example.com/v1/x,eip155:8453,delivered,,200,5120,true,,0x…,vet402,0x…`,

@@ -990,7 +990,7 @@ paths:
         - in: path
           name: agentId
           required: true
-          schema: { type: string, description: Numeric agent id or full eip155:8453:{id} }
+          schema: { type: string, description: "Numeric agent id or full eip155:8453:{id}" }
         - in: query
           name: week
           required: true
@@ -7012,6 +7012,11 @@ components:
             (malformed JSON, failed schema checks, empty/oversized batches, etc.)
             always use `invalid_request`.
           enum:
+            - invalid_include
+            - invalid_week
+            - week_required
+            - no_erc8004_match
+            - invalid_purchase_id
             - feed_unavailable
             - no_stock_token_activity
             - too_busy
