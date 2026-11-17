@@ -2095,6 +2095,80 @@ paths:
           description: invalid_json or invalid_input.
         "429": { description: Rate limited }
 
+  /api/v1/erc8004/check:
+    get:
+      operationId: checkErc8004Feedback
+      tags: [Observatory]
+      summary: Re-read proofOfPayment on an ERC-8004 feedback
+      description: |
+        Keyless read of one ERC-8004 Reputation Registry feedback on Base
+        (chain=eip155:8453). Pass agentId and client or feedbackIndex.
+        vet402 loads feedbackURI, checks feedbackHash, re-reads the payment
+        transaction named in proofOfPayment, and matches the recipient to
+        vet402 state.erc8004 payTo and the agent owner or agentWallet.
+        verdict is verified (payer matches the feedback writer),
+        verified_payment_unlinked_client (on-chain payment aligns but the
+        payer cannot be tied to the writer, e.g. another chain or wallet—not
+        a demerit), mismatch (hash, recipient, amount, or token conflict,
+        with reasons), no_proof, or unreadable. 30 requests a minute per IP.
+        Results cache 30 minutes. No on-chain writes.
+      security: []
+      parameters:
+        - name: chain
+          in: query
+          schema:
+            type: string
+            default: eip155:8453
+          description: Only eip155:8453 (Base) today.
+        - name: agentId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: client
+          in: query
+          schema:
+            type: string
+            description: Feedback writer address. Use with or instead of feedbackIndex.
+        - name: feedbackIndex
+          in: query
+          schema:
+            type: string
+            description: 1-based index for that client. Use with or instead of client.
+      responses:
+        "200":
+          description: Check result
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [verdict, checks, sources, as_of]
+                properties:
+                  verdict:
+                    type: string
+                    enum: [verified, verified_payment_unlinked_client, mismatch, no_proof, unreadable]
+                  reasons:
+                    type: array
+                    items:
+                      type: string
+                      enum: [feedback_hash, tx_not_found, recipient, amount, token]
+                    description: Present when verdict is mismatch.
+                  checks:
+                    type: object
+                  sources:
+                    type: array
+                    items:
+                      type: object
+                  as_of:
+                    type: string
+                    format: date-time
+        "400":
+          description: Invalid query
+        "404":
+          description: Feedback not found
+        "429":
+          description: Rate limited
+
   /api/v1/payment-proof:
     post:
       operationId: readPaymentProof

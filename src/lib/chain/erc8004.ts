@@ -41,9 +41,11 @@ const identityRegistryAbi = parseAbi([
  *
  * Verified on Base mainnet: agent 1 → 20 clients, count=39, avg 81.
  */
-const reputationRegistryAbi = parseAbi([
+export const reputationRegistryAbi = parseAbi([
   "function getClients(uint256 agentId) view returns (address[])",
   "function getSummary(uint256 agentId, address[] clientAddresses, string tag1, string tag2) view returns (uint64 count, int128 summaryValue, uint8 summaryValueDecimals)",
+  "function readFeedback(uint256 agentId, address clientAddress, uint64 feedbackIndex) view returns (int128 value, uint8 valueDecimals, string tag1, string tag2, bool isRevoked)",
+  "function getLastIndex(uint256 agentId, address clientAddress) view returns (uint64)",
 ]);
 
 export type AgentIdentity = {

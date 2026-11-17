@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-17 — ERC-8004 Check API（柱4）: proofOfPayment の再読
+
+- **何を**: `GET /api/v1/erc8004/check`（Base・`eip155:8453`）。Reputation Registry の `readFeedback`＋`NewFeedback` ログから feedbackURI／feedbackHash を取り、URI の `proofOfPayment` の tx を再読して verdict（verified／verified_payment_unlinked_client／mismatch／no_proof／unreadable）を返す。払い手を書き手に結べない別チェーン支払いは `verified_payment_unlinked_client`（失点ではない）。`mismatch` は hash・受け手・額・資産のいずれかの矛盾で `reasons[]` を付ける。vet402 `state.erc8004` の payTo と owner／agentWallet で受け手を照合。30 分キャッシュ。`lib/erc8004-check/*`・`erc8004.ts` に readFeedback／getLastIndex ABI を一元化。
+- **なぜ**: ERC-8004 融合の柱4（誰の評価でも支払いを検算する公開 API）。台帳・鎖への書き込みなし。
+- **試験**: `tests/erc8004-check.test.ts`（fixture・RPC／IPFS 差し替え）。
+- **影響**: MCP `check_8004_agent` は次段。新 DB 表なし。
+
 
 ## 2026-11-17 one purchase of Brave's x402 Search on Base
 
