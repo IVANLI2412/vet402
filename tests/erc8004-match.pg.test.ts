@@ -52,5 +52,39 @@ if (!TEST_DB) {
     assert.deepEqual(s.matches.map((m) => [m.agentId, m.payTo, m.matchKind]), [["7", owner, "owner"], ["9", owner, "owner"]]);
     assert.ok(s.notes.includes("agent_wallet index empty"));
     assert.equal(s.byChain["eip155:8453"].indexBlock, "123");
+    // agentWallet の一致が無いあいだ、結び付きは owner だけの 1 件。
+    assert.deepEqual(s.matchBinding, { ownerOnlyPayTo: 1, walletConfirmedPayTo: 0, walletConfirmedShare: 0 });
+  });
+
+  // 2026-11-17: Base の SQL が結び付きの 2 列を返さず、本番で ownerOnlyPayTo・walletConfirmedPayTo が 0 のままだった。
+  test("erc8004 match: Base binding counts owner-only vs agentWallet-confirmed payTo", async () => {
+    const { getDb } = await import("@/lib/db/client");
+    const { sql } = await import("drizzle-orm");
+    const { readErc8004Match } = await import("@/lib/observatory/erc8004-match");
+    const db = getDb()!;
+
+    const both = "0xb0b0000000000000000000000000000000000001";
+    const ownerOnly = "0xb0b0000000000000000000000000000000000002";
+    const walletOnly = "0xb0b0000000000000000000000000000000000003";
+    const endpoint = "00000000-0000-4000-8000-000000008005";
+
+    await db.execute(sql`TRUNCATE x402_l1_purchases, owner_agents, agents`);
+    await db.execute(sql`DELETE FROM indexer_checkpoints WHERE scope = 'identity_registry'`);
+    await db.execute(sql`INSERT INTO indexer_checkpoints (scope, last_block) VALUES ('identity_registry', 123)`);
+    await db.execute(sql`INSERT INTO owner_agents (owner, agent_id) VALUES (${both}, 11), (${ownerOnly}, 12)`);
+    await db.execute(sql`INSERT INTO agents (agent_id, chain_id, wallet) VALUES (11, 8453, ${both}), (13, 8453, ${walletOnly}), (14, 1, ${ownerOnly})`);
+    await db.execute(sql`
+      INSERT INTO x402_l1_purchases (endpoint_id, status, pay_to) VALUES
+        (${endpoint}, 'settled', ${both}),
+        (${endpoint}, 'settled', ${ownerOnly}),
+        (${endpoint}, 'settled', ${walletOnly})
+    `);
+
+    const s = await readErc8004Match();
+    assert.equal(s.status, "ok");
+    if (s.status !== "ok") return;
+    assert.equal(s.matchedPayTo, 3);
+    // 鎖 1 の agents 行は Base の agentWallet に数えない。
+    assert.deepEqual(s.matchBinding, { ownerOnlyPayTo: 1, walletConfirmedPayTo: 2, walletConfirmedShare: 66.67 });
   });
 }

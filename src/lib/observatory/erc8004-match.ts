@@ -315,7 +315,13 @@ SELECT
      FROM m
      ORDER BY m.purchases DESC, m.pay_to COLLATE "C", m.agent_id
      LIMIT ${MAX_LISTED}
-   ) t) AS top
+   ) t) AS top,
+  (SELECT count(*)::int FROM (
+     SELECT DISTINCT pay_to FROM m WHERE match_kind = 'owner'
+     EXCEPT
+     SELECT DISTINCT pay_to FROM m WHERE match_kind = 'agent_wallet'
+   ) o) AS matched_pay_to_owner_only,
+  (SELECT count(DISTINCT pay_to)::int FROM m WHERE match_kind = 'agent_wallet') AS matched_pay_to_wallet_confirmed
 `;
 
 /**
