@@ -14,6 +14,10 @@ export type Erc8004CheckMismatchReason =
 
 export type Erc8004CheckTriState = "pass" | "fail" | "unknown";
 
+export type Erc8004CheckProofSource = "proofOfPayment" | "rollup_transactions";
+
+export type Erc8004CheckUnreadableReason = "proof_tx_not_found_on_known_chains";
+
 export type Erc8004CheckChecks = {
   tx_exists: Erc8004CheckTriState;
   to_matches_agent_payTo_or_wallet: Erc8004CheckTriState;
@@ -22,6 +26,10 @@ export type Erc8004CheckChecks = {
   token: Erc8004CheckTriState;
   block_time: Erc8004CheckTriState;
   feedback_hash: Erc8004CheckTriState;
+  /** Set when payment evidence was taken from proofOfPayment or vet402 weekly transactions[]. */
+  proof_source?: Erc8004CheckProofSource;
+  /** CAIP-2 network where the rollup representative tx was found (rollup path only). */
+  proof_chain?: string;
 };
 
 export type Erc8004CheckSource = {
@@ -51,6 +59,8 @@ export type Erc8004CheckResult = {
   verdict: Erc8004CheckVerdict;
   /** Present when verdict is mismatch — which check failed. */
   reasons?: Erc8004CheckMismatchReason[];
+  /** Present when verdict is unreadable for a named rollup probe outcome. */
+  unreadable_reason?: Erc8004CheckUnreadableReason;
   chain: string;
   agentId: string;
   clientAddress: string;

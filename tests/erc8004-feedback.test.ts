@@ -4,6 +4,8 @@ import {
   buildErc8004FeedbackDocument,
   buildWeeklySummary,
   deliveryOutcome,
+  ERC8004_WEEKLY_PROOF_OF_PAYMENT_FROM_WEEK,
+  isoWeekAtOrAfter,
   isoWeekUtcBounds,
   serializeFeedbackBody,
   sha256HexUtf8,
@@ -55,6 +57,78 @@ test("contentSha256 matches canonical JSON body", () => {
   const hash = sha256HexUtf8(serializeFeedbackBody(body));
   assert.equal(hash, contentSha256);
   assert.equal(body.version, ERC8004_FEEDBACK_SCHEMA);
+});
+
+const WEEKLY_KEY_ORDER = [
+  "agentCaip",
+  "methodology",
+  "period",
+  "population",
+  "schema",
+  "transactions",
+  "week",
+] as const;
+
+test("weekly W46 body has no proofOfPayment (on-chain hash pinned)", () => {
+  const summary = buildWeeklySummary({
+    agentCaip: "eip155:8453:94639",
+    week: "2026-W46",
+    period: { from: "2026-11-09T00:00:00.000Z", to: "2026-11-16T00:00:00.000Z" },
+    rows: [BASE_ROW],
+    issuedAt: "2026-11-17T00:00:00.000Z",
+  });
+  const { contentSha256: _h, ...body } = summary;
+  assert.deepEqual(Object.keys(body).sort(), [...WEEKLY_KEY_ORDER].sort());
+  assert.equal("proofOfPayment" in body, false);
+  assert.equal(isoWeekAtOrAfter("2026-W46", ERC8004_WEEKLY_PROOF_OF_PAYMENT_FROM_WEEK), false);
+});
+
+test("weekly W47 includes proofOfPayment from representative delivered row", () => {
+  const late = {
+    ...BASE_ROW,
+    id: "33333333-3333-4333-8333-333333333333",
+    attempted_at: "2026-11-20T12:00:00.000Z",
+    tx_hash: "0xdddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+    http_status_paid: 500,
+    payload_non_empty: false,
+  };
+  const summary = buildWeeklySummary({
+    agentCaip: "eip155:8453:94639",
+    week: "2026-W47",
+    period: { from: "2026-11-16T00:00:00.000Z", to: "2026-11-23T00:00:00.000Z" },
+    rows: [late, BASE_ROW],
+    issuedAt: "2026-11-18T00:00:00.000Z",
+  });
+  const { contentSha256: _h, proofOfPayment, ...body } = summary;
+  assert.ok(proofOfPayment);
+  assert.equal(proofOfPayment.txHash, BASE_ROW.tx_hash?.toLowerCase());
+  assert.equal(summary.transactions[0]?.network, "eip155:8453");
+  assert.equal(summary.transactions[1]?.network, "eip155:8453");
+  assert.deepEqual(Object.keys(body).sort(), [...WEEKLY_KEY_ORDER].sort());
+});
+
+test("weekly W47 representative prefers delivered on agent chain", () => {
+  const arbRow = {
+    ...BASE_ROW,
+    id: "44444444-4444-4444-8444-444444444444",
+    attempted_at: "2026-11-17T10:00:00.000Z",
+    network: "eip155:42161",
+    tx_hash: "0xeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+  };
+  const baseLater = {
+    ...BASE_ROW,
+    id: "55555555-5555-4555-8555-555555555555",
+    attempted_at: "2026-11-18T10:00:00.000Z",
+    network: "eip155:8453",
+  };
+  const summary = buildWeeklySummary({
+    agentCaip: "eip155:8453:94639",
+    week: "2026-W47",
+    period: { from: "2026-11-16T00:00:00.000Z", to: "2026-11-23T00:00:00.000Z" },
+    rows: [arbRow, baseLater],
+    issuedAt: "2026-11-19T00:00:00.000Z",
+  });
+  assert.equal(summary.proofOfPayment?.txHash, baseLater.tx_hash?.toLowerCase());
 });
 
 test("weekly summary counts delivered excluding inconclusive 4xx", () => {

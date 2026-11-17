@@ -3,10 +3,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { Networks } from "@stellar/stellar-sdk";
-import { keccak256, pad, toBytes, type Address, type Hex } from "viem";
+import { TransactionReceiptNotFoundError, keccak256, pad, toBytes, type Address, type Hex } from "viem";
 import { STELLAR_USDC_ISSUER } from "@/lib/observatory/stellar402-payer";
 import type { StellarHorizonReader } from "@/lib/observatory/settlement-verify-stellar";
-import { BASE_USDC } from "@/lib/observatory/x402-payer";
+import { ARC_CHAIN, ARBITRUM_CHAIN, BASE_USDC } from "@/lib/observatory/x402-payer";
 import { hashFeedbackBody } from "@/lib/erc8004-check/feedback-uri";
 import type { FeedbackLogSlice } from "@/lib/erc8004-check/registry-read";
 import { runErc8004Check } from "@/lib/erc8004-check/run-check";
@@ -64,25 +64,48 @@ function registryReader() {
   };
 }
 
-function evmPaymentReader(to: string, from: string) {
+function successReceipt(chainId: number, to: string, from: string) {
   return {
-    evm: async () => ({
-      getChainId: async () => 8453,
-      getBlockNumber: async () => 1n,
-      getBlock: async () => ({ timestamp: 1_731_000_000n, number: 123n }),
-      getTransactionReceipt: async () => ({
-        status: "success",
-        blockNumber: 123n,
-        logs: [
-          {
-            address: BASE_USDC,
-            topics: [TRANSFER, topicAddr(from), topicAddr(to)],
-            data: `0x${(10_000n).toString(16).padStart(64, "0")}`,
-          },
-        ],
-      }),
+    getChainId: async () => chainId,
+    getBlockNumber: async () => 1n,
+    getBlock: async () => ({ timestamp: 1_731_000_000n, number: 123n }),
+    getTransactionReceipt: async () => ({
+      status: "success",
+      blockNumber: 123n,
+      logs: [
+        {
+          address: BASE_USDC,
+          topics: [TRANSFER, topicAddr(from), topicAddr(to)],
+          data: `0x${(10_000n).toString(16).padStart(64, "0")}`,
+        },
+      ],
     }),
   };
+}
+
+function missingReceipt(chainId: number) {
+  return {
+    getChainId: async () => chainId,
+    getBlockNumber: async () => 1n,
+    getBlock: async () => ({ timestamp: 1n, number: 1n }),
+    getTransactionReceipt: async () => {
+      throw new TransactionReceiptNotFoundError({ hash: `0x${"00".repeat(32)}` });
+    },
+  };
+}
+
+function evmPaymentReaderMulti(hits: Map<number, { to: string; from: string } | "missing">) {
+  return {
+    evm: async (chain: { chainId: number }) => {
+      const hit = hits.get(chain.chainId);
+      if (!hit || hit === "missing") return missingReceipt(chain.chainId);
+      return successReceipt(chain.chainId, hit.to, hit.from);
+    },
+  };
+}
+
+function evmPaymentReader(to: string, from: string) {
+  return evmPaymentReaderMulti(new Map([[8453, { to, from }]]));
 }
 
 function dataUriReader() {
@@ -123,6 +146,7 @@ test("verified — proof とチェーンが一致", async () => {
   assert.equal(result.checks.tx_exists, "pass");
   assert.equal(result.checks.from_matches_client, "pass");
   assert.equal(result.checks.to_matches_agent_payTo_or_wallet, "pass");
+  assert.equal(result.checks.proof_source, "proofOfPayment");
 });
 
 test("mismatch — to がエージェントの payTo と違う", async () => {
@@ -156,6 +180,258 @@ test("no_proof — proofOfPayment が無い", async () => {
   assert.ok(!("error" in result));
   assert.equal(result.verdict, "no_proof");
   assert.equal(result.proofOfPayment, null);
+});
+
+type WeeklyRollupTx = {
+  attempted_at: string;
+  delivered: boolean;
+  tx_hash: string | null;
+  network?: string;
+};
+
+function weeklyRollupJson(
+  transactions: WeeklyRollupTx[],
+  opts?: { week?: string; agentCaip?: string },
+): string {
+  return JSON.stringify({
+    schema: "ars-evidence/0.1",
+    agentCaip: opts?.agentCaip ?? "eip155:8453:94639",
+    week: opts?.week ?? "2026-W46",
+    period: { from: "2026-11-09T00:00:00.000Z", to: "2026-11-16T00:00:00.000Z" },
+    methodology: "https://vet402.com/observatory/methodology#erc8004",
+    population: { purchases: transactions.length, delivered: 1, deliveredRate: 100 },
+    transactions,
+  });
+}
+
+const PAYER = "0xcccccccccccccccccccccccccccccccccccccccc";
+
+test("verified_payment_unlinked_client — weekly rollup delivered tx first", async () => {
+  const body = weeklyRollupJson([
+    {
+      attempted_at: "2026-11-10T00:00:00.000Z",
+      delivered: false,
+      tx_hash: `0x${"aa".repeat(32)}`,
+    },
+    {
+      attempted_at: "2026-11-11T00:00:00.000Z",
+      delivered: true,
+      tx_hash: TX,
+    },
+  ]);
+  const result = await runErc8004Check(
+    { agentId: "94639", client: CLIENT, feedbackIndex: "1" },
+    {
+      ...baseDeps(makeLogSlice(body)),
+      paymentReaders: evmPaymentReader(PAYEE, PAYER) as unknown as import("@/lib/payment-proof/chain").PaymentProofReaders,
+    },
+  );
+  assert.ok(!("error" in result));
+  assert.equal(result.verdict, "verified_payment_unlinked_client");
+  assert.equal(result.checks.proof_source, "rollup_transactions");
+  assert.equal(result.checks.tx_exists, "pass");
+  assert.equal(result.checks.from_matches_client, "fail");
+});
+
+test("rollup path — fallback to earliest tx_hash when none delivered", async () => {
+  const body = weeklyRollupJson([
+    {
+      attempted_at: "2026-11-10T00:00:00.000Z",
+      delivered: false,
+      tx_hash: TX,
+    },
+    {
+      attempted_at: "2026-11-12T00:00:00.000Z",
+      delivered: false,
+      tx_hash: `0x${"bb".repeat(32)}`,
+    },
+  ]);
+  const result = await runErc8004Check(
+    { agentId: "94639", client: CLIENT, feedbackIndex: "1" },
+    {
+      ...baseDeps(makeLogSlice(body)),
+      paymentReaders: evmPaymentReader(PAYEE, PAYER) as unknown as import("@/lib/payment-proof/chain").PaymentProofReaders,
+    },
+  );
+  assert.ok(!("error" in result));
+  assert.equal(result.checks.proof_source, "rollup_transactions");
+  assert.equal(result.proofOfPayment?.txHash, TX);
+});
+
+test("rollup path — no tx → no_proof", async () => {
+  const body = weeklyRollupJson([
+    { attempted_at: "2026-11-10T00:00:00.000Z", delivered: true, tx_hash: null },
+  ]);
+  const result = await runErc8004Check(
+    { agentId: "94639", client: CLIENT, feedbackIndex: "1" },
+    baseDeps(makeLogSlice(body)),
+  );
+  assert.ok(!("error" in result));
+  assert.equal(result.verdict, "no_proof");
+});
+
+test("rollup path — tx on Arbitrum → verified_payment_unlinked_client と proof_chain", async () => {
+  const prevArb = process.env.OBSERVATORY_ARBITRUM_L1_ENABLED;
+  const prevRpc = process.env.ARBITRUM_RPC_URL;
+  process.env.OBSERVATORY_ARBITRUM_L1_ENABLED = "true";
+  process.env.ARBITRUM_RPC_URL = "http://localhost";
+  try {
+    const body = weeklyRollupJson([{ attempted_at: "2026-11-10T00:00:00.000Z", delivered: true, tx_hash: TX }]);
+    const hits = new Map<number, { to: string; from: string } | "missing">([
+      [8453, "missing"],
+      [ARBITRUM_CHAIN.chainId, { to: PAYEE, from: PAYER }],
+    ]);
+    const result = await runErc8004Check(
+      { agentId: "94639", client: CLIENT, feedbackIndex: "1" },
+      {
+        ...baseDeps(makeLogSlice(body)),
+        paymentReaders: evmPaymentReaderMulti(hits) as unknown as import("@/lib/payment-proof/chain").PaymentProofReaders,
+      },
+    );
+    assert.ok(!("error" in result));
+    assert.equal(result.verdict, "verified_payment_unlinked_client");
+    assert.equal(result.checks.proof_chain, "eip155:42161");
+    assert.equal(result.proofOfPayment?.chain, "eip155:42161");
+  } finally {
+    if (prevArb === undefined) delete process.env.OBSERVATORY_ARBITRUM_L1_ENABLED;
+    else process.env.OBSERVATORY_ARBITRUM_L1_ENABLED = prevArb;
+    if (prevRpc === undefined) delete process.env.ARBITRUM_RPC_URL;
+    else process.env.ARBITRUM_RPC_URL = prevRpc;
+  }
+});
+
+test("rollup path — tx on no enabled chain → unreadable proof_tx_not_found", async () => {
+  const body = weeklyRollupJson([{ attempted_at: "2026-11-10T00:00:00.000Z", delivered: true, tx_hash: TX }]);
+  const hits = new Map<number, { to: string; from: string } | "missing">([[8453, "missing"]]);
+  const result = await runErc8004Check(
+    { agentId: "94639", client: CLIENT, feedbackIndex: "1" },
+    {
+      ...baseDeps(makeLogSlice(body)),
+      paymentReaders: evmPaymentReaderMulti(hits) as unknown as import("@/lib/payment-proof/chain").PaymentProofReaders,
+    },
+  );
+  assert.ok(!("error" in result));
+  assert.equal(result.verdict, "unreadable");
+  assert.equal(result.unreadable_reason, "proof_tx_not_found_on_known_chains");
+});
+
+test("rollup path — Arc tx → verified_payment_unlinked_client と proof_chain eip155:5042", async () => {
+  const prevArc = process.env.OBSERVATORY_ARC_L1_ENABLED;
+  process.env.OBSERVATORY_ARC_L1_ENABLED = "true";
+  try {
+    const body = weeklyRollupJson(
+      [{ attempted_at: "2026-11-10T00:00:00.000Z", delivered: true, tx_hash: TX, network: "eip155:5042" }],
+      { agentCaip: "eip155:5042:95902" },
+    );
+    const result = await runErc8004Check(
+      { agentId: "95902", client: CLIENT, feedbackIndex: "1" },
+      {
+        ...baseDeps(makeLogSlice(body)),
+        paymentReaders: evmPaymentReaderMulti(
+          new Map([[ARC_CHAIN.chainId, { to: PAYEE, from: PAYER }]]),
+        ) as unknown as import("@/lib/payment-proof/chain").PaymentProofReaders,
+      },
+    );
+    assert.ok(!("error" in result));
+    assert.equal(result.verdict, "verified_payment_unlinked_client");
+    assert.equal(result.checks.proof_chain, "eip155:5042");
+    assert.equal(result.proofOfPayment?.chain, "eip155:5042");
+  } finally {
+    if (prevArc === undefined) delete process.env.OBSERVATORY_ARC_L1_ENABLED;
+    else process.env.OBSERVATORY_ARC_L1_ENABLED = prevArc;
+  }
+});
+
+test("rollup path — vet402 feedbackURI uses DB purchase network before chain fallback", async () => {
+  const body = weeklyRollupJson([{ attempted_at: "2026-11-10T00:00:00.000Z", delivered: true, tx_hash: TX }]);
+  const slice = makeLogSlice(body);
+  slice.feedbackURI = "https://vet402.com/api/v1/observatory/erc8004/weekly/94639?week=2026-W46";
+  let lookupCalls = 0;
+  const result = await runErc8004Check(
+    { agentId: "94639", client: CLIENT, feedbackIndex: "1" },
+    {
+      ...baseDeps(slice),
+      fetchFeedbackUri: async () => ({ body, contentType: "application/json" }),
+      lookupPurchaseNetwork: async (hash) => {
+        lookupCalls++;
+        assert.equal(hash, TX);
+        return "eip155:42161";
+      },
+      paymentReaders: evmPaymentReaderMulti(
+        new Map([[ARBITRUM_CHAIN.chainId, { to: PAYEE, from: PAYER }]]),
+      ) as unknown as import("@/lib/payment-proof/chain").PaymentProofReaders,
+    },
+  );
+  assert.equal(lookupCalls, 1);
+  assert.ok(!("error" in result));
+  assert.equal(result.verdict, "verified_payment_unlinked_client");
+  assert.equal(result.checks.proof_chain, "eip155:42161");
+});
+
+test("rollup path — non-vet402 feedbackURI skips DB lookup and uses chain fallback", async () => {
+  const prevArb = process.env.OBSERVATORY_ARBITRUM_L1_ENABLED;
+  const prevRpc = process.env.ARBITRUM_RPC_URL;
+  process.env.OBSERVATORY_ARBITRUM_L1_ENABLED = "true";
+  process.env.ARBITRUM_RPC_URL = "http://localhost";
+  try {
+    const body = weeklyRollupJson([{ attempted_at: "2026-11-10T00:00:00.000Z", delivered: true, tx_hash: TX }]);
+    const slice = makeLogSlice(body);
+    slice.feedbackURI = "https://example.test/weekly.json";
+    let lookupCalls = 0;
+    const result = await runErc8004Check(
+      { agentId: "94639", client: CLIENT, feedbackIndex: "1" },
+      {
+        ...baseDeps(slice),
+        fetchFeedbackUri: async () => ({ body, contentType: "application/json" }),
+        lookupPurchaseNetwork: async () => {
+          lookupCalls++;
+          return "eip155:42161";
+        },
+        paymentReaders: evmPaymentReaderMulti(
+          new Map<number, { to: string; from: string } | "missing">([
+            [8453, "missing"],
+            [ARBITRUM_CHAIN.chainId, { to: PAYEE, from: PAYER }],
+          ]),
+        ) as unknown as import("@/lib/payment-proof/chain").PaymentProofReaders,
+      },
+    );
+    assert.equal(lookupCalls, 0);
+    assert.ok(!("error" in result));
+    assert.equal(result.checks.proof_chain, "eip155:42161");
+  } finally {
+    if (prevArb === undefined) delete process.env.OBSERVATORY_ARBITRUM_L1_ENABLED;
+    else process.env.OBSERVATORY_ARBITRUM_L1_ENABLED = prevArb;
+    if (prevRpc === undefined) delete process.env.ARBITRUM_RPC_URL;
+    else process.env.ARBITRUM_RPC_URL = prevRpc;
+  }
+});
+
+test("rollup path — prefers earliest delivered on agent chain over earlier other chain", async () => {
+  const arbTx = `0x${"dd".repeat(32)}` as Hex;
+  const baseTx = TX;
+  const body = weeklyRollupJson([
+    {
+      attempted_at: "2026-11-09T00:00:00.000Z",
+      delivered: true,
+      tx_hash: arbTx,
+      network: "eip155:42161",
+    },
+    {
+      attempted_at: "2026-11-11T00:00:00.000Z",
+      delivered: true,
+      tx_hash: baseTx,
+      network: "eip155:8453",
+    },
+  ]);
+  const result = await runErc8004Check(
+    { agentId: "94639", client: CLIENT, feedbackIndex: "1" },
+    {
+      ...baseDeps(makeLogSlice(body)),
+      paymentReaders: evmPaymentReader(PAYEE, PAYER) as unknown as import("@/lib/payment-proof/chain").PaymentProofReaders,
+    },
+  );
+  assert.ok(!("error" in result));
+  assert.equal(result.proofOfPayment?.txHash, baseTx);
 });
 
 test("unreadable — feedback URI が読めない", async () => {

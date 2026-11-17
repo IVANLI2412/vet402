@@ -1291,8 +1291,9 @@ export default async function ObservatoryMethodologyPage() {
           at fault) are removed from the denominator, not scored against the seller. Agents with fewer than three
           settled rows in the week are skipped. <code>feedbackURI</code> points at the weekly rollup URL above;{" "}
           <code>feedbackHash</code> is the keccak256 of that JSON body (distinct from the response header{" "}
-          <code>x-vet402-feedback-sha256</code>, which is SHA-256). A representative <code>proofOfPayment</code>{" "}
-          for the week is carried inside that JSON. The writer wallet is fixed, must not be a vet402 purchase
+          <code>x-vet402-feedback-sha256</code>, which is SHA-256). Through week 2026-W46 the JSON lists each
+          purchase&apos;s payment <code>tx_hash</code> in <code>transactions</code>; from 2026-W47 it also carries a
+          representative top-level <code>proofOfPayment</code>. The writer wallet is fixed, must not be a vet402 purchase
           payer, and must not be the agent&apos;s owner or an approved operator. Seller replies use{" "}
           <code>appendResponse</code> on the registry. On-chain writes require operator approval and{" "}
           <code>ERC8004_ATTEST_ENABLED=1</code>; dry runs use <code>npm run erc8004:attest</code> without{" "}

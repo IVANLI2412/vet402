@@ -13,6 +13,12 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-18 — ERC-8004: 週次 rollup の Check と W47 以降の proofOfPayment
+
+- **何を**: `GET /api/v1/erc8004/check` が週次 JSON（`transactions[]`）から代表 tx を再読できるようになった（`checks.proof_source`）。`2026-W47` 以降の週次 JSON は `buildProofOfPayment` の代表行で top-level `proofOfPayment` を付与。`2026-W46` 以前の本文は不変（鎖上の feedbackHash 固定）。
+- **なぜ**: 2026-11-18 に書いた W46 週次 attest が `proofOfPayment` 無しで `no_proof` になっていた。
+- **影響**: W46 の HTTP 応答バイトは変わらない。methodology・OpenAPI・MCP スキーマに `proof_source` を追記。
+
 ## 2026-11-18 — ERC-8004 Check: 鎖の読み取り失敗は 500 でなく 503
 
 - **何を**: `GET /api/v1/erc8004/check` で RPC の読み取りが例外を投げたとき（評価の索引に未登録の新しい評価を全域の getLogs で探し、回数制限に当たった等）、500 ではなく `503 {"error":"chain_unreadable"}`・`Retry-After: 30` を返す。

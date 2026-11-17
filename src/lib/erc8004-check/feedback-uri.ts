@@ -1,5 +1,6 @@
 import { safeFetch } from "@/lib/net/safe-fetch";
 import { keccak256, toBytes, type Hex } from "viem";
+import { pickRepresentativeTxRow } from "./representative-tx";
 
 const IPFS_GATEWAY = "https://cloudflare-ipfs.com/ipfs/";
 const URI_TIMEOUT_MS = 5_000;
@@ -120,6 +121,44 @@ export type ProofOfPayment = {
   asset?: string;
   token?: string;
 };
+
+export type RollupTransactionRow = {
+  tx_hash?: string | null;
+  delivered?: boolean;
+  attempted_at?: string;
+  network?: string;
+};
+
+/** vet402 weekly rollup JSON (schema + transactions[], no top-level proofOfPayment). */
+export function isVet402WeeklyRollup(parsed: unknown): boolean {
+  const root = asRecord(parsed);
+  if (!root) return false;
+  if (root.schema !== "ars-evidence/0.1") return false;
+  if (!Array.isArray(root.transactions)) return false;
+  return typeof root.week === "string" && root.week.length > 0;
+}
+
+function chainFromAgentCaip(agentCaip: unknown): string | undefined {
+  if (typeof agentCaip !== "string" || !agentCaip.startsWith("eip155:")) return undefined;
+  const parts = agentCaip.split(":");
+  if (parts.length >= 2) return `${parts[0]}:${parts[1]}`;
+  return undefined;
+}
+
+export function extractRollupTransactionProof(parsed: unknown): ProofOfPayment | null {
+  if (!isVet402WeeklyRollup(parsed)) return null;
+  const root = parsed as Record<string, unknown>;
+  const txs = root.transactions as RollupTransactionRow[];
+  const row = pickRepresentativeTxRow(txs, typeof root.agentCaip === "string" ? root.agentCaip : undefined);
+  if (!row?.tx_hash?.trim()) return null;
+  const net = row.network?.trim();
+  return {
+    txHash: row.tx_hash.trim(),
+    chain: (net && net.startsWith("eip155:") ? net : chainFromAgentCaip(root.agentCaip)) ?? "eip155:8453",
+    asset: "USDC",
+    token: "USDC",
+  };
+}
 
 export function extractProofOfPayment(parsed: unknown): ProofOfPayment | null {
   if (parsed === null || typeof parsed !== "object" || Array.isArray(parsed)) return null;

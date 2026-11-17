@@ -330,8 +330,11 @@ export const check8004AgentOutput = z
         token: erc8004TriState,
         block_time: erc8004TriState,
         feedback_hash: erc8004TriState,
+        proof_source: z.enum(["proofOfPayment", "rollup_transactions"]).optional(),
+        proof_chain: z.string().optional(),
       })
       .strict(),
+    unreadable_reason: z.enum(["proof_tx_not_found_on_known_chains"]).optional(),
     sources: z.array(
       z
         .object({

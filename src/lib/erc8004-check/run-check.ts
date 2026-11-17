@@ -10,11 +10,14 @@ import {
   declaredAgentPayees,
   enrichProofFromFeedback,
   extractProofOfPayment,
+  extractRollupTransactionProof,
   hashFeedbackBody,
+  isVet402WeeklyRollup,
   readFeedbackUri,
   type FeedbackUriReader,
   type ProofOfPayment,
 } from "./feedback-uri";
+import { probeRollupPaymentTx } from "./rollup-probe";
 import { ledgerUnitsToExactStroops } from "@/lib/observatory/settlement-verify-stellar";
 import { STELLAR_USDC_ISSUER, STELLAR_USDC_SAC } from "@/lib/observatory/stellar402-payer";
 import { addressInPayTargets, resolveAgentPayTargets, type AgentPayTargets } from "./payto";
@@ -37,7 +40,13 @@ import {
   resolveFeedbackIndex,
   type RegistryReaders,
 } from "./registry-read";
-import type { Erc8004CheckChecks, Erc8004CheckResult, Erc8004CheckTriState, Erc8004CheckVerdict } from "./types";
+import type {
+  Erc8004CheckChecks,
+  Erc8004CheckProofSource,
+  Erc8004CheckResult,
+  Erc8004CheckTriState,
+  Erc8004CheckVerdict,
+} from "./types";
 
 export type Erc8004CheckInput = {
   chain?: string | null;
@@ -53,6 +62,7 @@ export type Erc8004CheckDeps = {
   fetchFeedbackUri?: FeedbackUriReader;
   resolvePayTargets?: (agentId: bigint, chainId: number) => Promise<AgentPayTargets>;
   findFeedbackLog?: typeof findFeedbackLog;
+  lookupPurchaseNetwork?: (txHash: string) => Promise<string | null>;
 };
 
 export type Erc8004CheckError =
@@ -205,6 +215,13 @@ export async function runErc8004Check(
   }
 
   let proof = extractProofOfPayment(parsed);
+  let proofSource: Erc8004CheckProofSource | undefined;
+  if (proof?.txHash) {
+    proofSource = "proofOfPayment";
+  } else {
+    proof = extractRollupTransactionProof(parsed);
+    if (proof?.txHash) proofSource = "rollup_transactions";
+  }
   if (!proof?.txHash) {
     return baseResult({
       verdict: "no_proof",
@@ -220,9 +237,12 @@ export async function runErc8004Check(
       deps,
     });
   }
+  if (proofSource) checks.proof_source = proofSource;
 
   proof = enrichProofFromFeedback(parsed, proof);
   const declaredPayees = declaredAgentPayees(parsed);
+  const rollupRoot = isVet402WeeklyRollup(parsed) ? (parsed as Record<string, unknown>) : null;
+  const agentCaip = rollupRoot && typeof rollupRoot.agentCaip === "string" ? rollupRoot.agentCaip : undefined;
   const paymentCheck = await verifyProofOnChain(
     proof,
     client,
@@ -231,7 +251,35 @@ export async function runErc8004Check(
     checks,
     sources,
     deps?.paymentReaders,
+    proofSource === "rollup_transactions"
+      ? {
+          rollup: true,
+          agentCaip,
+          feedbackUri: log.feedbackURI,
+          lookupPurchaseNetwork: deps?.lookupPurchaseNetwork,
+        }
+      : undefined,
   );
+  if (paymentCheck.unreadable) {
+    return baseResult({
+      verdict: "unreadable",
+      unreadable_reason: "proof_tx_not_found_on_known_chains",
+      chain,
+      agentId,
+      client,
+      feedbackIndex,
+      log,
+      meta,
+      proof,
+      checks,
+      sources,
+      deps,
+    });
+  }
+  if (paymentCheck.resolvedChain) {
+    proof = { ...proof, chain: paymentCheck.resolvedChain };
+    checks.proof_chain = paymentCheck.resolvedChain;
+  }
   const decided = decideVerdict(checks, paymentCheck.hadPayment);
   return baseResult({
     verdict: decided.verdict,
@@ -249,6 +297,13 @@ export async function runErc8004Check(
   });
 }
 
+type VerifyProofOptions = {
+  rollup?: boolean;
+  agentCaip?: string;
+  feedbackUri?: string;
+  lookupPurchaseNetwork?: (txHash: string) => Promise<string | null>;
+};
+
 async function verifyProofOnChain(
   proof: ProofOfPayment,
   client: string,
@@ -257,20 +312,10 @@ async function verifyProofOnChain(
   checks: Erc8004CheckChecks,
   sources: Erc8004CheckResult["sources"],
   readers?: PaymentProofReaders,
-): Promise<{ hadPayment: boolean }> {
-  const networkRaw = proof.chain ?? (proof.chainId !== undefined ? networkFromChainId(proof.chainId) : ERC8004_CHECK_CHAIN);
-  const classified = classifyPaymentNetwork(networkRaw ?? ERC8004_CHECK_CHAIN);
+  options?: VerifyProofOptions,
+): Promise<{ hadPayment: boolean; resolvedChain?: string; unreadable?: boolean }> {
   const proofTo = (proof.to ?? proof.toAddress ?? null)?.trim() ?? null;
   let paymentKind: PaymentNetworkKind = "unsupported";
-
-  if (classified.kind !== "supported" || !isReadableTx(proof.txHash!, classified.network)) {
-    checks.tx_exists = proof.txHash ? "unknown" : "fail";
-    checks.to_matches_agent_payTo_or_wallet = proofTo ? addressInPayTargets(proofTo, payTargets) ? "pass" : "unknown" : "unknown";
-    checks.from_matches_client = "unknown";
-    return { hadPayment: false };
-  }
-
-  paymentKind = classified.network.kind;
 
   const declaredPayer = (proof.from ?? proof.fromAddress ?? null)?.trim() ?? null;
   let payerForRead: string | null = declaredPayer;
@@ -278,11 +323,56 @@ async function verifyProofOnChain(
     payerForRead = null;
   }
 
-  const movement = await readPaymentOnChain(classified.network, proof.txHash!, payerForRead, readers);
-  sources.push({
-    kind: "payment_chain",
-    detail: `${classified.network.kind} tx=${proof.txHash}`,
-  });
+  let classified: ReturnType<typeof classifyPaymentNetwork>;
+  let movement: Awaited<ReturnType<typeof readPaymentOnChain>>;
+  let resolvedChain: string | undefined;
+
+  if (options?.rollup && proof.txHash) {
+    const probe = await probeRollupPaymentTx(proof.txHash, payerForRead, options.agentCaip, readers, {
+      feedbackUri: options.feedbackUri,
+      lookupPurchaseNetwork: options.lookupPurchaseNetwork,
+    });
+    if (probe.kind === "not_found") {
+      checks.tx_exists = "unknown";
+      checks.to_matches_agent_payTo_or_wallet = proofTo ? (addressInPayTargets(proofTo, payTargets) ? "pass" : "unknown") : "unknown";
+      checks.from_matches_client = "unknown";
+      return { hadPayment: false, unreadable: true };
+    }
+    if (probe.kind === "unavailable") {
+      checks.tx_exists = "unknown";
+      checks.to_matches_agent_payTo_or_wallet = "unknown";
+      checks.from_matches_client = "unknown";
+      return { hadPayment: false, unreadable: true };
+    }
+    resolvedChain = probe.caip;
+    classified = classifyPaymentNetwork(probe.caip);
+    movement = probe.movement;
+    sources.push({
+      kind: "payment_chain",
+      detail: `rollup_probe ${probe.caip} tx=${proof.txHash}`,
+    });
+  } else {
+    const networkRaw = proof.chain ?? (proof.chainId !== undefined ? networkFromChainId(proof.chainId) : ERC8004_CHECK_CHAIN);
+    classified = classifyPaymentNetwork(networkRaw ?? ERC8004_CHECK_CHAIN);
+    if (classified.kind !== "supported" || !isReadableTx(proof.txHash!, classified.network)) {
+      checks.tx_exists = proof.txHash ? "unknown" : "fail";
+      checks.to_matches_agent_payTo_or_wallet = proofTo ? (addressInPayTargets(proofTo, payTargets) ? "pass" : "unknown") : "unknown";
+      checks.from_matches_client = "unknown";
+      return { hadPayment: false };
+    }
+    movement = await readPaymentOnChain(classified.network, proof.txHash!, payerForRead, readers);
+    sources.push({
+      kind: "payment_chain",
+      detail: `${classified.network.kind} tx=${proof.txHash}`,
+    });
+  }
+
+  if (classified.kind !== "supported") {
+    checks.tx_exists = "unknown";
+    return { hadPayment: false, resolvedChain };
+  }
+
+  paymentKind = classified.network.kind;
 
   if (movement.state === "not_found") checks.tx_exists = "fail";
   else if (movement.state === "confirmed") checks.tx_exists = "pass";
@@ -303,12 +393,18 @@ async function verifyProofOnChain(
 
   checks.amount = comparePaymentAmount(proof.amount, movement.amount, paymentKind);
 
-  const expectedAsset = (proof.asset ?? proof.token ?? BASE_USDC).toLowerCase();
+  // 2026-11-18: 代表の支払いが Base 以外（Arc・Arbitrum など）のとき、"USDC" の記号は Base の USDC ではなくその網の USDC と照らす。
+  const declaredAsset = (proof.asset ?? proof.token ?? "").trim();
+  const chainUsdc =
+    classified.network.kind === "evm" ? (classified.network as { chain?: { usdc?: string } }).chain?.usdc ?? null : null;
+  const expectedAsset = (
+    /^0x[0-9a-fA-F]{40}$/.test(declaredAsset) ? declaredAsset : chainUsdc ?? (declaredAsset || BASE_USDC)
+  ).toLowerCase();
   if (movement.asset) {
     checks.token = paymentAssetsMatch(expectedAsset, movement.asset, paymentKind) ? "pass" : "fail";
   }
 
-  return { hadPayment: movement.state === "confirmed" };
+  return { hadPayment: movement.state === "confirmed", resolvedChain };
 }
 
 function networkFromChainId(chainId: number | string): string {
@@ -320,6 +416,7 @@ function networkFromChainId(chainId: number | string): string {
 function baseResult(args: {
   verdict: Erc8004CheckVerdict;
   reasons?: import("./types").Erc8004CheckMismatchReason[];
+  unreadable_reason?: import("./types").Erc8004CheckUnreadableReason;
   chain: { caip: string };
   agentId: bigint;
   client: string;
@@ -334,6 +431,7 @@ function baseResult(args: {
   return {
     verdict: args.verdict,
     ...(args.reasons?.length ? { reasons: args.reasons } : {}),
+    ...(args.unreadable_reason ? { unreadable_reason: args.unreadable_reason } : {}),
     chain: args.chain.caip,
     agentId: args.agentId.toString(),
     clientAddress: args.client,

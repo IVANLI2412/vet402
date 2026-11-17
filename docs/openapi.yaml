@@ -2181,7 +2181,9 @@ paths:
         Keyless read of one ERC-8004 Reputation Registry feedback on Base
         (chain=eip155:8453). Pass agentId and client or feedbackIndex.
         vet402 loads feedbackURI, checks feedbackHash, re-reads the payment
-        transaction named in proofOfPayment, and matches the recipient to
+        transaction from proofOfPayment or, for vet402 weekly rollups through
+        2026-W46 without that field, the earliest delivered transactions[] row,
+        and matches the recipient to
         vet402 state.erc8004 payTo and the agent owner or agentWallet.
         verdict is verified (payer matches the feedback writer),
         verified_payment_unlinked_client (on-chain payment aligns but the
@@ -2232,6 +2234,22 @@ paths:
                     description: Present when verdict is mismatch.
                   checks:
                     type: object
+                    properties:
+                      proof_source:
+                        type: string
+                        enum: [proofOfPayment, rollup_transactions]
+                        description: |
+                          When present, which JSON field supplied the tx hash
+                          (weekly rollups through 2026-W46 use rollup_transactions).
+                      proof_chain:
+                        type: string
+                        description: |
+                          CAIP-2 network where the rollup representative tx was
+                          found (rollup_transactions path only).
+                  unreadable_reason:
+                    type: string
+                    enum: [proof_tx_not_found_on_known_chains]
+                    description: Present when verdict is unreadable for rollup probe.
                   sources:
                     type: array
                     items:

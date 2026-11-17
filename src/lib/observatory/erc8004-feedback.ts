@@ -8,8 +8,39 @@ import { heldReasonOf, isDelivered } from "@/lib/observatory/delivery";
 import { l2ReadingOf } from "@/lib/observatory/l2-check";
 import { sellerHostOfResourceKey } from "@/lib/sellers/host";
 import { parseErc8004AgentCaip } from "@/lib/observatory/erc8004-export-agent";
+import { pickRepresentativeTxRow } from "@/lib/erc8004-check/representative-tx";
 
 export const ERC8004_FEEDBACK_SCHEMA = "ars-evidence/0.1" as const;
+
+/**
+ * Weekly JSON includes top-level proofOfPayment from this ISO week onward.
+ * Weeks through 2026-W46 must stay byte-identical — on-chain feedbackHash for vet402 attestments depends on it.
+ */
+export const ERC8004_WEEKLY_PROOF_OF_PAYMENT_FROM_WEEK = "2026-W47" as const;
+
+function isoWeekParts(week: string): { year: number; ww: number } | null {
+  const m = /^(\d{4})-W(\d{2})$/.exec(week.trim());
+  if (!m) return null;
+  const ww = Number(m[2]);
+  if (ww < 1 || ww > 53) return null;
+  return { year: Number(m[1]), ww };
+}
+
+export function isoWeekAtOrAfter(week: string, fromWeek: string): boolean {
+  const a = isoWeekParts(week);
+  const b = isoWeekParts(fromWeek);
+  if (!a || !b) return false;
+  if (a.year !== b.year) return a.year > b.year;
+  return a.ww >= b.ww;
+}
+
+/** Representative purchase row for weekly proofOfPayment (matches erc8004-check rollup path). */
+export function representativeWeeklyProofRow(
+  rows: readonly PurchaseFeedbackRow[],
+  agentCaip?: string,
+): PurchaseFeedbackRow | null {
+  return pickRepresentativeTxRow(rows, agentCaip, (r) => deliveryOutcome(r).outcome === "delivered");
+}
 
 export type Erc8004ProofOfPayment = {
   chain: string;
@@ -211,7 +242,14 @@ export type Erc8004WeeklySummary = {
   period: { from: string; to: string };
   methodology: string;
   population: { purchases: number; delivered: number; deliveredRate: number | null };
-  transactions: { purchase_id: string; tx_hash: string | null; attempted_at: string; delivered: boolean }[];
+  transactions: {
+    purchase_id: string;
+    tx_hash: string | null;
+    attempted_at: string;
+    delivered: boolean;
+    network?: string;
+  }[];
+  proofOfPayment?: Erc8004ProofOfPayment;
   contentSha256: string;
 };
 
@@ -224,7 +262,7 @@ export function buildWeeklySummary(input: {
 }): Erc8004WeeklySummary {
   const deliveredCount = input.rows.filter((r) => deliveryOutcome(r).outcome === "delivered").length;
   const purchases = input.rows.length;
-  const withoutHash = {
+  const withoutHash: Omit<Erc8004WeeklySummary, "contentSha256"> = {
     schema: ERC8004_FEEDBACK_SCHEMA,
     agentCaip: input.agentCaip,
     week: input.week,
@@ -235,13 +273,25 @@ export function buildWeeklySummary(input: {
       delivered: deliveredCount,
       deliveredRate: purchases > 0 ? Math.round((deliveredCount / purchases) * 10_000) / 100 : null,
     },
-    transactions: input.rows.map((r) => ({
-      purchase_id: r.id,
-      tx_hash: r.tx_hash,
-      attempted_at: r.attempted_at instanceof Date ? r.attempted_at.toISOString() : new Date(r.attempted_at).toISOString(),
-      delivered: deliveryOutcome(r).outcome === "delivered",
-    })),
+    transactions: input.rows.map((r) => {
+      const base = {
+        purchase_id: r.id,
+        tx_hash: r.tx_hash,
+        attempted_at:
+          r.attempted_at instanceof Date ? r.attempted_at.toISOString() : new Date(r.attempted_at).toISOString(),
+        delivered: deliveryOutcome(r).outcome === "delivered",
+      };
+      if (isoWeekAtOrAfter(input.week, ERC8004_WEEKLY_PROOF_OF_PAYMENT_FROM_WEEK)) {
+        return { ...base, network: chainIdForNetwork(r.network) };
+      }
+      return base;
+    }),
   };
+  if (isoWeekAtOrAfter(input.week, ERC8004_WEEKLY_PROOF_OF_PAYMENT_FROM_WEEK)) {
+    const rep = representativeWeeklyProofRow(input.rows, input.agentCaip);
+    const pop = rep ? buildProofOfPayment(rep) : null;
+    if (pop) withoutHash.proofOfPayment = pop;
+  }
   const body = JSON.stringify(withoutHash);
   return { ...withoutHash, contentSha256: sha256HexUtf8(body) };
 }
