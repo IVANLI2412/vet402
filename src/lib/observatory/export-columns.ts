@@ -58,12 +58,19 @@ export const EXPORT_CSV_COLUMNS_SINCE_2026_09_29 = ["confirmed_units", "purchase
  */
 export const EXPORT_CSV_COLUMNS_SINCE_2026_09_29_B = ["l2_reading"] as const;
 
+/**
+ * 2026-11-17（段階 B）: ERC-8004 Identity Registry の agent 番号（CAIP）。
+ * payTo と owner / agentWallet の完全一致があった行だけ。形式は eip155:8453:94639。
+ */
+export const EXPORT_CSV_COLUMNS_SINCE_2026_11_17 = ["erc8004_agent"] as const;
+
 /** 列を足したら openapi・methodology・llms.txt の説明にも名前で出す（tests/export-request-body.test.ts）。 */
 export const EXPORT_CSV_COLUMNS_ADDED = [
   ...EXPORT_CSV_COLUMNS_SINCE_2026_09_20,
   ...EXPORT_CSV_COLUMNS_SINCE_2026_09_21,
   ...EXPORT_CSV_COLUMNS_SINCE_2026_09_29,
   ...EXPORT_CSV_COLUMNS_SINCE_2026_09_29_B,
+  ...EXPORT_CSV_COLUMNS_SINCE_2026_11_17,
 ] as const;
 
 export const EXPORT_CSV_COLUMNS = [...COLUMNS_UNTIL_2026_09_17, ...EXPORT_CSV_COLUMNS_ADDED] as const;

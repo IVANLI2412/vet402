@@ -6,6 +6,7 @@ import { consumeIpRateLimit, ipRateLimitHeaders, sharedCacheRateLimitHeaders } f
 import { getDb } from "@/lib/db/client";
 import { heldReasonSql } from "@/lib/observatory/delivery";
 import { confirmedUnitsSql, EXPORT_CSV_COLUMN_NOTES, EXPORT_CSV_COLUMNS } from "@/lib/observatory/export-columns";
+import { erc8004AgentColumnSql } from "@/lib/observatory/erc8004-export-agent";
 import { requestBodySha256Sql, requestBodyKindSql } from "@/lib/observatory/request-body";
 import { requestQuerySha256Sql, requestQueryKindSql } from "@/lib/observatory/request-query";
 import { settlementSourceSql } from "@/lib/observatory/settlement-source";
@@ -111,6 +112,7 @@ export async function GET(request: NextRequest) {
              (${sql.raw(confirmedUnitsSql("pu"))}) AS confirmed_units,
              pu.id::text AS purchase_id,
              ${sql.raw(l2ReadingColumnsSql("pu"))},
+             (${sql.raw(erc8004AgentColumnSql("pu"))}) AS erc8004_agent,
              CASE WHEN pu.l2_schema = 'mismatch' THEN e.declared_schema END AS l2_declared_schema
       FROM x402_l1_purchases pu
       JOIN x402_endpoints e ON e.id = pu.endpoint_id

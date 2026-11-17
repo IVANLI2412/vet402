@@ -952,6 +952,59 @@ paths:
         "503":
           description: Store unavailable
 
+  /api/v1/observatory/erc8004/feedback/{purchase_id}:
+    get:
+      operationId: getErc8004PurchaseFeedback
+      tags: [Observatory]
+      summary: Off-chain ERC-8004 feedback JSON for one matched purchase
+      description: >-
+        Returns ars-evidence/0.1 JSON with proofOfPayment, delivery outcome,
+        and SHA-256 in x-vet402-feedback-sha256. Only purchases with an erc8004
+        match. Inconclusive held 4xx rows are marked without counting against the seller.
+      security: []
+      parameters:
+        - in: path
+          name: purchase_id
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: JSON feedback document
+        "404":
+          description: No row, no ERC-8004 match, or invalid id
+        "429":
+          description: Rate limited
+        "503":
+          description: Observatory unavailable
+
+  /api/v1/observatory/erc8004/weekly/{agentId}:
+    get:
+      operationId: getErc8004WeeklyFeedback
+      tags: [Observatory]
+      summary: Weekly ERC-8004 feedback rollup for one agent
+      description: >-
+        ISO week UTC. Methodology URL, period, population, delivered rate, and
+        transaction list for purchases tied to the agent on Base (or chain in CAIP id).
+      security: []
+      parameters:
+        - in: path
+          name: agentId
+          required: true
+          schema: { type: string, description: Numeric agent id or full eip155:8453:{id} }
+        - in: query
+          name: week
+          required: true
+          schema: { type: string, pattern: "^[0-9]{4}-W[0-9]{2}$" }
+      responses:
+        "200":
+          description: Weekly JSON summary
+        "400":
+          description: Invalid agent or week
+        "429":
+          description: Rate limited
+        "503":
+          description: Observatory unavailable
+
   /api/v1/observatory/export.csv:
     get:
       operationId: exportObservatoryLedgerCsv
@@ -988,6 +1041,7 @@ paths:
         `settlement_source` (since 2026-09-20), `request_query`,
         `request_query_sha256` (since 2026-09-21), `confirmed_units`
         (since 2026-09-29), `purchase_id` (since 2026-09-29), `l2_reading`
+        (since 2026-09-29), `erc8004_agent` (since 2026-11-17)
         (since 2026-09-29).
 
         - `amount_units` — the price the seller's 402 asked for, in vet402's
@@ -1088,6 +1142,9 @@ paths:
           output now, and `not_checked` when no missing key was recorded and its
           JSON body ran past the stored start. `l2_schema` keeps the value
           recorded at the time.
+        - `erc8004_agent` — when the row's `pay_to` exactly matches the owner or
+          `agentWallet` of an agent in vet402's Base ERC-8004 Identity Registry index,
+          the CAIP id `eip155:8453:{agentId}`; blank when there is no such match.
 
         `scripts/declared-body-before-after.mjs` recomputes, from this CSV
         alone, the paid 2xx rate of the same endpoints before and after the
@@ -3801,6 +3858,14 @@ paths:
                             purchases: { type: integer }
                             settled: { type: integer }
                       notes: { type: array, items: { type: string } }
+                      matchBinding:
+                        type: object
+                        description: Owner-only vs agentWallet-confirmed payTo counts for mis-binding risk before on-chain feedback.
+                        properties:
+                          ownerOnlyPayTo: { type: integer }
+                          walletConfirmedPayTo: { type: integer }
+                          walletConfirmedShare:
+                            { type: number, nullable: true, description: Percent with one decimal; null when no matched payTo. }
                   totalEndpoints: { type: integer }
                   activeEndpoints: { type: integer }
                   delistedEndpoints: { type: integer }

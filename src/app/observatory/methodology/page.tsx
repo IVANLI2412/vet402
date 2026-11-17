@@ -1251,7 +1251,16 @@ export default async function ObservatoryMethodologyPage() {
           scanned, the agents matched and the block that chain&apos;s index has read to. A chain
           whose index cannot be read yet says <code>unavailable</code> with a reason and no counts. It
           does not cover similar names or the endpoints in an agent&apos;s registration file. A
-          read that fails says <code>unavailable</code> and carries no counts.
+          read that fails says <code>unavailable</code> and carries no counts. When{" "}
+          <code>matchBinding</code> is present, <code>ownerOnlyPayTo</code> counts payTo that
+          matched an owner but not an agentWallet, and <code>walletConfirmedPayTo</code> counts
+          payTo that matched an agentWallet (the lower mis-binding risk). The ledger export{" "}
+          <code>erc8004_agent</code> column (since 2026-11-17, last column) carries the CAIP agent
+          id for that rule on each purchase row, empty when there is no match. Off-chain feedback
+          JSON for matched purchases is at{" "}
+          <code>/api/v1/observatory/erc8004/feedback/&#123;purchase_id&#125;</code> (schema{" "}
+          <code>ars-evidence/0.1</code>); weekly rollups at{" "}
+          <code>/api/v1/observatory/erc8004/weekly/&#123;agentId&#125;?week=YYYY-Www</code>.
         </p>
 
         <h2 className="sec-head">
