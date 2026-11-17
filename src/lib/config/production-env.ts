@@ -228,6 +228,22 @@ export function collectProductionEnvIssues(): ProductionEnvIssue[] {
     });
   }
 
+  if (!process.env.ETHEREUM_RPC_URL?.trim()) {
+    issues.push({
+      level: "warn",
+      message:
+        "ETHEREUM_RPC_URL is not set — /api/cron/index-owners skips the Ethereum ERC-8004 chain index; state erc8004.byChain eip155:1 stays index_not_started",
+    });
+  }
+
+  if (!process.env.BNB_RPC_URL?.trim()) {
+    issues.push({
+      level: "warn",
+      message:
+        "BNB_RPC_URL is not set — /api/cron/index-owners skips the BNB Chain ERC-8004 chain index and BNB settlement indexing; state erc8004.byChain eip155:56 stays index_not_started",
+    });
+  }
+
   // 2026-08-15 (audit): STRIPE_SECRET_KEY alone is not sufficient for billing
   // to actually work — Checkout can succeed while the webhook that applies
   // the resulting plan silently 503s (fail-closed, not a security bug), and a

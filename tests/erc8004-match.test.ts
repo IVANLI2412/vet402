@@ -36,6 +36,9 @@ type MatchRow = { match_kind: string; agent_id: string; pay_to: string; purchase
 /** SQL が返す 1 行を、渡した行から作る（数は SQL と同じく payTo ごとに 1 回）。 */
 function sqlRow(rows: MatchRow[], walletRows: number, totals?: Record<string, number>) {
   const perPayTo = new Map(rows.map((r) => [r.pay_to, r]));
+  const ownerOnly = new Set(rows.filter((r) => r.match_kind === "owner").map((r) => r.pay_to));
+  const walletPayTo = new Set(rows.filter((r) => r.match_kind === "agent_wallet").map((r) => r.pay_to));
+  for (const p of walletPayTo) ownerOnly.delete(p);
   return {
     scanned_agents: "1123563",
     wallet_rows: walletRows,
@@ -43,6 +46,8 @@ function sqlRow(rows: MatchRow[], walletRows: number, totals?: Record<string, nu
     matched_pay_to: totals?.matched_pay_to ?? perPayTo.size,
     matched_purchases: totals?.matched_purchases ?? [...perPayTo.values()].reduce((a, r) => a + r.purchases, 0),
     matched_settled: totals?.matched_settled ?? [...perPayTo.values()].reduce((a, r) => a + r.settled, 0),
+    matched_pay_to_owner_only: ownerOnly.size,
+    matched_pay_to_wallet_confirmed: walletPayTo.size,
     top: rows,
   };
 }
@@ -87,6 +92,7 @@ test("an owner match comes through as matchKind owner with its counts", async ()
   assert.equal(s.matchedPurchases, 12);
   assert.equal(s.matchedSettled, 9);
   assert.ok(s.notes.includes("agent_wallet index empty"));
+  assert.deepEqual(s.matchBinding, { ownerOnlyPayTo: 1, walletConfirmedPayTo: 0, walletConfirmedShare: 0 });
 });
 
 test("one payTo owning several agents counts its purchases once", async () => {
@@ -174,7 +180,9 @@ test("cached reader: ok gets readAt, a failure is not stored and the next read r
       "eip155:1": { status: "unavailable", reason: "index_not_started" },
       "eip155:56": { status: "unavailable", reason: "index_not_started" },
     },
-    matches: [], notes: [],
+    matches: [],
+    notes: [],
+    matchBinding: { ownerOnlyPayTo: 0, walletConfirmedPayTo: 0, walletConfirmedShare: null },
   };
   const answers: Erc8004MatchSummary[] = [{ status: "unavailable", checkedAt: "2026-11-08T00:00:00.000Z", reason: "query_failed" }, ok];
   let calls = 0;

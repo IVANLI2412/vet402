@@ -63,6 +63,8 @@ export type Erc8004MatchInput =
   | ({ checkedAt: string } & Exclude<Erc8004ChainInput, { error: string }> & {
       /** Ethereum・BNB Chain の読み。渡されない鎖は unavailable（chain_index_not_read）。 */
       extraChains?: Partial<Record<Erc8004ExtraChain, Erc8004ChainInput>>;
+      matched_pay_to_owner_only?: number;
+      matched_pay_to_wallet_confirmed?: number;
     });
 
 export type Erc8004MatchTotals = {
@@ -70,6 +72,14 @@ export type Erc8004MatchTotals = {
   matchedPayTo: number;
   matchedPurchases: number;
   matchedSettled: number;
+};
+
+/** owner だけ一致した payTo と agentWallet でも一致した payTo（段階 D 条件 1・結び間違いの監視）。 */
+export type Erc8004MatchBinding = {
+  ownerOnlyPayTo: number;
+  walletConfirmedPayTo: number;
+  /** walletConfirmedPayTo / (ownerOnly + walletConfirmed)。分母 0 なら null。 */
+  walletConfirmedShare: number | null;
 };
 
 export type Erc8004Match = {
@@ -107,6 +117,7 @@ export type Erc8004MatchSummary =
       };
       matches: Erc8004Match[];
       notes: string[];
+      matchBinding: Erc8004MatchBinding;
     };
 
 export const ERC8004_AGENT_WALLET_EMPTY_NOTE = "agent_wallet index empty";
@@ -144,6 +155,8 @@ export function summarizeErc8004Match(input: Erc8004MatchInput): Erc8004MatchSum
     }
   }
 
+  const matchBinding = matchBindingOf(input);
+
   const listed = [...matches, ...extraMatches]
     // SQL の ORDER BY（purchases DESC, pay_to COLLATE "C", agent_id の数の順）と同じ順。鎖が違えば鎖の順。
     .sort(
@@ -171,6 +184,18 @@ export function summarizeErc8004Match(input: Erc8004MatchInput): Erc8004MatchSum
     },
     matches: listed,
     notes: input.walletMatches === null ? [ERC8004_AGENT_WALLET_EMPTY_NOTE] : [],
+    matchBinding,
+  };
+}
+
+function matchBindingOf(input: Exclude<Erc8004MatchInput, { error: string }>): Erc8004MatchBinding {
+  const ownerOnly = Number(input.matched_pay_to_owner_only ?? 0);
+  const walletConfirmed = Number(input.matched_pay_to_wallet_confirmed ?? 0);
+  const denom = ownerOnly + walletConfirmed;
+  return {
+    ownerOnlyPayTo: ownerOnly,
+    walletConfirmedPayTo: walletConfirmed,
+    walletConfirmedShare: denom > 0 ? Math.round((walletConfirmed / denom) * 10_000) / 100 : null,
   };
 }
 
@@ -305,7 +330,13 @@ SELECT
      FROM m
      ORDER BY m.purchases DESC, m.pay_to COLLATE "C", m.agent_id
      LIMIT ${MAX_LISTED}
-   ) t) AS top
+   ) t) AS top,
+  (SELECT count(*)::int FROM (
+     SELECT DISTINCT pay_to FROM m WHERE match_kind = 'owner'
+     EXCEPT
+     SELECT DISTINCT pay_to FROM m WHERE match_kind = 'agent_wallet'
+   ) o) AS matched_pay_to_owner_only,
+  (SELECT count(DISTINCT pay_to)::int FROM m WHERE match_kind = 'agent_wallet') AS matched_pay_to_wallet_confirmed
 `;
 
 const ERC8004_CHAIN_IDS: Record<Erc8004ExtraChain, number> = { "eip155:1": 1, "eip155:56": 56 };
@@ -387,6 +418,8 @@ export async function readErc8004Match(): Promise<Erc8004MatchSummary> {
       checkedAt,
       indexBlock: indexBlock.toString(),
       ...chainInputOf(row),
+      matched_pay_to_owner_only: Number(row.matched_pay_to_owner_only ?? 0),
+      matched_pay_to_wallet_confirmed: Number(row.matched_pay_to_wallet_confirmed ?? 0),
       extraChains: Object.fromEntries(entries),
     });
   } catch (error) {
