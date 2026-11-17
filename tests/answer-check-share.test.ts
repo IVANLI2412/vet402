@@ -64,7 +64,7 @@ test("分母 0 で share は null", () => {
   assert.equal(s.shareWithAnswerChecks, null);
 });
 
-test("exact:false JPEG（not_checked）と shape_drift のみの行は answerChecked に入らない", () => {
+test("shape_drift pass/fail は answerChecked に数える", () => {
   const jpeg = new TextDecoder().decode(new Uint8Array([0xff, 0xd8, 0xff, 0xe0, 0x00, 0x10, 0x4a, 0x46, 0x49, 0x46])).replaceAll("\u0000", "");
   const rows = [
     {
@@ -73,14 +73,14 @@ test("exact:false JPEG（not_checked）と shape_drift のみの行は answerChe
       l2Reading: "no_declaration",
       answerVerdicts: [
         { check: "binary_kind" as const, result: "not_checked" as const, reason: "binary_kind_inexact" },
-        { check: "shape_drift" as const, result: "not_applicable" as const, reason: "shape_changed" },
+        { check: "shape_drift" as const, result: "fail" as const, reason: "shape_changed" },
       ],
     },
     {
       status: "settled",
       attemptedAt: inWindow,
       l2Reading: "no_declaration",
-      answerVerdicts: [{ check: "shape_drift" as const, result: "not_applicable" as const, reason: "keys_added" }],
+      answerVerdicts: [{ check: "shape_drift" as const, result: "pass" as const, reason: "same_shape" }],
     },
     {
       status: "settled",
@@ -91,5 +91,5 @@ test("exact:false JPEG（not_checked）と shape_drift のみの行は answerChe
   ];
   assert.equal(jpeg.length > 0, true);
   const s = checkedPurchaseShare(rows, { now });
-  assert.equal(s.answerChecked, 1);
+  assert.equal(s.answerChecked, 3);
 });

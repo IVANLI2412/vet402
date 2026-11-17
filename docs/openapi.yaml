@@ -4070,6 +4070,8 @@ paths:
                           Settled purchases in the last `windowDays` whose paid answer was
                           checked offline from data already on the purchase row
                           (`raw_response_meta.answerCheck`). No new purchases. Since 2026-11-17.
+                          `shapeSame` / `shapeChanged` count undeclared listings compared to the
+                          earliest complete 2xx JSON on that endpoint (not L2 match). Since 2026-11-18.
                         properties:
                           windowDays: { type: integer }
                           settled: { type: integer }
@@ -4079,6 +4081,16 @@ paths:
                           match: { type: integer }
                           mismatch: { type: integer }
                           unknown: { type: integer }
+                          shapeSame:
+                            type: integer
+                            description: >-
+                              Undeclared rows whose JSON top-level shape matches the endpoint's
+                              first complete paid answer (`answerCheck.shapeBaseline` = same).
+                          shapeChanged:
+                            type: integer
+                            description: >-
+                              Undeclared rows whose shape differs from that baseline (outcome stays
+                              unknown; not counted as mismatch).
                           checkedShare:
                             type: number
                             nullable: true

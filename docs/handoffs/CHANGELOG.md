@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-18 — J1/B4: 未宣言掲載は最初の答えを形の基準に
+
+- **What**: `answer-check` cron が掲載ごとに全期間で最古の complete 2xx JSON を基準形として取り、L2 未宣言行に `shape_drift`（pass/fail）を走らせる。`answerCheck.version` 2・v1 行の再処理マージ。`l1.answerCheck.shapeSame` / `shapeChanged` を公開。
+- **Why**: 宣言の無い掲載の unknown を減らし `checkedShare` を上げる（追加購入なし）。
+- **Impact**: 公開 `match` は L2 のみのまま。形の変化は `unknown` + `shape_changed`（mismatch にしない）。export・購入経路は不変。
+- **Tests**: `tests/answer-check-baseline.test.ts`, `tests/answer-check.pg.test.ts`（B4）, 既存 answer-check 試験更新。
+
 ## 2026-11-18 — MCP: find_x402_sellers を /api/v1/find と同じ順位に／check_8004_agent 追加
 
 - **What**: MCP `find_x402_sellers` now calls `readFindAlternatives` and `rankFindAlternatives` (80% delivered floor, Wilson lower bound, resource_key dedupe) instead of `readFindSellers`; rows add `delivered_rate_pct` and `wilson_lower_bound`. New MCP tool `check_8004_agent` calls `getErc8004CheckCached` / `runErc8004Check` in-process (same JSON as `GET /api/v1/erc8004/check`), keyless, bucket `erc8004-check` 30/min per IP.

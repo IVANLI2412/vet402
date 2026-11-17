@@ -29,3 +29,8 @@ export type AnswerVerdict = {
   reason: string;
   detail?: Record<string, unknown>;
 };
+
+export type EndpointShapeBaseline = {
+  purchaseId: string;
+  shape: import("./shape-drift").AnswerShape;
+};

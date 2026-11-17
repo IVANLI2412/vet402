@@ -12,11 +12,25 @@ export type L1AnswerCheckStats = {
   match: number;
   mismatch: number;
   unknown: number;
+  /** 未宣言行で最初の答えと形が同じ（shape_drift pass）。公開 match には含めない。 */
+  shapeSame: number;
+  /** 未宣言行で最初の答えから形が変わった（shape_drift fail・outcome は unknown）。 */
+  shapeChanged: number;
   checkedShare: number | null;
 };
 
 export function emptyL1AnswerCheckStats(windowDays = ANSWER_CHECK_WINDOW_DAYS): L1AnswerCheckStats {
-  return { windowDays, settled: 0, checked: 0, match: 0, mismatch: 0, unknown: 0, checkedShare: null };
+  return {
+    windowDays,
+    settled: 0,
+    checked: 0,
+    match: 0,
+    mismatch: 0,
+    unknown: 0,
+    shapeSame: 0,
+    shapeChanged: 0,
+    checkedShare: null,
+  };
 }
 
 export function l1AnswerCheckFromRowCounts(input: {
@@ -25,6 +39,8 @@ export function l1AnswerCheckFromRowCounts(input: {
   match: number;
   mismatch: number;
   unknown: number;
+  shapeSame?: number;
+  shapeChanged?: number;
   windowDays?: number;
 }): L1AnswerCheckStats {
   const windowDays = input.windowDays ?? ANSWER_CHECK_WINDOW_DAYS;
@@ -37,6 +53,8 @@ export function l1AnswerCheckFromRowCounts(input: {
     match: input.match,
     mismatch: input.mismatch,
     unknown: input.unknown,
+    shapeSame: input.shapeSame ?? 0,
+    shapeChanged: input.shapeChanged ?? 0,
     checkedShare,
   };
 }
@@ -57,7 +75,9 @@ export async function readL1AnswerCheckStats(windowDays = ANSWER_CHECK_WINDOW_DA
              count(*) FILTER (WHERE (raw_response_meta->'answerCheck'->>'checked') = 'true')::int AS checked,
              count(*) FILTER (WHERE raw_response_meta->'answerCheck'->>'outcome' = 'match')::int AS match,
              count(*) FILTER (WHERE raw_response_meta->'answerCheck'->>'outcome' = 'mismatch')::int AS mismatch,
-             count(*) FILTER (WHERE raw_response_meta->'answerCheck'->>'outcome' = 'unknown' AND (raw_response_meta->'answerCheck'->>'checked') = 'true')::int AS unknown
+             count(*) FILTER (WHERE raw_response_meta->'answerCheck'->>'outcome' = 'unknown' AND (raw_response_meta->'answerCheck'->>'checked') = 'true')::int AS unknown,
+             count(*) FILTER (WHERE raw_response_meta->'answerCheck'->>'shapeBaseline' = 'same')::int AS shape_same,
+             count(*) FILTER (WHERE raw_response_meta->'answerCheck'->>'shapeBaseline' = 'changed')::int AS shape_changed
       FROM x402_l1_purchases
       WHERE status = 'settled'
         AND attempted_at >= now() - make_interval(days => ${windowDays}::int)
@@ -69,6 +89,8 @@ export async function readL1AnswerCheckStats(windowDays = ANSWER_CHECK_WINDOW_DA
       match: Number(row.match ?? 0),
       mismatch: Number(row.mismatch ?? 0),
       unknown: Number(row.unknown ?? 0),
+      shapeSame: Number(row.shape_same ?? 0),
+      shapeChanged: Number(row.shape_changed ?? 0),
       windowDays,
     });
   } catch (error) {

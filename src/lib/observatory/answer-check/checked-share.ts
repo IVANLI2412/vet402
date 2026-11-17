@@ -2,7 +2,7 @@
 
 import type { AnswerCheckName, AnswerVerdict } from "./types";
 
-const DEFAULT_COUNT_CHECKS: readonly AnswerCheckName[] = ["declared_type", "input_echo", "binary_kind"];
+const DEFAULT_COUNT_CHECKS: readonly AnswerCheckName[] = ["declared_type", "input_echo", "binary_kind", "shape_drift"];
 
 function attemptedAtMs(attemptedAt: string): number | null {
   const ms = Date.parse(attemptedAt);

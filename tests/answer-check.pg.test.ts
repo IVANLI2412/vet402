@@ -51,6 +51,7 @@ if (!TEST_DB) {
         .returning();
 
       const payload = {
+        version: 2,
         checkedAt: "2026-11-17T00:00:00.000Z",
         checked: true,
         outcome: "match",
@@ -115,6 +116,110 @@ if (!TEST_DB) {
       `);
       const rows = Array.isArray(raw) ? raw : (raw as { rows: unknown[] }).rows;
       assert.equal((rows[0] as { has: boolean }).has, true);
+    });
+
+    await t.test("B4: 掲載の最古 complete JSON が基準・v1 を1回だけ上げる", async () => {
+      await db.execute(sql`TRUNCATE x402_l1_purchases, x402_endpoints CASCADE`);
+      const [ep] = await db
+        .insert(x402Endpoints)
+        .values({
+          resourceKey: "https://shape-baseline.example/api",
+          resourceUrl: "https://shape-baseline.example/api",
+          status: "active",
+        })
+        .returning();
+
+      const mkPurchase = (body: string, daysAgo: number, l2: string | null) => ({
+        endpointId: ep!.id,
+        status: "settled" as const,
+        spentUnits: "1000",
+        httpStatusPaid: 200,
+        l2Schema: l2,
+        attemptedAt: new Date(Date.now() - daysAgo * 86_400_000),
+        rawResponseMeta: {
+          phase: "paid",
+          bodyHead: body,
+          bodyBytes: Buffer.byteLength(body),
+          contentType: "application/json",
+        },
+        challenge402: {},
+      });
+
+      const [first] = await db.insert(x402L1Purchases).values(mkPurchase('{"k":1}', 10, "no_declaration")).returning();
+      const [second] = await db
+        .insert(x402L1Purchases)
+        .values(mkPurchase('{"k":1,"extra":2}', 5, "no_declaration"))
+        .returning();
+
+      // 古い行に v1 を手書き（再処理対象）
+      await db.execute(sql`
+        UPDATE x402_l1_purchases
+        SET raw_response_meta = raw_response_meta || jsonb_build_object('answerCheck', jsonb_build_object(
+          'checked', true, 'outcome', 'unknown', 'reason', 'nothing_to_check', 'checks', '[]'::jsonb, 'verdicts', '[]'::jsonb
+        ))
+        WHERE id = ${second!.id}::uuid
+      `);
+
+      const up = await runAnswerCheckCron({ batchSize: 10, budgetMs: 30_000 });
+      assert.equal(up.written, 2);
+
+      const rawSecond = await db.execute(sql`
+        SELECT raw_response_meta FROM x402_l1_purchases WHERE id = ${second!.id}::uuid
+      `);
+      const meta2 = (
+        (Array.isArray(rawSecond) ? rawSecond : (rawSecond as { rows: unknown[] }).rows)[0] as {
+          raw_response_meta: Record<string, unknown>;
+        }
+      ).raw_response_meta;
+      assert.equal((meta2.answerCheck as Record<string, unknown>).version, 2);
+      assert.equal((meta2.answerCheck as Record<string, unknown>).shapeBaseline, "same");
+      assert.equal(meta2.phase, "paid");
+
+      const rawFirst = await db.execute(sql`
+        SELECT raw_response_meta->'answerCheck' AS ac FROM x402_l1_purchases WHERE id = ${first!.id}::uuid
+      `);
+      const ac1 = (
+        (Array.isArray(rawFirst) ? rawFirst : (rawFirst as { rows: unknown[] }).rows)[0] as {
+          ac: Record<string, unknown>;
+        }
+      ).ac;
+      assert.equal(ac1.reason, "nothing_to_check");
+      const shapeV = (ac1.verdicts as { check: string; reason: string }[]).find((v) => v.check === "shape_drift");
+      assert.equal(shapeV?.reason, "baseline");
+
+      const again = await runAnswerCheckCron({ batchSize: 10, budgetMs: 30_000 });
+      assert.equal(again.written, 0);
+
+      const stats = await readL1AnswerCheckStats(30);
+      assert.ok(stats.checked >= 1);
+      assert.ok(stats.shapeSame >= 1);
+      assert.equal(stats.shapeChanged, 0);
+    });
+
+    // 2026-11-18 第三者点検: 最古の候補が使えない（壊れた JSON）とき、次に古い候補を基準にする。
+    await t.test("B4: the oldest unusable candidate is skipped for the next one", async () => {
+      await db.execute(sql`TRUNCATE x402_l1_purchases, x402_endpoints CASCADE`);
+      const [ep] = await db
+        .insert(x402Endpoints)
+        .values({ resourceKey: "https://shape-next.example/api", resourceUrl: "https://shape-next.example/api", status: "active" })
+        .returning();
+      const mk = (body: string, daysAgo: number) => ({
+        endpointId: ep!.id,
+        status: "settled" as const,
+        spentUnits: "1000",
+        httpStatusPaid: 200,
+        l2Schema: "no_declaration",
+        attemptedAt: new Date(Date.now() - daysAgo * 86_400_000),
+        rawResponseMeta: { phase: "paid", bodyHead: body, bodyBytes: Buffer.byteLength(body), contentType: "application/json" },
+        challenge402: {},
+      });
+      await db.insert(x402L1Purchases).values(mk('{"k":', 12));
+      await db.insert(x402L1Purchases).values(mk('{"k":1}', 10));
+      const [last] = await db.insert(x402L1Purchases).values(mk('{"k":2}', 2)).returning();
+      await runAnswerCheckCron({ batchSize: 10, budgetMs: 30_000 });
+      const raw = await db.execute(sql`SELECT raw_response_meta->'answerCheck' AS ac FROM x402_l1_purchases WHERE id = ${last!.id}::uuid`);
+      const ac = ((Array.isArray(raw) ? raw : (raw as { rows: unknown[] }).rows)[0] as { ac: Record<string, unknown> }).ac;
+      assert.equal(ac.shapeBaseline, "same");
     });
   });
 }

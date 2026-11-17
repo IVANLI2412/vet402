@@ -1029,6 +1029,9 @@ export default async function ObservatoryMethodologyPage() {
           <code>checked</code> is rows with a recorded check; <code>match</code> and <code>mismatch</code> are
           outcomes where vet402 could judge the paid answer; <code>unknown</code> is everything else.{" "}
           <code>checkedShare</code> is <code>checked / settled</code> in that window.
+          Since 2026-11-18, <code>shapeSame</code> and <code>shapeChanged</code> count undeclared listings whose
+          stored body was compared to the first complete 2xx JSON on that endpoint (extra keys allowed; still not
+          counted as <code>match</code>).
         </p>
         {/* 2026-09-29 監査 5 周目: 訂正ログの subject_id と export の行を結べなかった。 */}
         <p className="doc-p">

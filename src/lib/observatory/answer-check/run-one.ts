@@ -1,3 +1,4 @@
+import type { EndpointShapeBaseline } from "./types";
 import { purchaseAnswerCheckOutcome, type PurchaseAnswerCheckResult } from "./outcome";
 import { storedAnswerFromPurchaseRow } from "./purchase-row";
 import { runAnswerChecks } from "./index";
@@ -8,9 +9,12 @@ export type { PurchaseAnswerCheckResult } from "./outcome";
 export type StoredPurchaseAnswerCheck = PurchaseAnswerCheckResult & { verdicts: AnswerVerdict[] };
 
 /** 保存済みの購入行 1 件に答えチェックを走らせ、要約を返す（HTTP・DB 書き込み無し）。 */
-export function checkStoredPurchaseAnswer(row: Parameters<typeof storedAnswerFromPurchaseRow>[0]): StoredPurchaseAnswerCheck {
+export function checkStoredPurchaseAnswer(
+  row: Parameters<typeof storedAnswerFromPurchaseRow>[0],
+  opts?: { endpointBaselines?: Map<string, EndpointShapeBaseline> },
+): StoredPurchaseAnswerCheck {
   const answer = storedAnswerFromPurchaseRow(row);
-  const verdictMap = runAnswerChecks([answer]);
+  const verdictMap = runAnswerChecks([answer], opts);
   const verdicts = verdictMap.get(answer.purchaseId) ?? [];
   const summary = purchaseAnswerCheckOutcome(answer.l2Reading, verdicts);
   return { ...summary, verdicts };

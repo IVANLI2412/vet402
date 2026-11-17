@@ -13,11 +13,13 @@
 // - QR の復号: 台帳には先頭 500 文字しか残らず画像を復元できない。案: 全文を持つ購入時だけ復号し結果を記録。
 // ============================================================
 
-export type { AnswerCheckName, AnswerVerdict, StoredAnswer } from "./types";
+export type { AnswerCheckName, AnswerVerdict, EndpointShapeBaseline, StoredAnswer } from "./types";
 export { completeBodyOf } from "./body";
 export { checkJsonValid } from "./json-valid";
 export { checkDeclaredType } from "./declared-type";
-export { answerShapeOf, checkShapeDrift } from "./shape-drift";
+export { answerShapeOf, checkShapeDrift, judgeShapeDriftWithExternalBaseline } from "./shape-drift";
+export { qualifiesAsEndpointShapeBaseline } from "./baseline";
+export { fetchEndpointShapeBaselines } from "./baseline-fetch";
 export { checkInputEcho } from "./input-echo";
 export { checkBinaryKind } from "./binary-kind";
 export { checkedPurchaseShare } from "./checked-share";
@@ -31,13 +33,21 @@ export {
   readL1AnswerCheckStats,
   type L1AnswerCheckStats,
 } from "./state-aggregate";
-export { answerCheckPayloadOf, runAnswerCheckCron, writeAnswerCheckMeta, type AnswerCheckCronResult } from "./cron";
+export {
+  ANSWER_CHECK_PAYLOAD_VERSION,
+  answerCheckPayloadOf,
+  runAnswerCheckCron,
+  upgradeAnswerCheckMeta,
+  writeAnswerCheckMeta,
+  type AnswerCheckCronResult,
+} from "./cron";
 
 import { checkBinaryKind } from "./binary-kind";
 import { checkDeclaredType } from "./declared-type";
 import { checkInputEcho } from "./input-echo";
 import { checkJsonValid } from "./json-valid";
-import { checkShapeDrift } from "./shape-drift";
+import type { EndpointShapeBaseline } from "./types";
+import { checkShapeDrift, judgeShapeDriftWithExternalBaseline } from "./shape-drift";
 import type { AnswerCheckName, AnswerVerdict, StoredAnswer } from "./types";
 
 const JUDGES: { fn: (a: StoredAnswer) => AnswerVerdict; check: AnswerCheckName }[] = [
@@ -47,10 +57,20 @@ const JUDGES: { fn: (a: StoredAnswer) => AnswerVerdict; check: AnswerCheckName }
   { fn: checkBinaryKind, check: "binary_kind" },
 ];
 
-export function runAnswerChecks(answers: StoredAnswer[]): Map<string, AnswerVerdict[]> {
+export function runAnswerChecks(
+  answers: StoredAnswer[],
+  opts?: { endpointBaselines?: Map<string, EndpointShapeBaseline> },
+): Map<string, AnswerVerdict[]> {
   let shapeMap: Map<string, AnswerVerdict>;
   try {
-    shapeMap = checkShapeDrift(answers);
+    if (opts?.endpointBaselines) {
+      shapeMap = new Map();
+      for (const a of answers) {
+        shapeMap.set(a.purchaseId, judgeShapeDriftWithExternalBaseline(a, opts.endpointBaselines.get(a.endpointKey)));
+      }
+    } else {
+      shapeMap = checkShapeDrift(answers);
+    }
   } catch {
     shapeMap = new Map();
     for (const a of answers) {

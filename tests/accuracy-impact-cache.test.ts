@@ -151,6 +151,8 @@ const sampleObservatoryStats: ObservatoryStats = {
       match: 0,
       mismatch: 0,
       unknown: 0,
+      shapeSame: 0,
+      shapeChanged: 0,
       checkedShare: 0,
     },
   },

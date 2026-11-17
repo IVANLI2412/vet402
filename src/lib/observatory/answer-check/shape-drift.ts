@@ -7,7 +7,7 @@ import {
 } from "@/lib/observatory/l2-check";
 import { completeBodyOf } from "./body";
 import { jsonOutputDeclaredFromChallenge } from "./output-declared";
-import type { AnswerVerdict, StoredAnswer } from "./types";
+import type { AnswerVerdict, EndpointShapeBaseline, StoredAnswer } from "./types";
 
 function isSuccess2xx(httpStatus: number | null): boolean {
   return httpStatus !== null && httpStatus >= 200 && httpStatus <= 299 && httpStatus !== 202;
@@ -145,11 +145,11 @@ function shapeHasDynamicKeys(shape: AnswerShape): boolean {
 function compareToBaseline(
   baseline: AnswerShape,
   current: AnswerShape,
-): { result: "not_applicable"; reason: string; detail: Record<string, unknown> } {
+): { result: "pass" | "fail"; reason: string; detail: Record<string, unknown> } {
   const from = shapeToReadable(baseline);
   const to = shapeToReadable(current);
   if (baseline.kind !== current.kind) {
-    return { result: "not_applicable", reason: "shape_changed", detail: { from, to, typeChanged: true } };
+    return { result: "fail", reason: "shape_changed", detail: { from, to, typeChanged: true } };
   }
   if (baseline.kind === "json_array" && current.kind === "json_array") {
     const baseEmpty = isEmptyArrayShape(baseline);
@@ -159,24 +159,24 @@ function compareToBaseline(
       const curKeys = current.keys ?? {};
       const added = Object.keys(curKeys).filter((k) => !Object.hasOwn(baseKeys, k));
       if (added.length > 0 && Object.keys(baseKeys).every((k) => Object.hasOwn(curKeys, k))) {
-        return { result: "not_applicable", reason: "keys_added", detail: { addedKeys: added } };
+        return { result: "pass", reason: "same_shape", detail: { addedKeys: added } };
       }
-      return { result: "not_applicable", reason: "same_shape", detail: {} };
+      return { result: "pass", reason: "same_shape", detail: {} };
     }
     const baseObj = baseline.keys !== undefined;
     const curObj = current.keys !== undefined;
     if (baseObj !== curObj) {
-      return { result: "not_applicable", reason: "shape_changed", detail: { from, to, typeChanged: true } };
+      return { result: "fail", reason: "shape_changed", detail: { from, to, typeChanged: true } };
     }
     if (!baseObj && baseline.arrayElem !== current.arrayElem) {
-      return { result: "not_applicable", reason: "shape_changed", detail: { from, to, typeChanged: true } };
+      return { result: "fail", reason: "shape_changed", detail: { from, to, typeChanged: true } };
     }
   }
   const baseKeys = baseline.keys ?? {};
   const curKeys = current.keys ?? {};
   const removed = Object.keys(baseKeys).filter((k) => !Object.hasOwn(curKeys, k));
   if (removed.length > 0) {
-    return { result: "not_applicable", reason: "shape_changed", detail: { from, to, removedKeys: removed } };
+    return { result: "fail", reason: "shape_changed", detail: { from, to, removedKeys: removed } };
   }
   const typeChanges: { key: string; from: JsonKeyType; to: JsonKeyType }[] = [];
   for (const key of Object.keys(baseKeys)) {
@@ -188,19 +188,88 @@ function compareToBaseline(
   }
   if (typeChanges.length > 0) {
     return {
-      result: "not_applicable",
+      result: "fail",
       reason: "shape_changed",
       detail: { from, to, typeChanged: typeChanges },
     };
   }
   const added = Object.keys(curKeys).filter((k) => !Object.hasOwn(baseKeys, k));
   if (added.length > 0) {
-    return { result: "not_applicable", reason: "keys_added", detail: { addedKeys: added } };
+    return { result: "pass", reason: "same_shape", detail: { addedKeys: added } };
   }
   if (shapesEqual(baseline, current)) {
-    return { result: "not_applicable", reason: "same_shape", detail: {} };
+    return { result: "pass", reason: "same_shape", detail: {} };
   }
-  return { result: "not_applicable", reason: "shape_changed", detail: { from, to } };
+  return { result: "fail", reason: "shape_changed", detail: { from, to } };
+}
+
+function undeclaredL2ForShapeDrift(l2Reading: string | null): boolean {
+  return l2Reading === "no_declaration" || l2Reading === "not_checked";
+}
+
+function shapeDriftVerdictFromShapeAndBaseline(
+  a: StoredAnswer,
+  shape: AnswerShape,
+  baseline: AnswerShape | null,
+  baselineId: string | null,
+): AnswerVerdict {
+  const detailBase =
+    baselineId !== null ? { baselinePurchaseId: baselineId } : undefined;
+  if (baseline === null || baselineId === null) {
+    return { check: "shape_drift", result: "not_checked", reason: "no_baseline", ...(detailBase ? { detail: detailBase } : {}) };
+  }
+  if (baselineId === a.purchaseId) {
+    return { check: "shape_drift", result: "not_applicable", reason: "baseline", ...(detailBase ? { detail: detailBase } : {}) };
+  }
+  const cmp = compareToBaseline(baseline, shape);
+  const detail =
+    Object.keys(cmp.detail).length > 0
+      ? { ...cmp.detail, baselinePurchaseId: baselineId }
+      : { baselinePurchaseId: baselineId };
+  return {
+    check: "shape_drift",
+    result: cmp.result,
+    reason: cmp.reason,
+    detail,
+  };
+}
+
+/** 掲載の最初の complete 2xx 応答（DB 基準）と未宣言行を比べる。 */
+export function judgeShapeDriftWithExternalBaseline(
+  a: StoredAnswer,
+  endpointBaseline: EndpointShapeBaseline | null | undefined,
+): AnswerVerdict {
+  if (listingHasDeclaration(a)) {
+    return { check: "shape_drift", result: "not_applicable", reason: "declared" };
+  }
+  if (!undeclaredL2ForShapeDrift(a.l2Reading)) {
+    return { check: "shape_drift", result: "not_applicable", reason: "l2_reading" };
+  }
+  if (!isSuccess2xx(a.httpStatus)) {
+    return { check: "shape_drift", result: "not_applicable", reason: "not_success_2xx" };
+  }
+  if (attemptedAtMs(a.attemptedAt) === null) {
+    return { check: "shape_drift", result: "not_checked", reason: "bad_attempted_at" };
+  }
+  const shape = answerShapeOf(a);
+  if (shape === null) {
+    return { check: "shape_drift", result: "not_checked", reason: "no_full_body" };
+  }
+  const bodyForFailure = completeBodyOf(a);
+  if (
+    shape.kind === "empty" ||
+    shape.kind === "html" ||
+    (bodyForFailure !== null && failureBodyShapeOf(bodyForFailure, a.contentType) !== null)
+  ) {
+    return { check: "shape_drift", result: "not_applicable", reason: "failure_like_body" };
+  }
+  if (shapeHasDynamicKeys(shape)) {
+    return { check: "shape_drift", result: "not_applicable", reason: "dynamic_keys" };
+  }
+  if (!endpointBaseline) {
+    return { check: "shape_drift", result: "not_checked", reason: "no_baseline" };
+  }
+  return shapeDriftVerdictFromShapeAndBaseline(a, shape, endpointBaseline.shape, endpointBaseline.purchaseId);
 }
 
 function listingHasDeclaration(a: StoredAnswer): boolean {
@@ -271,19 +340,8 @@ function judgeOneShapeRow(
       baselineId: a.purchaseId,
     };
   }
-  const cmp = compareToBaseline(baseline, shape);
-  const detail =
-    Object.keys(cmp.detail).length > 0 ? { ...cmp.detail, baselinePurchaseId: baselineId } : { baselinePurchaseId: baselineId };
-  return {
-    verdict: {
-      check: "shape_drift",
-      result: cmp.result,
-      reason: cmp.reason,
-      ...(Object.keys(cmp.detail).length > 0 ? { detail } : {}),
-    },
-    baseline,
-    baselineId,
-  };
+  const verdict = shapeDriftVerdictFromShapeAndBaseline(a, shape, baseline, baselineId);
+  return { verdict, baseline, baselineId };
 }
 
 export function checkShapeDrift(answers: StoredAnswer[]): Map<string, AnswerVerdict> {

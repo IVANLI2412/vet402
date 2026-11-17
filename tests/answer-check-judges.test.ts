@@ -97,7 +97,7 @@ test("shape_drift: 入れ子のキーを最上位と取り違えない", () => {
     mk("n1", "2026-11-01T00:00:00Z", '{"wrap":{"inner":1},"k":1}', 26),
     mk("n2", "2026-11-02T00:00:00Z", '{"wrap":{"other":9},"k":1}', 26),
   ]);
-  assert.equal(m.get("n2")?.result, "not_applicable");
+  assert.equal(m.get("n2")?.result, "pass");
   assert.equal(m.get("n2")?.reason, "same_shape");
 });
 
@@ -122,7 +122,7 @@ test("shape_drift: 402 の JSON 宣言がある掲載は not_applicable declared
   assert.equal(checkShapeDrift([mk("j1")]).get("j1")?.reason, "declared");
 });
 
-test("shape_drift: 基準・同一・キー消失・キー追加はすべて not_applicable", () => {
+test("shape_drift: 基準・同一・キー消失・キー追加は pass/fail", () => {
   const mk = (id: string, at: string, body: string, bytes: number, catalog: unknown = null) =>
     base({ purchaseId: id, attemptedAt: at, bodyHead: body, bodyBytes: bytes, contentType: "application/json", catalogDeclaredSchema: catalog });
   const undeclared = [
@@ -132,14 +132,14 @@ test("shape_drift: 基準・同一・キー消失・キー追加はすべて not
   ];
   const m = checkShapeDrift(undeclared);
   assert.equal(m.get("a1")?.reason, "baseline");
-  assert.equal(m.get("a2")?.result, "not_applicable");
-  assert.equal(m.get("a3")?.result, "not_applicable");
-  assert.equal(m.get("a3")?.reason, "keys_added");
+  assert.equal(m.get("a2")?.result, "pass");
+  assert.equal(m.get("a3")?.result, "pass");
+  assert.equal(m.get("a3")?.reason, "same_shape");
   const removed = checkShapeDrift([
     mk("b1", "2026-11-01T00:00:00Z", '{"a":1,"b":2}', 13),
     mk("b2", "2026-11-02T00:00:00Z", '{"a":1}', 7),
   ]);
-  assert.equal(removed.get("b2")?.result, "not_applicable");
+  assert.equal(removed.get("b2")?.result, "fail");
   assert.equal(removed.get("b2")?.reason, "shape_changed");
   const declared = checkShapeDrift([mk("c1", "2026-11-01T00:00:00Z", '{"x":1}', 7, { properties: { output: { properties: { example: { required: ["x"] } } } } })]);
   assert.equal(declared.get("c1")?.reason, "declared");
@@ -218,8 +218,8 @@ test("shape_drift: attemptedAt は Date.parse で昇順（ミリ秒差でキー�
     mk("ms2", "2026-11-02T00:00:00.001Z", '{"k":1,"extra":2}', 17),
   ]);
   assert.equal(m.get("ms1")?.reason, "baseline");
-  assert.equal(m.get("ms2")?.result, "not_applicable");
-  assert.equal(m.get("ms2")?.reason, "keys_added");
+  assert.equal(m.get("ms2")?.result, "pass");
+  assert.equal(m.get("ms2")?.reason, "same_shape");
 });
 
 test("shape_drift: 読めない attemptedAt は bad_attempted_at", () => {
@@ -229,14 +229,14 @@ test("shape_drift: 読めない attemptedAt は bad_attempted_at", () => {
   assert.equal(m.get("bad1")?.reason, "bad_attempted_at");
 });
 
-test("shape_drift: 配列の先頭がオブジェクトから文字列へ変わったら shape_changed（not_applicable・fail にしない）", () => {
+test("shape_drift: 配列の先頭がオブジェクトから文字列へ変わったら shape_changed（fail・outcome は unknown）", () => {
   const mk = (id: string, at: string, body: string, bytes: number) =>
     base({ purchaseId: id, attemptedAt: at, bodyHead: body, bodyBytes: bytes, contentType: "application/json" });
   const m = checkShapeDrift([
     mk("ar1", "2026-11-01T00:00:00Z", '[{"a":1}]', 9),
     mk("ar2", "2026-11-02T00:00:00Z", '["x"]', 5),
   ]);
-  assert.equal(m.get("ar2")?.result, "not_applicable");
+  assert.equal(m.get("ar2")?.result, "fail");
   assert.equal(m.get("ar2")?.reason, "shape_changed");
 });
 
@@ -440,15 +440,15 @@ test("input_echo: 送った数を含む数でない文字列（size=256 と \"25
   assert.equal(bad.reason, "echo_not_confirmed");
 });
 
-test("shape_drift: constructor キー追加だけは keys_added not_applicable", () => {
+test("shape_drift: constructor キー追加だけは same_shape pass", () => {
   const mk = (id: string, at: string, body: string, bytes: number) =>
     base({ purchaseId: id, attemptedAt: at, bodyHead: body, bodyBytes: bytes, contentType: "application/json" });
   const m = checkShapeDrift([
     mk("co1", "2026-11-01T00:00:00Z", '{"a":1}', 7),
     mk("co2", "2026-11-02T00:00:00Z", '{"a":1,"constructor":"fn"}', 26),
   ]);
-  assert.equal(m.get("co2")?.result, "not_applicable");
-  assert.equal(m.get("co2")?.reason, "keys_added");
+  assert.equal(m.get("co2")?.result, "pass");
+  assert.equal(m.get("co2")?.reason, "same_shape");
 });
 
 test("shape_drift: __proto__ は自分のキーとして形に残る", () => {
@@ -458,8 +458,8 @@ test("shape_drift: __proto__ は自分のキーとして形に残る", () => {
     mk("pr1", "2026-11-01T00:00:00Z", '{"a":1}', 7),
     mk("pr2", "2026-11-02T00:00:00Z", '{"a":1,"__proto__":{"x":1}}', 27),
   ]);
-  assert.equal(m.get("pr2")?.result, "not_applicable");
-  assert.equal(m.get("pr2")?.reason, "keys_added");
+  assert.equal(m.get("pr2")?.result, "pass");
+  assert.equal(m.get("pr2")?.reason, "same_shape");
   assert.ok((m.get("pr2")?.detail?.addedKeys as string[])?.includes("__proto__"));
 });
 
@@ -478,7 +478,7 @@ test("shape_drift: bodyBytes と UTF-8 長が合わなくても 8 バイト PNG 
     });
   const m = checkShapeDrift([mk("bn1", "2026-11-01T00:00:00Z", pngHead), mk("bn2", "2026-11-02T00:00:00Z", jpegHead)]);
   assert.equal(m.get("bn1")?.reason, "baseline");
-  assert.equal(m.get("bn2")?.result, "not_applicable");
+  assert.equal(m.get("bn2")?.result, "fail");
   assert.equal(m.get("bn2")?.reason, "shape_changed");
 });
 
@@ -626,7 +626,10 @@ test("runAnswerChecks: fail を出せる判定器は json_valid・declared_type�
       assert.ok((row.contentType ?? "").toLowerCase().includes("json"));
     }
     assert.ok(!verdicts.some((v) => v.check === "input_echo" && v.result === "fail"));
-    assert.ok(!verdicts.some((v) => v.check === "shape_drift" && v.result === "fail"));
+    const shapeFail = verdicts.find((v) => v.check === "shape_drift" && v.result === "fail");
+    if (shapeFail) {
+      assert.equal(shapeFail.reason, "shape_changed");
+    }
   }
   const j2 = all.get("j2")!.find((v) => v.check === "json_valid")!;
   assert.notEqual(j2.result, "fail");

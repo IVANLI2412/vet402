@@ -609,6 +609,8 @@ if (!TEST_DB) {
         "src/lib/observatory/purchase-evidence.ts",
         // J1: answer-check cron reads challenge_402 in SQL only; no export, no public surface.
         "src/lib/observatory/answer-check/cron.ts",
+        // J1/B4: baseline shape query reads challenge_402 + declared_schema for judges only.
+        "src/lib/observatory/answer-check/baseline-fetch.ts",
       ]);
       const files: string[] = [];
       const walk = (dir: string) => {

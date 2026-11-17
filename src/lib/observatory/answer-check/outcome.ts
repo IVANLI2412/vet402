@@ -2,7 +2,7 @@ import type { AnswerCheckName, AnswerVerdict } from "./types";
 
 const SELLER_FAIL_CHECKS: ReadonlySet<AnswerCheckName> = new Set(["json_valid", "declared_type", "binary_kind"]);
 
-const COUNT_CHECKS: readonly AnswerCheckName[] = ["declared_type", "input_echo", "binary_kind"];
+const COUNT_CHECKS: readonly AnswerCheckName[] = ["declared_type", "input_echo", "binary_kind", "shape_drift"];
 
 export type PurchaseAnswerCheckResult = {
   checked: boolean;
@@ -36,6 +36,10 @@ export function purchaseAnswerCheckOutcome(
   }
   if (l2Reading === "match") {
     return { checked: true, outcome: "match", checks, reason: "l2_match" };
+  }
+  const shapeDriftFail = verdicts.find((v) => v.check === "shape_drift" && v.result === "fail");
+  if (checked && shapeDriftFail) {
+    return { checked: true, outcome: "unknown", checks, reason: "shape_changed" };
   }
   const passes = verdicts.filter((v) => v.result === "pass");
   if (checked && passes.length > 0) {

@@ -16,7 +16,7 @@ function scanFile(path: string) {
   }
 }
 
-const WIRED_ONLY = new Set(["cron.ts", "state-aggregate.ts"]);
+const WIRED_ONLY = new Set(["cron.ts", "state-aggregate.ts", "baseline-fetch.ts"]);
 
 test("answer-check と l2-check に禁止 import と fetch が無い", () => {
   for (const name of readdirSync(answerDir)) {
