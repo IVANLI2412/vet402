@@ -1021,6 +1021,15 @@ export default async function ObservatoryMethodologyPage() {
           today&apos;s rules, the value the record page and the decision use; <code>l2_schema</code> keeps
           the value recorded at the time.
         </p>
+        <p className="doc-p">
+          <strong>Answer check (since 2026-11-17).</strong>{" "}
+          <code>l1.answerCheck</code> on <code>/api/v1/observatory/state</code> counts settled purchases in the
+          last 30 days whose stored body, challenge, and catalog declaration were already re-read offline
+          into <code>raw_response_meta.answerCheck</code> (no new purchases, no new network).{" "}
+          <code>checked</code> is rows with a recorded check; <code>match</code> and <code>mismatch</code> are
+          outcomes where vet402 could judge the paid answer; <code>unknown</code> is everything else.{" "}
+          <code>checkedShare</code> is <code>checked / settled</code> in that window.
+        </p>
         {/* 2026-09-29 監査 5 周目: 訂正ログの subject_id と export の行を結べなかった。 */}
         <p className="doc-p">
           <strong>Joining a correction to its row.</strong> The ledger export&apos;s column{" "}

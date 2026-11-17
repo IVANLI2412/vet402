@@ -603,7 +603,13 @@ if (!TEST_DB) {
     });
 
     await t.test("src の中で 2 列を名指すのは書き手の 3 ファイルだけ。購入の表を丸ごと読む問い合わせも無い", () => {
-      const allowed = new Set(["src/lib/db/schema.ts", "src/lib/observatory/l1-runner.ts", "src/lib/observatory/purchase-evidence.ts"]);
+      const allowed = new Set([
+        "src/lib/db/schema.ts",
+        "src/lib/observatory/l1-runner.ts",
+        "src/lib/observatory/purchase-evidence.ts",
+        // J1: answer-check cron reads challenge_402 in SQL only; no export, no public surface.
+        "src/lib/observatory/answer-check/cron.ts",
+      ]);
       const files: string[] = [];
       const walk = (dir: string) => {
         for (const name of readdirSync(dir)) {

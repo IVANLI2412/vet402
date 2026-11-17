@@ -175,10 +175,15 @@ function catalogOutputOf(declaredSchema: unknown): { requiredKeys: string[]; exa
   const props = (schema?.properties ?? null) as Record<string, unknown> | null;
   const output = (props?.output ?? null) as Record<string, unknown> | null;
   const outputProps = (output?.properties ?? null) as Record<string, unknown> | null;
-  const example = (outputProps?.example ?? null) as Record<string, unknown> | null;
-  const exampleProps = (example?.properties ?? null) as Record<string, unknown> | null;
-  const requiredKeys = Array.isArray(example?.required) ? (example!.required as unknown[]).filter((k): k is string => typeof k === "string") : [];
-  return { requiredKeys, exampleProps };
+  const example = asPlain(outputProps?.example ?? null);
+  if (example) {
+    const fromExample = readOutputNode(example);
+    if (fromExample.requiredKeys.length > 0 || fromExample.exampleProps) {
+      return { requiredKeys: fromExample.requiredKeys, exampleProps: fromExample.exampleProps };
+    }
+  }
+  // 2026-11-17: 見本の無いカタログに宣言を新しく作ることはしない（今まで no_declaration だった掲載に新しい不一致を生まない）。
+  return { requiredKeys: [], exampleProps: null };
 }
 
 /** 第三者の値を、空でないプレーンなオブジェクトとしてだけ受け取る。配列・null・プリミティブ・空は不可。 */
@@ -286,6 +291,19 @@ type LiveSchemaParts = {
 };
 
 /** output ノードから、必須キー・プロパティのスキーマ・見本値を分ける。空の properties は宣言にしない。 */
+const JSON_SCHEMA_DOC_KEYS = new Set([
+  "$schema", "$id", "$ref", "$defs", "definitions", "type", "title", "description", "properties", "required",
+  "additionalProperties", "example", "examples", "items", "enum", "format", "default", "nullable",
+]);
+
+/** 見本が JSON Schema の文書か（項目がすべて Schema の語・type が "object"・properties がオブジェクト）。 */
+function looksLikeJsonSchemaDoc(node: Record<string, unknown>): boolean {
+  const keys = Object.keys(node);
+  if (keys.length === 0 || !keys.every((k) => JSON_SCHEMA_DOC_KEYS.has(k))) return false;
+  if (!asPlain(node.properties)) return false;
+  return node.type === "object" || Array.isArray(node.required);
+}
+
 function readOutputNode(output: Record<string, unknown>): LiveSchemaParts {
   const none: LiveSchemaParts = { requiredKeys: [], exampleProps: null, sample: null };
   const requiredKeys = stringKeys(output.required);
@@ -435,6 +453,21 @@ function resolveOutputDeclaration(
   const catalog = catalogOutputOf(declaredSchema);
   const catalogDeclares = catalog.requiredKeys.length > 0 || !!catalog.exampleProps;
   if (sample) {
+    // 見本そのものが JSON Schema の文書（項目がすべて Schema の語で、type が object）のときだけ Schema として読む。
+    // 本物の答えの見本に properties・required という名の項目がある場合（GeoJSON など）を Schema と取り違えない（2026-11-17 第三者点検）。
+    const fromSample = looksLikeJsonSchemaDoc(sample) ? readOutputNode(sample) : { requiredKeys: [], exampleProps: null, sample: null };
+    if (fromSample.requiredKeys.length > 0 || fromSample.exampleProps) {
+      return {
+        requiredKeys: catalogDeclares ? fromSample.requiredKeys : [],
+        exampleProps: fromSample.exampleProps,
+        source: "live_402",
+        hashOf: "example",
+      };
+    }
+    // Schema の文書に見えるのに項目が読めないときは、見本の項目名（type・properties など）を必須にしない（宣言なしとして扱う）。
+    if (looksLikeJsonSchemaDoc(sample)) {
+      return { requiredKeys: [], exampleProps: null, source: "live_402", hashOf: "example" };
+    }
     return {
       requiredKeys: catalogDeclares ? Object.keys(sample) : [],
       exampleProps: sample,

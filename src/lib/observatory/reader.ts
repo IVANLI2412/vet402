@@ -33,6 +33,7 @@ import { isOperatorExclusionConfigured, operatorExclusionPredicate, operatorMatc
 import { notSellerRetestRequestSourceSql } from "./seller-retest-requests";
 import { chainIdentity, chainLabel, isMainnet, isTestnet, networkFilterIds, toCaip2 } from "./chains";
 import { deliveredPredicate, heldReasonSql, inconclusivePredicate, inconclusiveSettledPredicate, judgedSettledCount } from "./delivery";
+import { emptyL1AnswerCheckStats, readL1AnswerCheckStats, type L1AnswerCheckStats } from "./answer-check/state-aggregate";
 import { l2ReadingLabelOf, l2ReadingOf, type L2Detail } from "./l2-check";
 import {
   settledTier,
@@ -961,6 +962,11 @@ export type ObservatoryStats = {
      * 落とすと和が l1.settled と合わなくなり、分母として使えなくなる。
      */
     byChain: L1ChainStats[];
+    /**
+     * 直近 windowDays の settled 購入のうち、保存済みの答えチェック（raw_response_meta.answerCheck）で
+     * checked=true と記録された行の割合。cron がネットワーク無しで verdict を書いた結果を数える。
+     */
+    answerCheck: L1AnswerCheckStats;
   };
   /**
    * 運営自身（vet402）の endpoint として、上のどの数からも取り除かれた件数。
@@ -1093,6 +1099,7 @@ export async function getObservatoryStats(): Promise<ObservatoryStats> {
       awaitingRereadOldestAttemptAt: null,
       lastAttemptAt: null,
       byChain: [],
+      answerCheck: emptyL1AnswerCheckStats(),
     },
     operatorEndpointsExcluded: 0,
     operatorExclusionConfigured: isOperatorExclusionConfigured(),
@@ -1213,6 +1220,7 @@ export async function getObservatoryStats(): Promise<ObservatoryStats> {
       awaitingRereadOldestAttemptAt: null as string | null,
       lastAttemptAt: null as string | null,
       byChain: [] as L1ChainStats[],
+      answerCheck: emptyL1AnswerCheckStats(),
     };
     try {
       const l1Raw = await db.execute(sql`
@@ -1368,6 +1376,12 @@ export async function getObservatoryStats(): Promise<ObservatoryStats> {
         Array.isArray(lastRaw) ? lastRaw : (lastRaw as { rows?: unknown[] }).rows ?? []
       ) as { last_attempt_at: string | null }[];
       l1.lastAttemptAt = toIsoUtc(lastRows[0]?.last_attempt_at ?? null);
+    } catch (error) {
+      if (!isMissingSchemaError(error)) throw error;
+    }
+
+    try {
+      l1.answerCheck = await readL1AnswerCheckStats();
     } catch (error) {
       if (!isMissingSchemaError(error)) throw error;
     }

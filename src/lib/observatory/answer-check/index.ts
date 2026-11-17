@@ -21,6 +21,17 @@ export { answerShapeOf, checkShapeDrift } from "./shape-drift";
 export { checkInputEcho } from "./input-echo";
 export { checkBinaryKind } from "./binary-kind";
 export { checkedPurchaseShare } from "./checked-share";
+export { purchaseAnswerCheckOutcome, type PurchaseAnswerCheckResult } from "./outcome";
+export { storedAnswerFromPurchaseRow } from "./purchase-row";
+export { checkStoredPurchaseAnswer, type StoredPurchaseAnswerCheck } from "./run-one";
+export {
+  ANSWER_CHECK_WINDOW_DAYS,
+  emptyL1AnswerCheckStats,
+  l1AnswerCheckFromRowCounts,
+  readL1AnswerCheckStats,
+  type L1AnswerCheckStats,
+} from "./state-aggregate";
+export { answerCheckPayloadOf, runAnswerCheckCron, writeAnswerCheckMeta, type AnswerCheckCronResult } from "./cron";
 
 import { checkBinaryKind } from "./binary-kind";
 import { checkDeclaredType } from "./declared-type";

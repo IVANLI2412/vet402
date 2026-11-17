@@ -13,6 +13,12 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-17 — J1: 答えチェックの配線（vet402・保存済み購入のみ）
+
+- **何を**: `checkStoredPurchaseAnswer` が保存済み購入行に `answer-check` 判定器を走らせ、`/api/cron/answer-check` が直近 30 日の settled で `raw_response_meta.answerCheck` を jsonb merge で書く（冪等）。`l1.answerCheck` を `/api/v1/observatory/state` と方法論に公開。`l2-check.ts` で 402 の見本が JSON Schema 文書のとき、カタログ宣言があると `type`/`properties`/`required` を欠落キーと誤認していたのを修正（`readOutputNode` で解釈）。
+- **なぜ**: 計画 J1（払った応答の中身を、追加購入なしでチェック可能な割合を上げる）。
+- **試験**: `tests/answer-check-wiring.test.ts`, `tests/answer-check.pg.test.ts`, `tests/l2-declaration-priority.test.ts`（回帰）。
+- **影響**: export.csv 列は変更なし。l1-runner の購入経路は触っていない。
 ## 2026-11-17 — J4: 判定・check に売り手ホストの返金集計と理由コード
 
 - **What**: `GET /api/v1/resources/{id}/decision`, key-less `/check`, MCP `check_x402_seller`, and daily judgments now carry `refunds` for role=payer: host-level sums of the same payTo refund stats as `/sellers/[host]` (`window_days`, `networks_read`, `read_through`, `failures_counted`, `paid_units`, `refunded_units`, `refund_rate`). When `failures_counted >= 1` and `refund_rate >= 0.5`, an informational `seller_refunded_failures` reason code and explanation are added (effect none; verdict change waits for the 2026-11-30 review). Read failures leave `refunds: null` and keep the recommendation unchanged.

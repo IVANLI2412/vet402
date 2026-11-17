@@ -4056,6 +4056,25 @@ paths:
                           when we last looked. Read it with `spendingHalted`: while the
                           spend is halted these counts do not move, and a quiet day and a
                           halted day are otherwise indistinguishable.
+                      answerCheck:
+                        type: object
+                        description: >-
+                          Settled purchases in the last `windowDays` whose paid answer was
+                          checked offline from data already on the purchase row
+                          (`raw_response_meta.answerCheck`). No new purchases. Since 2026-11-17.
+                        properties:
+                          windowDays: { type: integer }
+                          settled: { type: integer }
+                          checked:
+                            type: integer
+                            description: Rows with `answerCheck.checked` true.
+                          match: { type: integer }
+                          mismatch: { type: integer }
+                          unknown: { type: integer }
+                          checkedShare:
+                            type: number
+                            nullable: true
+                            description: checked divided by settled in the window; null if settled is 0.
                       byChain:
                         type: array
                         description: >-

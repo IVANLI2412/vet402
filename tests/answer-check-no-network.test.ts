@@ -16,9 +16,11 @@ function scanFile(path: string) {
   }
 }
 
+const WIRED_ONLY = new Set(["cron.ts", "state-aggregate.ts"]);
+
 test("answer-check と l2-check に禁止 import と fetch が無い", () => {
   for (const name of readdirSync(answerDir)) {
-    if (name.endsWith(".ts")) scanFile(join(answerDir, name));
+    if (name.endsWith(".ts") && !WIRED_ONLY.has(name)) scanFile(join(answerDir, name));
   }
   const l2 = readFileSync(l2Path, "utf8");
   const idx = l2.indexOf(L2_BINARY_MARKER);

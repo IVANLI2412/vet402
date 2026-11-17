@@ -54,6 +54,15 @@ test("402 の outputSchema に合いカタログに合わない応答は mismatc
   assert.equal(d.declarationSource, "live_402");
 });
 
+test("402 の見本が JSON Schema 文書でも応答が合えば mismatch にしない（カタログ宣言あり）", () => {
+  const catalogSchema = catalog(["price"]);
+  const schemaDoc = { type: "object", properties: { price: { type: "number" } }, required: ["price"] };
+  const d = checkL2Detailed(catalogSchema, '{"price":1}', "application/json", null, schemaDoc);
+  assert.equal(d.status, "match");
+  assert.deepEqual(d.missing, []);
+  assert.equal(d.declarationSource, "live_402");
+});
+
 test("402 にもカタログにも合わない応答は mismatch で declarationSource が live_402", () => {
   const bySample = checkL2Detailed(stale, '{"other":true}', "application/json", null, sample);
   assert.equal(bySample.status, "mismatch");
@@ -135,4 +144,24 @@ test("l1-runner は 402 を先に渡し、mismatch の記録へ declarationSourc
   assert.match(src, /l2Schema = d\.status/);
   assert.match(src, /declarationSource: d\.declarationSource/);
   assert.equal((src.match(/l2Schema = shadow/g) ?? []).length, 0);
+});
+
+// 2026-11-17 第三者点検: 本物の答えの見本に properties・required という項目があっても Schema と読まない。
+test("a real sample with a properties field is compared as a sample, not read as a JSON Schema document", () => {
+  const geo = { type: "Feature", properties: { name: "x" }, geometry: { type: "Point" } };
+  const d = checkL2Detailed(catalog(["type", "properties", "geometry"]), '{"type":"Feature","properties":{"name":"x"}}', "application/json", null, geo);
+  assert.equal(d.status, "mismatch");
+  assert.ok(d.missing.includes("geometry"));
+});
+
+test("a JSON Schema sample without type (required + properties) is read as a schema, not as literal keys", () => {
+  const schemaDoc = { properties: { price: { type: "number" } }, required: ["price"] };
+  const d = checkL2Detailed(catalog(["price"]), '{"price":1}', "application/json", null, schemaDoc);
+  assert.equal(d.status, "match");
+});
+
+test("a schema-looking sample with nothing readable does not require type/properties as keys", () => {
+  const thin = { type: "object", properties: {} as Record<string, unknown> };
+  const d = checkL2Detailed(catalog(["price"]), '{"price":1}', "application/json", null, thin);
+  assert.notEqual(d.status, "mismatch");
 });

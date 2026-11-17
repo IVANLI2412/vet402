@@ -175,6 +175,14 @@
     {
       "path": "/api/cron/close-keyless-week",
       "schedule": "15 0 * * *"
+    },
+    {
+      "path": "/api/cron/answer-check",
+      "schedule": "17 4,10,16 * * *"
+    },
+    {
+      "path": "/api/cron/answer-check",
+      "schedule": "47 7,13,19 * * *"
     }
   ]
 }
