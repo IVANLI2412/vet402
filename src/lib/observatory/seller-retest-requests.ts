@@ -76,6 +76,19 @@ const GOLDSKY_DOMAIN = "edge.goldsky.com";
 /** 本番の Goldsky 9 ルート（2026-10-30 Elliott Charbonneau 依頼）。 */
 export const SELLER_RETEST_REQUESTS: readonly SellerRetestRequest[] = [
   {
+    // 2026-11-17 vet402.com: not a seller request. Brave launched x402 Search on Base (Base announced 11/13);
+    // the CDP Bazaar no longer lists it, so the catalog lane will not buy it. One purchase to record it like any seller.
+    id: "brave-2026-11-17-web-search",
+    requestedOn: "2026-11-17",
+    sellerDomain: "search.agent.s.brave.app",
+    url: "https://search.agent.s.brave.app/res/v1/web/search?q=x402",
+    method: "GET",
+    network: BASE_CAIP2,
+    payTo: "0xFFa76529d7e733C7671190b374819d8eDA2b9D04",
+    expiresOn: "2026-12-17",
+    amountUnits: "5000",
+  },
+  {
     id: "goldsky-2026-10-30-evm-rpc",
     requestedOn: "2026-10-30",
     sellerDomain: GOLDSKY_DOMAIN,

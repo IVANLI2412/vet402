@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+
+## 2026-11-17 one purchase of Brave's x402 Search on Base
+
+- What: `SELLER_RETEST_REQUESTS` gets one entry for `https://search.agent.s.brave.app/res/v1/web/search?q=x402` (Base, 5000 units, payTo pinned from today's 402). It is a vet402 pick, not a seller request: Brave launched x402 Search (Base announced it on Nov 13) and the CDP Bazaar no longer lists the route, so the catalog lane would not buy it.
+- Why: record Brave the same way as any seller. Expires 2026-12-17.
+- Tests: `tests/*retest*.test.ts`.
+- Impact: one purchase of 0.005 USDC within the existing caps.
 ## 2026-11-17 — skill-live: SKILL.md §3 tools/list に diagnose_x402_url を追記
 
 - **何を**: `SKILL.md` の `# live:` ブロック（§3 MCP stdio `tools/list`）の期待ツール名配列と直後の説明を、repo ビルドの 8 ツール（`diagnose_x402_url` 追加後）に合わせた。
