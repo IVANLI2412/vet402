@@ -13,6 +13,12 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-18 — ERC-8004 Check: 鎖の読み取り失敗は 500 でなく 503
+
+- **何を**: `GET /api/v1/erc8004/check` で RPC の読み取りが例外を投げたとき（評価の索引に未登録の新しい評価を全域の getLogs で探し、回数制限に当たった等）、500 ではなく `503 {"error":"chain_unreadable"}`・`Retry-After: 30` を返す。
+- **なぜ**: 11/18 06:10 に vet402 が書いた評価10件が、索引（index-feedback・30分ごと）に入るまで 500 を返していた。
+- **影響**: 成功・入力の誤りの応答は変わらない。
+
 ## 2026-11-18 — J1/B4: 未宣言掲載は最初の答えを形の基準に
 
 - **What**: `answer-check` cron が掲載ごとに全期間で最古の complete 2xx JSON を基準形として取り、L2 未宣言行に `shape_drift`（pass/fail）を走らせる。`answerCheck.version` 2・v1 行の再処理マージ。`l1.answerCheck.shapeSame` / `shapeChanged` を公開。

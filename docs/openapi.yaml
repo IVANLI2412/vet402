@@ -2245,6 +2245,11 @@ paths:
           description: Feedback not found
         "429":
           description: Rate limited
+        "503":
+          description: The chain could not be read right now (`chain_unreadable`); retry after the Retry-After seconds.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ErrorResponse" }
 
   /api/v1/payment-proof:
     post:
@@ -7069,6 +7074,7 @@ components:
             (malformed JSON, failed schema checks, empty/oversized batches, etc.)
             always use `invalid_request`.
           enum:
+            - chain_unreadable
             - invalid_include
             - invalid_week
             - week_required

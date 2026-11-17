@@ -1,3 +1,4 @@
+import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { NextRequest, NextResponse } from "next/server";
 import { publicRateLimit } from "@/lib/api/public-route";
 import { ERC8004_CHECK_CACHE_SECONDS, getErc8004CheckCached } from "@/lib/erc8004-check/cache";
@@ -17,7 +18,17 @@ export async function GET(request: NextRequest) {
   const client = request.nextUrl.searchParams.get("client");
   const feedbackIndex = request.nextUrl.searchParams.get("feedbackIndex");
 
-  const result = await getErc8004CheckCached({ chain, agentId, client, feedbackIndex });
+  let result: Awaited<ReturnType<typeof getErc8004CheckCached>>;
+  try {
+    result = await getErc8004CheckCached({ chain, agentId, client, feedbackIndex });
+  } catch (error) {
+    // 2026-11-18: 鎖の読み取り（RPC の回数制限など）の失敗は 500 ではなく、再試行できる 503 で返す。
+    logServerErrorSafe("erc8004_check", error);
+    return NextResponse.json(
+      { error: "chain_unreadable" },
+      { status: 503, headers: { ...gate.headers, "Cache-Control": "no-store", "Retry-After": "30" } },
+    );
+  }
   if ("error" in result) {
     const status =
       result.error === "feedback_not_found"
