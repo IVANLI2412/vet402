@@ -1,29 +1,15 @@
 import { acquireLeaseFailClosed } from "@/lib/cron/lease-fail-closed";
-import { indexAgentWallets, type AgentWalletIndexResult } from "./agent-wallet-indexer";
+import { type AgentWalletIndexResult } from "./agent-wallet-indexer";
 import { indexOwnerAgents, type OwnerIndexResult } from "./owner-indexer";
-import { indexErc8004Chains, type Erc8004ChainIndexResult } from "./erc8004-chain-indexer";
+import { indexErc8004StateChains, type Erc8004StateIndexResult, DEFAULT_STATE_TIME_BUDGET_MS } from "./erc8004-state-indexer";
+import type { Erc8004ChainIndexResult } from "./erc8004-chain-indexer";
 
 /**
  * `/api/cron/index-owners` の中身（2026-10-31）。所有者索引と WalletSet 索引を、同じ時計・同じ
  * 持ち時間で **並べて** 回す。
  *
- * 以前は所有者 → WalletSet の順に直列だった。所有者の側が持ち時間を食い切ると WalletSet は
- * 1 区切りも進まず、resolver は遅い方の checkpoint しか信じない（agent-resolver.ts の
- * planTailFromCheckpoints）ので、索引は全体として 1 ブロックも前へ出ない。並べれば、どちらも
- * 最初の区切りは必ず試し、それぞれが自分の進んだ所まで checkpoint を残す。
- *
- * 片方が throw しても、もう片方が進んだ分は書かれている。応答は 500 にするが、進んだ側の結果も載せる。
- *
- * 同時に走るのは 1 本だけ（2026-10-31 レビュー M-2）。cron と catch-up スクリプトが重なると、遅れて
- * 走る側が古い区切りの WalletSet を書き戻し（upsert は後に書いた方が勝つ）、checkpoint は GREATEST で
- * 先の方に残るので、その巻き戻りは二度と直らない。l1-purchase・index-settlements と同じ job_leases の
- * 1 文の lease（acquireLeaseFailClosed）を取り、取れなければ何も読まず書かずに lease_held を返す。
- * lease の期限 330 秒は maxDuration（300 秒）より長い。殺された回の lease は期限で切れる。
- *
- * 2026-11-10（要件 3.10）: Ethereum・BNB Chain の ERC-8004 索引（erc8004-chain-indexer.ts）も同じ
- * 時計・同じ lease で並べて回す。鎖の RPC が無ければ skipped。こちらの失敗は chainIndexes に
- * 書くだけで、Base の ok・caughtUp・応答の status は動かさない（catch-up スクリプトは Base の
- * caughtUp でループを止めるので、その意味を変えない）。
+ * 2026-11-17: Ethereum・BNB・Base wallet は eth_getLogs の代わりに状態読み（erc8004-state-indexer.ts）。
+ * Base の owner はログ索引のまま。
  */
 export const IDENTITY_INDEX_LEASE = "index-owners";
 export const IDENTITY_INDEX_LEASE_TTL_SECONDS = 330;
@@ -41,14 +27,30 @@ export type IdentityIndexRunBody = {
   /** この回に checkpoint が進んだブロック数。 */
   blocksAdvanced: { owner: number; wallet: number };
   walletIndex: AgentWalletIndexResult | { error: string };
-  /** Ethereum・BNB Chain の ERC-8004 索引。鎖ごとに ok・skipped・error。 */
-  chainIndexes: Erc8004ChainIndexResult[];
+  /** Ethereum・BNB・Base wallet の状態読み索引。鎖ごとに ok・error。 */
+  chainIndexes: Erc8004ChainIndexResult[] | Erc8004StateIndexResult[];
+  stateIndexes?: Erc8004StateIndexResult[];
 } & Omit<Partial<OwnerIndexResult>, "blocksAdvanced" | "caughtUp">;
 
 const BUDGET_STOPS = new Set(["time_budget", "hard_stop", "write_deadline"]);
 
 function message(reason: unknown): string {
   return reason instanceof Error ? reason.message : String(reason);
+}
+
+function stateToWalletResult(r: Erc8004StateIndexResult): AgentWalletIndexResult | { error: string } {
+  if (r.status !== "ok" || r.chain !== "eip155:8453") return { error: r.status === "error" ? r.error : "no_base_state" };
+  return {
+    fromBlock: r.fromId,
+    toBlock: r.toId,
+    walletSetEvents: 0,
+    upserted: r.walletsWritten,
+    caughtUp: r.caughtUp,
+    blocksAdvanced: r.idsRead,
+    segments: 1,
+    partial: r.partial,
+    ...(r.stoppedBy ? { stoppedBy: r.stoppedBy } : {}),
+  };
 }
 
 export async function runIdentityIndexes(input: {
@@ -68,7 +70,6 @@ export async function runIdentityIndexes(input: {
   try {
     return await runHoldingLease(input);
   } finally {
-    // 自分の holder の行だけ消す（期限切れの後に他の回が取り直していたら触らない）。
     await lease.release();
   }
 }
@@ -83,7 +84,8 @@ async function runHoldingLease(input: {
 }): Promise<{ status: number; body: IdentityIndexRunBody; failures: unknown[] }> {
   const now = input.now ?? Date.now;
   const startedAt = now();
-  const shared = {
+  const stateTimeBudget = Math.min(input.timeBudgetMs ?? DEFAULT_STATE_TIME_BUDGET_MS, DEFAULT_STATE_TIME_BUDGET_MS);
+  const ownerShared = {
     maxBlocks: input.maxBlocks,
     segmentBlocks: input.segmentBlocks,
     timeBudgetMs: input.timeBudgetMs,
@@ -92,36 +94,47 @@ async function runHoldingLease(input: {
     startedAt,
     deps: { now },
   };
+  const stateShared = {
+    timeBudgetMs: stateTimeBudget,
+    startedAt,
+    deps: { now, env: process.env },
+  };
 
-  const [owner, wallet, chains] = await Promise.allSettled([
-    indexOwnerAgents(shared),
-    indexAgentWallets(shared),
-    indexErc8004Chains(shared),
-  ]);
+  const [owner, states] = await Promise.allSettled([indexOwnerAgents(ownerShared), indexErc8004StateChains(stateShared)]);
 
   const ownerResult = owner.status === "fulfilled" ? owner.value : null;
-  const walletResult = wallet.status === "fulfilled" ? wallet.value : null;
+  const stateResults = states.status === "fulfilled" ? states.value : [];
+  const baseState = stateResults.find((r) => r.chain === "eip155:8453");
+  const walletResult = baseState ? stateToWalletResult(baseState) : { error: message(states.status === "rejected" ? states.reason : "state_index_missing") };
+
   const errors = [
     owner.status === "rejected" ? `owner: ${message(owner.reason)}` : null,
-    wallet.status === "rejected" ? `wallet: ${message(wallet.reason)}` : null,
+    states.status === "rejected" ? `state: ${message(states.reason)}` : null,
   ].filter((e): e is string => e !== null);
 
   const body: IdentityIndexRunBody = {
     ok: errors.length === 0,
     ...(errors.length > 0 ? { error: errors.join("; ") } : {}),
     ...(ownerResult ?? {}),
-    caughtUp: Boolean(ownerResult?.caughtUp && walletResult?.caughtUp),
+    caughtUp: Boolean(ownerResult?.caughtUp && "caughtUp" in walletResult && walletResult.caughtUp),
     ownerCaughtUp: ownerResult?.caughtUp ?? false,
-    stoppedByBudget: [ownerResult?.stoppedBy, walletResult?.stoppedBy].some((s) => s !== undefined && BUDGET_STOPS.has(s)),
-    blocksAdvanced: { owner: ownerResult?.blocksAdvanced ?? 0, wallet: walletResult?.blocksAdvanced ?? 0 },
-    walletIndex: walletResult ?? { error: message(wallet.status === "rejected" ? wallet.reason : "unknown") },
-    // indexErc8004Chains は鎖ごとの失敗を中で結果に変えるので、ここで rejected になるのは想定外の時だけ。
-    chainIndexes: chains.status === "fulfilled" ? chains.value : [],
+    stoppedByBudget: [
+      ownerResult?.stoppedBy,
+      "stoppedBy" in walletResult ? walletResult.stoppedBy : undefined,
+      ...stateResults.map((s) => (s.status === "ok" ? s.stoppedBy : undefined)),
+    ].some((s) => s !== undefined && BUDGET_STOPS.has(s)),
+    blocksAdvanced: {
+      owner: ownerResult?.blocksAdvanced ?? 0,
+      wallet: "blocksAdvanced" in walletResult ? walletResult.blocksAdvanced : 0,
+    },
+    walletIndex: walletResult,
+    chainIndexes: stateResults,
+    stateIndexes: stateResults,
   };
 
   return {
     status: errors.length === 0 ? 200 : 500,
     body,
-    failures: [owner, wallet, chains].flatMap((r) => (r.status === "rejected" ? [r.reason] : [])),
+    failures: [owner, states].flatMap((r) => (r.status === "rejected" ? [r.reason] : [])),
   };
 }

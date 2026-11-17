@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-17 — ERC-8004 Identity 状態読み索引（eth_getLogs 代替）
+
+- **何を**: `src/lib/indexer/erc8004-state-indexer.ts` を追加。Multicall3 `aggregate3` で `ownerOf` と `getAgentWallet` を鎖ごとに 500 件ずつ読み、checkpoint `erc8004_state:<caip2>`（`last_block` = 最後に読んだ agent 番号、`last_cursor` = 周回）に保存。200 件連続 revert で周回完了し cursor を 0 に戻す。`runIdentityIndexes` はログ索引（`erc8004-chain-indexer`・Base WalletSet）の代わりに状態読みを呼ぶ（Base owner は従来どおり）。RPC は `ERC8004_STATE_RPC_*`（未設定は publicnode 既定）。`erc8004.byChain` に `stateIndexToken`・`stateSupplyEstimate`・`stateLap` を追加。`index_not_started` は状態読み checkpoint が無いときのみ。
+- **なぜ**: 本番・無料 RPC が広い `eth_getLogs` を拒否し、Ethereum・BNB・Base wallet 索引が進まなかったため。
+- **試験**: `tests/erc8004-state-indexer.test.ts`・`tests/erc8004-state-indexer.pg.test.ts`、既存 erc8004 acceptance の更新。
+- **影響**: `ETHEREUM_RPC_URL` / `BNB_RPC_URL` は決済・旧用途のまま。状態読みは別 env（既定 RPC で cron が動く）。既存 `erc8004_chain_agents`・`agents`・`indexer_checkpoints` の列だけ使用。
+
 ## 2026-11-17 — ERC-8004 段階 W・B・C（Identity 索引・export・鎖外フィードバック）
 
 - **何を（W）**: `scripts/sql/2026-11-17-erc8004-chain-agents.sql` を追加。`npm run check:env` が本番で `ETHEREUM_RPC_URL` / `BNB_RPC_URL` 未設定を WARN（cron `index-owners` が Ethereum・BNB の ERC-8004 索引を skip し、`byChain` が `index_not_started` のままになる理由の切り分け用）。state `erc8004.matchBinding`（owner のみ vs agentWallet も一致した payTo の比）を `erc8004-match.ts` に追加。

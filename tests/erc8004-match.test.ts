@@ -62,6 +62,7 @@ function fakeDb(opts: { checkpoint: bigint | null; matchRows?: MatchRow[]; walle
     execute: async (q: unknown) => {
       if (opts.fail) throw new Error("connect ECONNREFUSED db.internal.example:5432");
       const text = JSON.stringify(q);
+      if (text.includes("last_block::text AS last_block") && text.includes("chain_tip_at_run")) return { rows: [] };
       if (text.includes("scanned_agents") && text.includes("owner_agents oa")) {
         return { rows: [sqlRow(opts.matchRows ?? [], opts.walletRows ?? 0, opts.totals)] };
       }

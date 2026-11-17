@@ -23,6 +23,11 @@ export function erc8004ChainCheckpointScope(caip2: Erc8004ExtraChain): string {
   return `identity_registry:${caip2}`;
 }
 
+/** 状態読み索引の checkpoint（last_block = 読み終えた agent 番号、last_cursor = 周回数）。 */
+export function erc8004StateCheckpointScope(caip2: string): string {
+  return `erc8004_state:${caip2}`;
+}
+
 export type Erc8004ChainAgentChanges = {
   /** 小文字の owner。最後の Transfer の `to`。 */
   owners: { agentId: bigint; owner: string }[];

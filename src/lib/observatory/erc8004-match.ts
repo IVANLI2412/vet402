@@ -23,7 +23,7 @@ import { getDb } from "@/lib/db/client";
 import { getIndexerCheckpoint, OWNER_INDEX_CHECKPOINT } from "@/lib/db/owner-index";
 import {
   ERC8004_EXTRA_CHAINS,
-  erc8004ChainCheckpointScope,
+  erc8004StateCheckpointScope,
   type Erc8004ExtraChain,
 } from "@/lib/db/erc8004-chain-index";
 import { PUBLIC_READ_REVALIDATE } from "./public-read-revalidate";
@@ -63,6 +63,8 @@ export type Erc8004MatchInput =
   | ({ checkedAt: string } & Exclude<Erc8004ChainInput, { error: string }> & {
       /** Ethereum・BNB Chain の読み。渡されない鎖は unavailable（chain_index_not_read）。 */
       extraChains?: Partial<Record<Erc8004ExtraChain, Erc8004ChainInput>>;
+      /** 状態読み索引の進み（byChain の state* フィールド）。 */
+      stateProgress?: Partial<Record<Erc8004ExtraChain | typeof ERC8004_INDEXED_CHAIN, Erc8004StateProgress>>;
       matched_pay_to_owner_only?: number;
       matched_pay_to_wallet_confirmed?: number;
     });
@@ -91,11 +93,20 @@ export type Erc8004Match = {
   settled: number;
 };
 
+export type Erc8004StateProgress = {
+  stateIndexToken: string;
+  stateSupplyEstimate: string | null;
+  stateLap: number;
+};
+
 export type Erc8004ScannedChain = {
   status: "scanned";
   scannedAgents: number;
   matchedAgents: number;
   indexBlock: string;
+  stateIndexToken?: string;
+  stateSupplyEstimate?: string | null;
+  stateLap?: number;
 };
 /** 索引が読めない鎖。数を持たない（0 と書かない）。 */
 export type Erc8004UnavailableChain = { status: "unavailable"; reason: string };
@@ -146,11 +157,19 @@ export function summarizeErc8004Match(input: Erc8004MatchInput): Erc8004MatchSum
     } else {
       const rows = chainMatches(read, chain);
       extraMatches.push(...rows);
+      const prog = input.stateProgress?.[chain];
       extra[chain] = {
         status: "scanned",
         scannedAgents: read.scannedAgents,
         matchedAgents: (read.totals ?? totalsFromRows(rows)).matchedAgents,
         indexBlock: read.indexBlock,
+        ...(prog
+          ? {
+              stateIndexToken: prog.stateIndexToken,
+              stateSupplyEstimate: prog.stateSupplyEstimate,
+              stateLap: prog.stateLap,
+            }
+          : {}),
       };
     }
   }
@@ -179,6 +198,13 @@ export function summarizeErc8004Match(input: Erc8004MatchInput): Erc8004MatchSum
         scannedAgents: input.scannedAgents,
         matchedAgents: totals.matchedAgents,
         indexBlock: input.indexBlock,
+        ...(input.stateProgress?.[ERC8004_INDEXED_CHAIN]
+          ? {
+              stateIndexToken: input.stateProgress[ERC8004_INDEXED_CHAIN]!.stateIndexToken,
+              stateSupplyEstimate: input.stateProgress[ERC8004_INDEXED_CHAIN]!.stateSupplyEstimate,
+              stateLap: input.stateProgress[ERC8004_INDEXED_CHAIN]!.stateLap,
+            }
+          : {}),
       },
       ...extra,
     },
@@ -295,7 +321,7 @@ SELECT
 /**
  * Ethereum・BNB Chain の照合（2026-11-10・要件 3.10）。Base の ERC8004_MATCH_SQL と同じ完全一致・
  * 同じ数え方を、erc8004_chain_agents の 1 つの鎖に当てる。1 鎖 1 往復で、索引の到達点
- * （indexer_checkpoints の identity_registry:<caip2>）も同じ行で返す。
+ * （indexer_checkpoints の erc8004_state:<caip2>）も同じ行で返す。
  * owner と wallet は書き込み側（erc8004-chain-index.ts）で小文字に揃えてあるので lower() を掛けない。
  * {{chain_id}} と {{scope}} は erc8004ChainMatchQuery が bind 引数に置き換える（文字列を埋め込まない）。
  */
@@ -343,7 +369,7 @@ const ERC8004_CHAIN_IDS: Record<Erc8004ExtraChain, number> = { "eip155:1": 1, "e
 
 /** ERC8004_CHAIN_MATCH_SQL_TEXT の {{chain_id}}・{{scope}} を bind 引数にした 1 文。 */
 export function erc8004ChainMatchQuery(chain: Erc8004ExtraChain) {
-  const params: Record<string, unknown> = { chain_id: ERC8004_CHAIN_IDS[chain], scope: erc8004ChainCheckpointScope(chain) };
+  const params: Record<string, unknown> = { chain_id: ERC8004_CHAIN_IDS[chain], scope: erc8004StateCheckpointScope(chain) };
   const parts = ERC8004_CHAIN_MATCH_SQL_TEXT.split(/\{\{(chain_id|scope)\}\}/);
   // split の捕獲で、奇数番目が引数の名前になる。
   return sql.join(parts.map((p, i) => (i % 2 === 1 ? sql`${params[p]}` : sql.raw(p))));
@@ -382,7 +408,7 @@ function chainInputOf(row: Record<string, unknown>) {
 
 /**
  * 1 つの鎖の索引を DB から読む。投げても、その鎖だけが unavailable になり Base は ok のまま。
- * 索引の到達点が無い鎖（ジョブが一度も書いていない・RPC が無くて skipped のまま）は
+ * 状態読みが一度も進んでいない鎖（erc8004_state の checkpoint 行が無い）だけ
  * index_not_started。どちらも数を持たない。
  */
 async function readChainIndex(db: NonNullable<ReturnType<typeof getDb>>, chain: Erc8004ExtraChain): Promise<Erc8004ChainInput> {
@@ -396,6 +422,26 @@ async function readChainIndex(db: NonNullable<ReturnType<typeof getDb>>, chain: 
     logServerErrorSafe(`erc8004_match.${chain}`, error);
     return { error: "query_failed" };
   }
+}
+
+async function readErc8004StateProgress(
+  db: NonNullable<ReturnType<typeof getDb>>,
+  caip2: string,
+): Promise<Erc8004StateProgress | null> {
+  const scope = erc8004StateCheckpointScope(caip2);
+  const rows = rowsOf(
+    await db.execute(sql`
+      SELECT last_block::text AS last_block, chain_tip_at_run::text AS supply, last_cursor
+      FROM indexer_checkpoints WHERE scope = ${scope}
+    `),
+  );
+  const row = rows[0];
+  if (!row || row.last_block == null) return null;
+  return {
+    stateIndexToken: String(row.last_block),
+    stateSupplyEstimate: row.supply != null ? String(row.supply) : null,
+    stateLap: Number.parseInt(String(row.last_cursor ?? "0"), 10) || 0,
+  };
 }
 
 /** DB から読んで要約する。投げた例外は unavailable の入力に変える。 */
@@ -413,6 +459,12 @@ export async function readErc8004Match(): Promise<Erc8004MatchSummary> {
     const entries = await Promise.all(
       ERC8004_EXTRA_CHAINS.map(async (chain) => [chain, await readChainIndex(db, chain)] as const),
     );
+    const progressEntries = await Promise.all(
+      [ERC8004_INDEXED_CHAIN, ...ERC8004_EXTRA_CHAINS].map(async (chain) => [chain, await readErc8004StateProgress(db, chain)] as const),
+    );
+    const stateProgress = Object.fromEntries(progressEntries.filter(([, p]) => p !== null)) as Partial<
+      Record<Erc8004ExtraChain | typeof ERC8004_INDEXED_CHAIN, Erc8004StateProgress>
+    >;
 
     return summarizeErc8004Match({
       checkedAt,
@@ -421,6 +473,7 @@ export async function readErc8004Match(): Promise<Erc8004MatchSummary> {
       matched_pay_to_owner_only: Number(row.matched_pay_to_owner_only ?? 0),
       matched_pay_to_wallet_confirmed: Number(row.matched_pay_to_wallet_confirmed ?? 0),
       extraChains: Object.fromEntries(entries),
+      stateProgress,
     });
   } catch (error) {
     // 公開の reason は固定の語だけ。DB の文言（接続先など）は外に出さずログへ。

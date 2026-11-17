@@ -40,6 +40,16 @@ const OWNER_OF_ABI = [
   },
 ] as const;
 
+const GET_AGENT_WALLET_ABI = [
+  {
+    type: "function",
+    name: "getAgentWallet",
+    stateMutability: "view",
+    inputs: [{ name: "agentId", type: "uint256" }],
+    outputs: [{ name: "", type: "address" }],
+  },
+] as const;
+
 export const ZERO = "0x0000000000000000000000000000000000000000" as Address;
 
 export type FakeLogKind = "registered" | "transfer" | "walletSet";
@@ -54,6 +64,8 @@ export type FakeChain = {
   logs: FakeLog[];
   /** ownerOf の今の答え。無い id は revert（燃やした token と同じ）。 */
   owners: Map<bigint, Address>;
+  /** getAgentWallet の今の答え。無い id は revert。 */
+  wallets?: Map<bigint, Address>;
 };
 
 export type GetLogsCall = { kind: FakeLogKind; from: bigint; to: bigint };
@@ -145,10 +157,21 @@ export async function startFakeIdentityRpc(chain: FakeChain, registry: Address):
         }
         const inner = decoded.args[0] as readonly { target: Address; allowFailure: boolean; callData: Hex }[];
         const results = inner.map((c) => {
-          const { args } = decodeFunctionData({ abi: OWNER_OF_ABI, data: c.callData });
-          const owner = chain.owners.get(args[0]);
-          if (!owner) return { success: false, returnData: "0x" as Hex };
-          return { success: true, returnData: encodeFunctionResult({ abi: OWNER_OF_ABI, functionName: "ownerOf", result: owner }) };
+          const decoded = decodeFunctionData({ abi: [...OWNER_OF_ABI, ...GET_AGENT_WALLET_ABI], data: c.callData });
+          if (decoded.functionName === "ownerOf") {
+            const owner = chain.owners.get(decoded.args[0] as bigint);
+            if (!owner) return { success: false, returnData: "0x" as Hex };
+            return { success: true, returnData: encodeFunctionResult({ abi: OWNER_OF_ABI, functionName: "ownerOf", result: owner }) };
+          }
+          if (decoded.functionName === "getAgentWallet") {
+            const wallet = chain.wallets?.get(decoded.args[0] as bigint);
+            if (!wallet) return { success: false, returnData: "0x" as Hex };
+            return {
+              success: true,
+              returnData: encodeFunctionResult({ abi: GET_AGENT_WALLET_ABI, functionName: "getAgentWallet", result: wallet }),
+            };
+          }
+          return { success: false, returnData: "0x" as Hex };
         });
         return ok(encodeFunctionResult({ abi: multicall3Abi, functionName: "aggregate3", result: results }));
       }

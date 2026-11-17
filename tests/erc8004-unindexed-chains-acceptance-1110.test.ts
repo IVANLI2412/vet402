@@ -26,12 +26,9 @@ import {
   ERC8004_CHAIN_MATCH_SQL_TEXT,
   ERC8004_EXTRA_CHAINS,
 } from "@/lib/observatory/erc8004-match";
-import {
-  foldErc8004ChainLogs,
-  indexErc8004Chain,
-  ERC8004_CHAIN_TARGETS,
-} from "@/lib/indexer/erc8004-chain-indexer";
-import { erc8004ChainCheckpointScope } from "@/lib/db/erc8004-chain-index";
+import { foldStateMulticallBatch, indexErc8004StateChain, ERC8004_STATE_TARGETS } from "@/lib/indexer/erc8004-state-indexer";
+import { erc8004StateCheckpointScope } from "@/lib/db/erc8004-chain-index";
+import type { Hex } from "viem";
 
 after(() => __setDbForTests(null));
 
@@ -119,12 +116,15 @@ test("3.10 row 3: readErc8004Match reads the chain index from the DB and says un
     execute: async (q: unknown) => {
       const text = JSON.stringify(q);
       queries.push(text);
+      if (text.includes("last_block::text AS last_block") && text.includes("chain_tip_at_run")) {
+        return { rows: [] };
+      }
       if (text.includes("owner_agents oa")) {
         return { rows: [{ scanned_agents: "40", wallet_rows: 0, matched_agents: 0, matched_pay_to: 0, matched_purchases: "0", matched_settled: "0", top: [] }] };
       }
       if (text.includes("erc8004_chain_agents")) {
         // eip155:1 は索引の到達点が無い（ジョブが一度も走っていない）。eip155:56 は走査済み。
-        const chain1 = text.includes(`"${erc8004ChainCheckpointScope("eip155:1")}"`);
+        const chain1 = text.includes(`"${erc8004StateCheckpointScope("eip155:1")}"`);
         return {
           rows: [
             chain1
@@ -152,6 +152,7 @@ test("3.10 row 3: a failed chain query is unavailable for that chain only and Ba
     select: () => ({ from: () => ({ where: () => ({ limit: async () => [{ lastBlock: 1n }] }) }) }),
     execute: async (q: unknown) => {
       const text = JSON.stringify(q);
+      if (text.includes("last_block::text AS last_block") && text.includes("chain_tip_at_run")) return { rows: [] };
       if (text.includes("owner_agents oa")) {
         return { rows: [{ scanned_agents: "40", wallet_rows: 0, matched_agents: 0, matched_pay_to: 0, matched_purchases: "0", matched_settled: "0", top: [] }] };
       }
@@ -177,37 +178,25 @@ test("3.10 row 5: the chain match query is exact address equality on owner or ag
   }
 });
 
-test("3.10 row 5: the index stores the exact owner and agentWallet from the chain's own events", () => {
-  const T = (from: string, to: string, tokenId: bigint, blockNumber: bigint, logIndex = 0) => ({
-    args: { from: from as Address, to: to as Address, tokenId },
-    blockNumber,
-    logIndex,
-  });
-  const W = (agentId: bigint, wallet: string, blockNumber: bigint, logIndex = 0) => ({
-    args: { agentId, wallet: wallet as Address },
-    blockNumber,
-    logIndex,
-  });
-  const mixed = `0x${"Aa".repeat(20)}`;
-  const folded = foldErc8004ChainLogs(
-    [
-      T(A, B, 1n, 11n), // 後の移転が勝つ（並びは逆に渡す）
-      T(zeroAddress, mixed, 1n, 10n), // mint
-      T(zeroAddress, A, 2n, 10n, 1),
-      T(zeroAddress, B, 3n, 10n, 2),
-      T(B, zeroAddress, 3n, 12n), // burn
+test("3.10 row 5: the state index stores exact lowercase owner and agentWallet from chain reads", () => {
+  const mixed = `0x${"Aa".repeat(20)}` as Address;
+  const ownerWord = `0x000000000000000000000000${mixed.slice(2)}` as Hex;
+  const rows = foldStateMulticallBatch(
+    [1n, 2n],
+  [
+      { success: true, returnData: ownerWord },
+      { success: true, returnData: `0x000000000000000000000000${B.slice(2)}` as Hex },
     ],
-    [W(2n, B, 13n), W(2n, A, 14n), W(1n, zeroAddress, 15n)],
+    [
+      { success: true, returnData: "0x" as Hex },
+      { success: true, returnData: `0x000000000000000000000000${A.slice(2)}` as Hex },
+    ],
+    "full",
   );
-  const owners = new Map(folded.changes.owners.map((o) => [o.agentId.toString(), o.owner]));
-  assert.equal(owners.get("1"), B, "the last Transfer wins");
-  assert.equal(owners.get("2"), A.toLowerCase());
-  assert.equal(owners.has("3"), false);
-  assert.deepEqual(folded.changes.burned, [3n]);
-  const wallets = new Map(folded.changes.wallets.map((w) => [w.agentId.toString(), w.wallet]));
-  assert.equal(wallets.get("2"), A, "the last WalletSet wins");
-  assert.equal(wallets.get("1"), null, "a zero agentWallet clears the binding");
-  for (const o of folded.changes.owners) assert.equal(o.owner, o.owner.toLowerCase());
+  assert.equal(rows[0]!.owner?.toLowerCase(), mixed.toLowerCase());
+  assert.equal(rows[0]!.wallet, null);
+  assert.equal(rows[1]!.owner?.toLowerCase(), B);
+  assert.equal(rows[1]!.wallet?.toLowerCase(), A);
 });
 
 // ---- 行 6 -----------------------------------------------------------
@@ -228,83 +217,76 @@ test("3.10 row 6: the request path reads the DB only", () => {
 
 test("3.10 row 6: the index job is what reads the chain, inside runIdentityIndexes", () => {
   const run = readFileSync("src/lib/indexer/identity-index-run.ts", "utf8");
-  assert.match(run, /indexErc8004Chains\(/);
+  assert.match(run, /indexErc8004StateChains\(/);
   assert.deepEqual(
-    ERC8004_CHAIN_TARGETS.map((t) => [t.caip2, t.chainId, t.rpcEnv]),
+    ERC8004_STATE_TARGETS.filter((t) => t.mode === "full").map((t) => [t.caip2, t.chainId, t.rpcEnv]),
     [
-      ["eip155:1", 1, "ETHEREUM_RPC_URL"],
-      ["eip155:56", 56, "BNB_RPC_URL"],
+      ["eip155:1", 1, "ERC8004_STATE_RPC_ETHEREUM"],
+      ["eip155:56", 56, "ERC8004_STATE_RPC_BNB"],
     ],
   );
 });
 
-test("3.10 row 6: without the chain's RPC the job does not read, write or move the checkpoint", async () => {
-  const target = ERC8004_CHAIN_TARGETS.find((t) => t.caip2 === "eip155:1")!;
-  let touched = 0;
-  const r = await indexErc8004Chain(target, {
+test("3.10 row 6: the state indexer takes RPC from ERC8004_STATE_RPC_* (defaults when unset)", async () => {
+  const target = ERC8004_STATE_TARGETS.find((t) => t.caip2 === "eip155:1")!;
+  let rpcUrl = "";
+  const r = await indexErc8004StateChain(target, {
+    maxIds: 0,
     deps: {
-      env: {},
-      makeClient: () => {
-        touched++;
-        throw new Error("not reached");
+      env: { ERC8004_STATE_RPC_ETHEREUM: "http://127.0.0.1:1" },
+      makeClient: (_t, url) => {
+        rpcUrl = url;
+        return {} as never;
       },
-      getCheckpoint: async () => {
-        touched++;
-        return null;
-      },
-      setCheckpoint: async () => {
-        touched++;
-      },
-      applyChanges: async () => {
-        touched++;
-      },
+      getCheckpoint: async () => null,
+      getCheckpointMeta: async () => null,
+      setCheckpoint: async () => {},
+      aggregate3: async () => ({ rows: [], ownerResults: [], walletResults: [] }),
+      applyChain: async () => {},
+      applyWallets: async () => {},
     },
   });
-  assert.deepEqual(r, { chain: "eip155:1", status: "skipped", reason: "ETHEREUM_RPC_URL_unset" });
-  assert.equal(touched, 0);
+  assert.equal(r.status, "ok");
+  assert.equal(rpcUrl, "http://127.0.0.1:1");
 });
 
-test("3.10 row 6: with an RPC the job scans from the floor, writes the fold and moves its own checkpoint", async () => {
-  const target = ERC8004_CHAIN_TARGETS.find((t) => t.caip2 === "eip155:56")!;
+test("3.10 row 6: the state job reads ids, writes rows and moves erc8004_state checkpoint", async () => {
+  const target = ERC8004_STATE_TARGETS.find((t) => t.caip2 === "eip155:56")!;
   const writes: unknown[] = [];
   const checkpoints: [string, bigint][] = [];
-  const fakeClient = {
-    chain: { id: 56 },
-    transport: { url: "https://bnb.example" },
-    // tip 1,000,114 から確定待ち 64 を引いた 1,000,050 まで読む。
-    getBlockNumber: async () => 1_000_114n,
-    getLogs: async (args: { events?: { name?: string }[]; fromBlock: bigint; toBlock: bigint }) => {
-      assert.deepEqual(args.events?.map((e) => e.name), ["Transfer", "WalletSet"]);
-      assert.ok(args.toBlock <= 1_000_050n, "never past the confirmed tip");
-      if (args.fromBlock <= 1_000_010n && args.toBlock >= 1_000_010n) {
-        return [{ eventName: "Transfer", args: { from: zeroAddress, to: A, tokenId: 9n }, blockNumber: 1_000_010n, logIndex: 0 }];
-      }
-      return [];
-    },
-  };
-  const r = await indexErc8004Chain(target, {
-    segmentBlocks: 1_000n,
+  const ownerWord = `0x000000000000000000000000${A.slice(2)}` as Hex;
+  const r = await indexErc8004StateChain(target, {
+    maxIds: 2,
     deps: {
-      env: { BNB_RPC_URL: "https://bnb.example", ERC8004_BNB_FROM_BLOCK: "1000000" },
+      env: { ERC8004_STATE_RPC_BNB: "https://bnb.example" },
       now: () => 0,
-      makeClient: () => fakeClient as never,
+      makeClient: () => ({}) as never,
       getCheckpoint: async () => null,
+      getCheckpointMeta: async () => null,
       setCheckpoint: async (scope, last) => {
         checkpoints.push([scope, last]);
       },
-      applyChanges: async (chainId, changes) => {
+      aggregate3: async (_c, ids) => {
+        const ownerResults = ids.map(() => ({ success: true, returnData: ownerWord }));
+        const walletResults = ids.map(() => ({ success: true, returnData: "0x" as Hex }));
+        return {
+          rows: foldStateMulticallBatch(ids, ownerResults, walletResults, "full"),
+          ownerResults,
+          walletResults,
+        };
+      },
+      applyChain: async (chainId, changes) => {
         writes.push([chainId, changes]);
       },
+      applyWallets: async () => {},
     },
   });
   assert.equal(r.status, "ok");
   if (r.status !== "ok") return;
-  assert.equal(r.fromBlock, "1000000");
-  assert.equal(r.toBlock, "1000050");
-  assert.equal(r.caughtUp, true);
-  assert.equal(r.transferEvents, 1);
-  assert.deepEqual(checkpoints.at(-1), ["identity_registry:eip155:56", 1_000_050n]);
-  assert.deepEqual(writes, [[56, { owners: [{ agentId: 9n, owner: A }], burned: [], wallets: [] }]]);
+  assert.equal(r.fromId, "1");
+  assert.equal(r.ownersWritten, 2);
+  assert.deepEqual(checkpoints.at(-1), [erc8004StateCheckpointScope("eip155:56"), 2n]);
+  assert.ok(writes.length >= 1);
 });
 
 // ---- 行 7 -----------------------------------------------------------
@@ -345,7 +327,7 @@ test("3.10 row 8: the Base return is unchanged by the two new chains", () => {
 test("3.10 rows 8 and 9: no Floor, Merkle 2-of-3, MoltForest 23,419, Base target number or purchase lane in the new code", () => {
   const files = [
     "src/lib/observatory/erc8004-match.ts",
-    "src/lib/indexer/erc8004-chain-indexer.ts",
+    "src/lib/indexer/erc8004-state-indexer.ts",
     "src/lib/db/erc8004-chain-index.ts",
   ];
   for (const f of files) {

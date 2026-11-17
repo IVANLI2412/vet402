@@ -228,19 +228,11 @@ export function collectProductionEnvIssues(): ProductionEnvIssue[] {
     });
   }
 
-  if (!process.env.ETHEREUM_RPC_URL?.trim()) {
-    issues.push({
-      level: "warn",
-      message:
-        "ETHEREUM_RPC_URL is not set — /api/cron/index-owners skips the Ethereum ERC-8004 chain index; state erc8004.byChain eip155:1 stays index_not_started",
-    });
-  }
-
   if (!process.env.BNB_RPC_URL?.trim()) {
     issues.push({
       level: "warn",
       message:
-        "BNB_RPC_URL is not set — /api/cron/index-owners skips the BNB Chain ERC-8004 chain index and BNB settlement indexing; state erc8004.byChain eip155:56 stays index_not_started",
+        "BNB_RPC_URL is not set — BNB settlement indexing and BNB verify reads are skipped (ERC-8004 state read uses ERC8004_STATE_RPC_BNB or publicnode by default)",
     });
   }
 

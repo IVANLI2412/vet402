@@ -21,7 +21,7 @@ if (!TEST_DB) {
     const { getDb } = await import("@/lib/db/client");
     const { sql } = await import("drizzle-orm");
     const { readErc8004Match } = await import("@/lib/observatory/erc8004-match");
-    const { applyErc8004ChainAgentChanges, erc8004ChainCheckpointScope } = await import("@/lib/db/erc8004-chain-index");
+    const { applyErc8004ChainAgentChanges, erc8004StateCheckpointScope } = await import("@/lib/db/erc8004-chain-index");
     const db = getDb()!;
 
     const owner = "0xabcdef0000000000000000000000000000000001";
@@ -30,9 +30,9 @@ if (!TEST_DB) {
     const endpoint = "00000000-0000-4000-8000-000000008005";
 
     await db.execute(sql`TRUNCATE x402_l1_purchases, owner_agents, agents, erc8004_chain_agents`);
-    await db.execute(sql`DELETE FROM indexer_checkpoints WHERE scope LIKE 'identity_registry%'`);
+    await db.execute(sql`DELETE FROM indexer_checkpoints WHERE scope LIKE 'identity_registry%' OR scope LIKE 'erc8004_state%'`);
     await db.execute(sql`INSERT INTO indexer_checkpoints (scope, last_block) VALUES ('identity_registry', 123)`);
-    await db.execute(sql`INSERT INTO indexer_checkpoints (scope, last_block) VALUES (${erc8004ChainCheckpointScope("eip155:56")}, 61000000)`);
+    await db.execute(sql`INSERT INTO indexer_checkpoints (scope, last_block) VALUES (${erc8004StateCheckpointScope("eip155:56")}, 61000000)`);
 
     // BNB Chain: agent 5 は owner が完全一致、agent 6 は 1 桁違い、agent 8 は agentWallet が一致。
     // agent 10 は燃やされた（行が消える）。Ethereum には索引の到達点が無い。
@@ -60,7 +60,15 @@ if (!TEST_DB) {
     const s = await readErc8004Match();
     assert.equal(s.status, "ok");
     if (s.status !== "ok") return;
-    assert.deepEqual(s.byChain["eip155:56"], { status: "scanned", scannedAgents: 3, matchedAgents: 2, indexBlock: "61000000" });
+    assert.deepEqual(s.byChain["eip155:56"], {
+      status: "scanned",
+      scannedAgents: 3,
+      matchedAgents: 2,
+      indexBlock: "61000000",
+      stateIndexToken: "61000000",
+      stateSupplyEstimate: null,
+      stateLap: 0,
+    });
     assert.deepEqual(s.byChain["eip155:1"], { status: "unavailable", reason: "index_not_started" });
     const bnb = s.matches.filter((m) => m.chainId === "eip155:56").map((m) => [m.agentId, m.payTo, m.matchKind]).sort();
     assert.deepEqual(bnb, [["5", owner, "owner"], ["8", wallet, "agent_wallet"]]);
