@@ -102,9 +102,18 @@ async function fetchState(stateUrl: string): Promise<StateErc8004> {
 
 async function fetchWeeklyCanonical(siteOrigin: string, agentId: string, week: string): Promise<string> {
   const url = weeklyFeedbackUri(siteOrigin, agentId, week);
-  const res = await fetch(url, { headers: { accept: "application/json" } });
-  if (!res.ok) throw new Error(`weekly_http_${res.status}`);
-  return res.text();
+  // 公開の上限（429）に当たったら Retry-After（無ければ 15 秒）待って取り直す。11/17 の空実行で 89 件中 38 件が 429 だった。
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const res = await fetch(url, { headers: { accept: "application/json" } });
+    if (res.status === 429) {
+      const wait = Math.min(Math.max(Number(res.headers.get("retry-after")) || 15, 1), 65);
+      await new Promise((r) => setTimeout(r, wait * 1000));
+      continue;
+    }
+    if (!res.ok) throw new Error(`weekly_http_${res.status}`);
+    return res.text();
+  }
+  throw new Error("weekly_http_429");
 }
 
 function makePublicClient(rpcUrl: string) {
@@ -275,7 +284,11 @@ async function main() {
 
   const db = process.env.DATABASE_URL ? getDb() : null;
   const client = skipRpc ? null : makePublicClient(rpcUrl);
-  const maxFee = parseGwei(String(process.env.REGISTRY_MAX_FEE_GWEI ?? DEFAULT_MAX_FEE_GWEI));
+  const feeCeiling = parseGwei(String(process.env.REGISTRY_MAX_FEE_GWEI ?? DEFAULT_MAX_FEE_GWEI));
+  // 予算と送信の上限は「今の gasPrice の 3 倍」と上限の小さい方（11/17 実測: Base 0.006 gwei に対し上限 0.5 gwei は 80 倍で、
+  // 予算 0.0005 ETH が 4 件で尽きた）。
+  const gasPriceNow = client ? await client.getGasPrice() : feeCeiling;
+  const maxFee = gasPriceNow * 3n < feeCeiling ? gasPriceNow * 3n : feeCeiling;
 
   let gasBudget = ERC8004_ATTEST_MAX_GAS_WEI;
   const plans: AttestAgentPlan[] = [];
@@ -376,6 +389,8 @@ async function main() {
       planned: plans.length,
       skipped,
       gasBudgetRemainingWei: gasBudget.toString(),
+      gasBudgetUsedWei: (ERC8004_ATTEST_MAX_GAS_WEI - gasBudget).toString(),
+      maxFeePerGasWei: maxFee.toString(),
       sendAttempted: send && !skipRpc,
     }),
   );
