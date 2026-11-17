@@ -147,8 +147,11 @@ if (!TEST_DB) {
     assert.equal(extLines.length, 3);
 
     const agentIdx = wantHeader.split(",").indexOf("erc8004_agent");
-    const matched = extLines[1]!.split(",");
-    const unmatched = extLines[2]!.split(",");
+    // 2 行は同じ attempted_at なので並びは決まらない。tx_hash で引く。
+    const rows = extLines.slice(1).map((l) => l.split(","));
+    const matched = rows.find((r) => r.includes(`0x${"a".repeat(64)}`))!;
+    const unmatched = rows.find((r) => r.includes(`0x${"b".repeat(64)}`))!;
+    assert.ok(matched && unmatched);
     assert.equal(matched[agentIdx], "eip155:8453:94639");
     assert.equal(unmatched[agentIdx], "");
   });
