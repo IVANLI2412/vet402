@@ -108,7 +108,7 @@ test("凍結: `days` だけが許可されたクエリ名（知らない名前�
       }),
     );
     assert.equal(bad.status, 400);
-    assert.deepEqual(await bad.json(), { error: "invalid_query", allowed: ["days"] });
+    assert.deepEqual(await bad.json(), { error: "invalid_query", allowed: ["days", "include"] });
   } finally {
     if (savedDb === undefined) delete process.env.DATABASE_URL;
     else process.env.DATABASE_URL = savedDb;

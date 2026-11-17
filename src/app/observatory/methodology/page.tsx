@@ -1254,9 +1254,11 @@ export default async function ObservatoryMethodologyPage() {
           read that fails says <code>unavailable</code> and carries no counts. When{" "}
           <code>matchBinding</code> is present, <code>ownerOnlyPayTo</code> counts payTo that
           matched an owner but not an agentWallet, and <code>walletConfirmedPayTo</code> counts
-          payTo that matched an agentWallet (the lower mis-binding risk). The ledger export{" "}
-          <code>erc8004_agent</code> column (since 2026-11-17, last column) carries the CAIP agent
-          id for that rule on each purchase row, empty when there is no match. Off-chain feedback
+          payTo that matched an agentWallet (the lower mis-binding risk).           The ledger export can carry an optional{" "}
+          <code>erc8004_agent</code> column (since 2026-11-17) as the last column when requested with{" "}
+          <code>?include=erc8004_agent</code>; it carries the CAIP agent id for that rule on each
+          purchase row, empty when there is no match. The default export without that query keeps the
+          frozen 19 columns. Off-chain feedback
           JSON for matched purchases is at{" "}
           <code>/api/v1/observatory/erc8004/feedback/&#123;purchase_id&#125;</code> (schema{" "}
           <code>ars-evidence/0.1</code>); weekly rollups at{" "}

@@ -149,7 +149,16 @@ async function compareDaysPaths(search: string, ip: string) {
   const ctD = rD.headers.get("content-type") ?? "";
   if (ctL.includes("application/json")) {
     assert.equal(ctD, ctL);
-    assert.deepEqual(await rD.json(), await rL.json());
+    const jL = (await rL.json()) as Record<string, unknown>;
+    const jD = (await rD.json()) as Record<string, unknown>;
+    // 2026-11-17: export.csv だけが ?include=erc8004_agent を受ける（ERC-8004 段階 B・既定の列は不変）。
+    // 未知の引数の誤りで返す allowed は、export が delivery の一覧に include を足した物であること。それ以外は同じ。
+    if (Array.isArray(jL.allowed) && Array.isArray(jD.allowed)) {
+      assert.deepEqual(jL.allowed, [...(jD.allowed as unknown[]), "include"], search);
+      assert.deepEqual({ ...jD, allowed: null }, { ...jL, allowed: null }, search);
+    } else {
+      assert.deepEqual(jD, jL);
+    }
   }
 }
 

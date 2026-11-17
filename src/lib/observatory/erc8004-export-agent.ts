@@ -1,5 +1,5 @@
 // ============================================================
-// export.csv の erc8004_agent 列（2026-11-17・段階 B）。
+// export.csv の任意列 erc8004_agent（2026-11-17・段階 B、`?include=erc8004_agent`）。
 // 一致は段階 A と同じ: payTo と Base の owner_agents / agents.wallet の小文字完全一致。
 // agent_wallet を owner より優先し、複数あれば最小の agent_id。
 // ============================================================

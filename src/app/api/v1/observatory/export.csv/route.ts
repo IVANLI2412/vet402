@@ -6,7 +6,11 @@ import { consumeIpRateLimit, ipRateLimitHeaders, sharedCacheRateLimitHeaders } f
 import { getDb } from "@/lib/db/client";
 import { heldReasonSql } from "@/lib/observatory/delivery";
 import { confirmedUnitsSql, EXPORT_CSV_COLUMN_NOTES, EXPORT_CSV_COLUMNS } from "@/lib/observatory/export-columns";
-import { erc8004AgentColumnSql } from "@/lib/observatory/erc8004-export-agent";
+import {
+  EXPORT_CSV_INCLUDE_ERC8004_AGENT,
+  EXPORT_CSV_QUERY_ALLOWED,
+  ledgerExportCsvShape,
+} from "@/lib/observatory/export-csv-ledger-shape";
 import { requestBodySha256Sql, requestBodyKindSql } from "@/lib/observatory/request-body";
 import { requestQuerySha256Sql, requestQueryKindSql } from "@/lib/observatory/request-query";
 import { settlementSourceSql } from "@/lib/observatory/settlement-source";
@@ -53,7 +57,9 @@ import { withNoindex } from "@/lib/api/public-read-robots";
  * 2026-09-29（監査 5 周目・データ記者）: さらに末尾に 1 列。既存の 17 列は変えていない。
  *   purchase_id           購入の id（UUID）。訂正ログ（/api/v1/observatory/corrections）の subject_id と結ぶ鍵。
  *
- * 2026-09-29（監査 6 周目）: クエリは `days` だけ（知らない名前・重複は 400——`?cb=<乱数>` で CDN を迂回させない）。
+ * 2026-11-17（段階 B）: `?include=` で任意の末尾列を足せる（export-csv-ledger-shape.ts）。既定の 19 列は変えない。
+ *
+ * 2026-09-29（監査 6 周目）: クエリは `days` と任意の `include`（知らない名前・重複は 400——`?cb=<乱数>` で CDN を迂回させない）。
  * days は 10 進の整数だけ（`90.5`・`1e2` は 400）。1..366 の外と先頭の 0 は正規の値へ 308 で送る（キャッシュのキーを
  * 正規の 366 通り＋無指定に絞る）。DB を読むのは export 全体で同時に 1 本（export-guard.ts）。セルは csv-write.ts の
  * csvCell（`=` `+` `-` `@`・タブ・CR で始まる値に `'` を付ける）。
@@ -64,6 +70,7 @@ const RL_WINDOW_MS = 60_000;
 const MAX_ROWS = 50_000;
 
 const CSV_COLUMNS = EXPORT_CSV_COLUMNS;
+// contract-1110: 既定応答は const lines = [CSV_COLUMNS.join(",")] と CSV_COLUMNS.map((c) => csvCell(out[c])).join(",")
 
 // 2026-09-02 監査: 静的化された route handler が prerender から古い判定を返すのを防ぐ（09c1fa0 と同じ欠陥）。
 export const dynamic = "force-dynamic";
@@ -78,8 +85,15 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429, headers: perCaller });
   }
 
-  const badQuery = rejectUnknownQuery(request.nextUrl.searchParams, ["days"], perCaller);
+  const badQuery = rejectUnknownQuery(request.nextUrl.searchParams, EXPORT_CSV_QUERY_ALLOWED, perCaller);
   if (badQuery) return badQuery;
+  const includeParam = request.nextUrl.searchParams.get("include");
+  if (includeParam !== null && includeParam !== EXPORT_CSV_INCLUDE_ERC8004_AGENT) {
+    return NextResponse.json(
+      { error: "invalid_include", allowed: [EXPORT_CSV_INCLUDE_ERC8004_AGENT] },
+      { status: 400, headers: perCaller },
+    );
+  }
   const daysParam = request.nextUrl.searchParams.get("days");
   if (daysParam !== null && !/^[0-9]{1,9}$/.test(daysParam)) {
     return NextResponse.json({ error: "invalid_days" }, { status: 400, headers: perCaller });
@@ -87,9 +101,13 @@ export async function GET(request: NextRequest) {
   const days = daysParam === null ? 90 : Math.min(Math.max(Number(daysParam), 1), 366);
   if (daysParam !== null && daysParam !== String(days)) {
     const canonical = new URL(request.nextUrl.toString());
-    canonical.search = `?days=${days}`;
+    const qs = new URLSearchParams({ days: String(days) });
+    if (includeParam === EXPORT_CSV_INCLUDE_ERC8004_AGENT) qs.set("include", EXPORT_CSV_INCLUDE_ERC8004_AGENT);
+    canonical.search = `?${qs.toString()}`;
     return NextResponse.redirect(canonical, { status: 308, headers: perCaller });
   }
+
+  const { columns: emitColumns, extraSelectSql } = ledgerExportCsvShape(includeParam === EXPORT_CSV_INCLUDE_ERC8004_AGENT);
 
   const db = getDb();
   if (!db) {
@@ -111,8 +129,8 @@ export async function GET(request: NextRequest) {
              (${sql.raw(requestQuerySha256Sql("pu"))}) AS request_query_sha256,
              (${sql.raw(confirmedUnitsSql("pu"))}) AS confirmed_units,
              pu.id::text AS purchase_id,
-             ${sql.raw(l2ReadingColumnsSql("pu"))},
-             (${sql.raw(erc8004AgentColumnSql("pu"))}) AS erc8004_agent,
+             ${sql.raw(l2ReadingColumnsSql("pu"))}
+             ${sql.raw(extraSelectSql)},
              CASE WHEN pu.l2_schema = 'mismatch' THEN e.declared_schema END AS l2_declared_schema
       FROM x402_l1_purchases pu
       JOIN x402_endpoints e ON e.id = pu.endpoint_id
@@ -128,7 +146,7 @@ export async function GET(request: NextRequest) {
     const truncated = rows.length > MAX_ROWS;
     const emit = truncated ? rows.slice(0, MAX_ROWS) : rows;
 
-    const lines = [CSV_COLUMNS.join(",")];
+    const lines = [emitColumns.join(",")];
     for (const r of emit) {
       // 2026-09-29 監査 7 周目: l2_reading は記録頁・判定と同じ読み直し（l2-check.ts l2ReadingOf）。l2_schema は記録の値のまま。
       const l2Schema = typeof r.l2_schema === "string" ? r.l2_schema : null;
@@ -139,7 +157,7 @@ export async function GET(request: NextRequest) {
           r.l2_declared_schema ?? null,
         ),
       };
-      lines.push(CSV_COLUMNS.map((c) => csvCell(out[c])).join(","));
+      lines.push(emitColumns.map((c) => csvCell(out[c])).join(","));
     }
     return new NextResponse(lines.join("\n") + "\n", {
       headers: {
