@@ -17,8 +17,12 @@ import {
   getSellerDetailCached,
   getSellerOtherChainsCached,
 } from "@/lib/sellers/cached";
-import { readFindSellers, readHostExtras, readL1Purchases, type HostExtras } from "./reads";
+import { readFindAlternatives } from "@/lib/find/reads";
+import { FIND_MIN_DELIVERED_RATE, FIND_WINDOW_DAYS } from "@/lib/find/rank";
+import { readFindUntested, readHostExtras, readL1Purchases, type HostExtras } from "./reads";
 import type { McpDeps } from "./tools";
+
+const FIND_MIN_DELIVERED_PCT = Math.round(FIND_MIN_DELIVERED_RATE * 100);
 
 class McpDbUnavailable extends Error {}
 
@@ -50,7 +54,13 @@ export function productionMcpDeps(): McpDeps {
       otherChains: getSellerOtherChainsCached,
     },
     hostExtras: getHostExtrasCached,
-    findSellers: (like, limit) => readFindSellers(db(), like, limit),
+    findAlternatives: (like, poolLimit) =>
+      readFindAlternatives(db(), like, {
+        limit: poolLimit,
+        minDeliveredPct: FIND_MIN_DELIVERED_PCT,
+        windowDays: FIND_WINDOW_DAYS,
+      }),
+    findUntested: (like) => readFindUntested(db(), like),
   };
 }
 

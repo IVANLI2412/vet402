@@ -4,7 +4,7 @@
 //   readL1Purchases        1 出品の最新 5 件。列は attempted_at・network・status・tx_hash の 4 つだけを名指しで読む
 //                          （auth_nonce・payer・raw_*・購入の証拠の 2 列は SELECT に無い）
 //   readHostExtras         1 ホストの出品（id・URL・network・status・source・last_seen）と、全出品から最新 5 件の購入
-//   readFindSellers        ② の検索。resource_key と description に同じ LIKE の型を当て、直近 30 日の配達で並べる
+//   readFindUntested       ② の未検査出品（vet402 が一度も払っていない掲載）
 // route は cached.ts の unstable_cache 越しに読み、pg テストはここの関数を直接呼ぶ。
 // ============================================================
 import { sql } from "drizzle-orm";
@@ -114,52 +114,15 @@ export type FoundListing = {
 
 export const FIND_UNTESTED_MAX = 3;
 
-/**
- * ② の検索。like は reader.ts の searchLikePattern（escapeLike 済み・`%…%`）。掲載中の出品だけ。
- * sellers: 直近 30 日に vet402 が払って届いた行が 1 件以上。並びは届いた件数 → 最後に届いた時刻 → id。
- * untested: vet402 が払った行（PAID_ATTEMPT_STATUSES）が 1 件も無い出品。順位は付けない（id 順で最大 3 件）。
- */
-export async function readFindSellers(
-  db: Db,
-  like: string,
-  limit: number,
-): Promise<{ fetchedAt: string; sellers: FoundListing[]; untested: FoundListing[] }> {
-  const fetchedAt = new Date().toISOString();
-  const hits = sql`
+function findHitsSql(like: string) {
+  return sql`
     SELECT e.id, e.resource_url, e.description, e.price_amount, e.network
     FROM x402_endpoints e
     WHERE e.status = 'active' AND (e.resource_key ILIKE ${like} OR e.description ILIKE ${like})`;
-  const [soldRaw, untestedRaw] = await Promise.all([
-    db.execute(sql`
-      WITH hits AS (${hits}),
-      l1 AS (
-        SELECT pu.endpoint_id,
-               count(*)::int AS paid_attempts_30d,
-               count(*) FILTER (WHERE ${DELIVERED})::int AS delivered_30d,
-               max(pu.attempted_at) AS last_attempt_at,
-               max(pu.attempted_at) FILTER (WHERE ${DELIVERED}) AS last_delivered_at
-        FROM x402_l1_purchases pu
-        WHERE pu.endpoint_id IN (SELECT id FROM hits)
-          AND pu.attempted_at > now() - interval '30 days'
-          AND pu.status IN (${PAID_LIST})
-        GROUP BY pu.endpoint_id
-      )
-      SELECT h.id::text AS id, h.resource_url, left(h.description, 2000) AS description, h.price_amount, h.network,
-             l1.delivered_30d, l1.paid_attempts_30d,
-             to_char(l1.last_attempt_at AT TIME ZONE 'utc', ${ISO}) AS last_attempt_at
-      FROM hits h JOIN l1 ON l1.endpoint_id = h.id
-      WHERE l1.delivered_30d >= 1
-      ORDER BY l1.delivered_30d DESC, l1.last_delivered_at DESC, h.id
-      LIMIT ${limit}`),
-    db.execute(sql`
-      WITH hits AS (${hits})
-      SELECT h.id::text AS id, h.resource_url, left(h.description, 2000) AS description, h.price_amount, h.network
-      FROM hits h
-      WHERE NOT EXISTS (SELECT 1 FROM x402_l1_purchases pu WHERE pu.endpoint_id = h.id AND pu.status IN (${PAID_LIST}))
-      ORDER BY h.id
-      LIMIT ${FIND_UNTESTED_MAX}`),
-  ]);
-  const toFound = (r: Record<string, unknown>): FoundListing => ({
+}
+
+function toFoundListing(r: Record<string, unknown>): FoundListing {
+  return {
     observatoryId: String(r.id),
     url: String(r.resource_url),
     description: str(r.description),
@@ -168,6 +131,18 @@ export async function readFindSellers(
     delivered30d: Number(r.delivered_30d ?? 0),
     paidAttempts30d: Number(r.paid_attempts_30d ?? 0),
     lastAttemptAt: str(r.last_attempt_at),
-  });
-  return { fetchedAt, sellers: rowsOf(soldRaw).map(toFound), untested: rowsOf(untestedRaw).map(toFound) };
+  };
+}
+
+/** vet402 が一度も払っていない掲載中の出品（最大 FIND_UNTESTED_MAX 件、id 順）。 */
+export async function readFindUntested(db: Db, like: string): Promise<FoundListing[]> {
+  const hits = findHitsSql(like);
+  const untestedRaw = await db.execute(sql`
+    WITH hits AS (${hits})
+    SELECT h.id::text AS id, h.resource_url, left(h.description, 2000) AS description, h.price_amount, h.network
+    FROM hits h
+    WHERE NOT EXISTS (SELECT 1 FROM x402_l1_purchases pu WHERE pu.endpoint_id = h.id AND pu.status IN (${PAID_LIST}))
+    ORDER BY h.id
+    LIMIT ${FIND_UNTESTED_MAX}`);
+  return rowsOf(untestedRaw).map(toFoundListing);
 }

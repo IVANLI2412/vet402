@@ -1641,8 +1641,10 @@ paths:
         `check_x402_seller` (what happened when vet402 paid an x402 URL, with
         the transaction of each attempt), `check_my_x402_endpoint` (the public
         seller page of a host, the catalogs it is listed in and when vet402 can
-        buy again) and `find_x402_sellers` (listings with paid and delivered
-        purchases in the last 30 days, ordered by that count). Each tool
+        buy again), `find_x402_sellers` (listings matching a query with the same
+        Wilson ranking as GET /api/v1/find), `check_payment_proof` (chain read
+        of a payment), and `check_8004_agent` (ERC-8004 feedback proof
+        re-read, same JSON as GET /api/v1/erc8004/check). Each tool
         result carries `as_of` and `method_url`. `check_x402_seller` and
         `check_my_x402_endpoint` also carry `record_url` at the top level, and
         `find_x402_sellers` carries it per row. Each result is
@@ -1650,10 +1652,15 @@ paths:
 
         Limits: 120 requests per minute per IP (`MCP_RATE_PER_MIN`), 30 per
         minute per IP for `find_x402_sellers` (`MCP_FIND_RATE_PER_MIN`) and
-        30 per minute per IP for `check_my_x402_endpoint`
-        (`MCP_SELLER_RATE_PER_MIN`), each on top of the first. The
+        30 per         minute per IP for `check_my_x402_endpoint`
+        (`MCP_SELLER_RATE_PER_MIN`), 20 per minute per IP for `check_payment_proof`
+        (shared with POST /api/v1/payment-proof), and 30 per minute per IP for
+        `check_8004_agent` (shared with GET /api/v1/erc8004/check), each on top of
+        the first. The
         request body is capped at 64 KB and JSON-RPC batches are refused.
-        The server reads only its own database and makes no outbound request.
+        The server reads only its own database and makes no outbound request,
+        except `check_8004_agent`, which reads the public ERC-8004 registry over RPC
+        and the feedback's public https feedbackURI (no redirects, 256 KB cap).
         Calls are counted per client kind and UTC day in `client_usage_daily`
         (routes `mcp:initialize`, `mcp:check_x402_seller`,
         `mcp:check_my_x402_endpoint`, `mcp:find_x402_sellers`). Those counts
@@ -1988,7 +1995,8 @@ paths:
         ranked by Wilson 95% lower bound. One find-only store read per request aggregates paid
         attempts, applies the 80% delivered cutoff, matches the term on those listings, orders by
         Wilson lower bound, then LIMITs before the handler ranks up to three. MCP `find_x402_sellers`
-        still uses `readFindSellers` separately. Exactly one of `url` or `q` is required. Unknown or
+        uses the same `readFindAlternatives` pool and `rankFindAlternatives` ordering (up to the
+        tool `limit`). Exactly one of `url` or `q` is required. Unknown or
         duplicate query names are 400 `invalid_query` with `allowed`. Bad `url` is 400
         `invalid_url`. `q` must be 3 to 80 characters after trim. Missing store or read errors are
         503 `temporarily_unavailable` (`Cache-Control: no-store`). Successful reads use the same

@@ -134,7 +134,8 @@ export default async function McpDocsPage() {
         <section id="tools" className="scroll-mt-32 space-y-4">
           <h2 className="sec-head">Tools</h2>
           <p className="text-[0.84375rem] text-brand">
-            Production <code className="text-brand-deep">tools/list</code> returns four read-only tools. Titles and descriptions below come from the server catalog.
+            Production <code className="text-brand-deep">tools/list</code> returns five read-only tools (and{" "}
+            <code className="text-brand-deep">find_x402_sellers</code> when enabled). Titles and descriptions below come from the server catalog.
           </p>
           <p className="text-[0.84375rem] text-brand">
             The same <code className="text-brand-deep">check_x402_seller</code> answer is also available over key-less REST at{" "}
@@ -154,6 +155,7 @@ export default async function McpDocsPage() {
               ["check_my_x402_endpoint", TOOL_TEXT.check_my_x402_endpoint],
               ["find_x402_sellers", TOOL_TEXT.find_x402_sellers],
               ["check_payment_proof", TOOL_TEXT.check_payment_proof],
+              ["check_8004_agent", TOOL_TEXT.check_8004_agent],
             ] as const
           ).map(([name, meta]) => (
             <div key={name} className="space-y-2">
@@ -232,7 +234,9 @@ export default async function McpDocsPage() {
             MCP: {MCP_DEFAULT_PER_MIN} requests per minute per IP for most tools, {MCP_FIND_PER_MIN} per minute for{" "}
             <code className="text-brand-deep">find_x402_sellers</code>, and {MCP_SELLER_PER_MIN} per minute for{" "}
             <code className="text-brand-deep">check_my_x402_endpoint</code>.{" "}
-            <code className="text-brand-deep">check_payment_proof</code> shares {keylessPaymentProofPerMinute()} requests a minute per IP with POST /api/v1/payment-proof. The delivery feed allows {DELIVERY_FEED_RATE_PER_MIN} requests per minute per IP.
+            <code className="text-brand-deep">check_payment_proof</code> shares {keylessPaymentProofPerMinute()} requests a minute per IP with POST /api/v1/payment-proof.{" "}
+            <code className="text-brand-deep">check_8004_agent</code> shares 30 requests a minute per IP with GET /api/v1/erc8004/check. The delivery feed allows{" "}
+            {DELIVERY_FEED_RATE_PER_MIN} requests per minute per IP.
           </p>
           <p className="text-[0.84375rem] text-brand">
             When MCP returns HTTP 429, the JSON-RPC error code is {MCP_RATE_LIMIT_CODE} with message{" "}

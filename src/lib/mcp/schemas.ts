@@ -49,6 +49,13 @@ export const findSellersInput = z.object({
   limit: z.number().int().min(1).max(10).optional().describe(INPUT_TEXT.limit),
 });
 
+export const check8004AgentInput = z.object({
+  chain: z.string().max(64).optional().describe(INPUT_TEXT.erc8004_chain),
+  agentId: z.string().min(1, "invalid_agent_id").max(78, "invalid_agent_id").describe(INPUT_TEXT.erc8004_agent_id),
+  client: z.string().max(42).optional().describe(INPUT_TEXT.erc8004_client),
+  feedbackIndex: z.string().max(40).optional().describe(INPUT_TEXT.erc8004_feedback_index),
+});
+
 export const checkPaymentProofInput = z.object({
   payment_response: z.string().max(8_192).optional().describe(INPUT_TEXT.payment_response),
   network: z.string().max(128).optional().describe(INPUT_TEXT.payment_network),
@@ -259,6 +266,8 @@ export const findSellersOutput = z
           network: z.string().nullable(),
           delivered_30d: z.number().int(),
           paid_attempts_30d: z.number().int(),
+          delivered_rate_pct: z.number().nullable(),
+          wilson_lower_bound: z.number(),
           last_attempt_at: z.string().nullable(),
           record_url: z.string(),
         })
@@ -281,6 +290,67 @@ export const findSellersOutput = z
   })
   .strict();
 
+const erc8004TriState = z.enum(["pass", "fail", "unknown"]);
+const erc8004Verdict = z.enum([
+  "verified",
+  "verified_payment_unlinked_client",
+  "mismatch",
+  "no_proof",
+  "unreadable",
+]);
+
+export const check8004AgentOutput = z
+  .object({
+    verdict: erc8004Verdict,
+    reasons: z
+      .array(z.enum(["feedback_hash", "tx_not_found", "recipient", "amount", "token"]))
+      .optional(),
+    chain: z.string(),
+    agentId: z.string(),
+    clientAddress: z.string(),
+    feedbackIndex: z.string(),
+    feedback: z
+      .object({
+        value: z.string(),
+        valueDecimals: z.number(),
+        tag1: z.string(),
+        tag2: z.string(),
+        endpoint: z.string(),
+        feedbackURI: z.string(),
+        feedbackHash: z.string(),
+      })
+      .strict(),
+    proofOfPayment: z.record(z.string(), z.unknown()).nullable(),
+    checks: z
+      .object({
+        tx_exists: erc8004TriState,
+        to_matches_agent_payTo_or_wallet: erc8004TriState,
+        from_matches_client: erc8004TriState,
+        amount: erc8004TriState,
+        token: erc8004TriState,
+        block_time: erc8004TriState,
+        feedback_hash: erc8004TriState,
+      })
+      .strict(),
+    sources: z.array(
+      z
+        .object({
+          kind: z.enum([
+            "reputation_registry",
+            "new_feedback_log",
+            "feedback_uri",
+            "payment_chain",
+            "vet402_erc8004_match",
+            "identity_registry",
+          ]),
+          detail: z.string(),
+        })
+        .strict(),
+    ),
+    as_of: iso,
+  })
+  .strict();
+
 export const checkPaymentProofOutput = z
   .object({
     found: z.boolean(),
@@ -300,5 +370,6 @@ export const checkPaymentProofOutput = z
 export type CheckSellerOutput = z.infer<typeof checkSellerOutput>;
 export type CheckEndpointOutput = z.infer<typeof checkEndpointOutput>;
 export type FindSellersOutput = z.infer<typeof findSellersOutput>;
+export type Check8004AgentOutput = z.infer<typeof check8004AgentOutput>;
 export type CheckPaymentProofOutput = z.infer<typeof checkPaymentProofOutput>;
 export type L1PurchaseOut = z.infer<typeof l1PurchaseSchema>;

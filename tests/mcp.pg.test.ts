@@ -44,7 +44,13 @@ if (!TEST_DB) {
     const { decisionCache } = await import("@/lib/decision/cache");
     const { readPurchasedHosts, readSellerBoard, readSellerDetail, readSellerOtherChains } = await import("@/lib/sellers/reader");
     const { resolveSellerPage } = await import("@/lib/sellers/board");
-    const { readFindSellers, readHostExtras, readL1Purchases } = await import("@/lib/mcp/reads");
+    const { readFindUntested, readHostExtras, readL1Purchases } = await import("@/lib/mcp/reads");
+    const { readFindAlternatives } = await import("@/lib/find/reads");
+    const { FIND_POOL_SIZE, FIND_WINDOW_DAYS, FIND_MIN_DELIVERED_RATE } = await import("@/lib/find/rank");
+    const findOpts = {
+      minDeliveredPct: Math.round(FIND_MIN_DELIVERED_RATE * 100),
+      windowDays: FIND_WINDOW_DAYS,
+    };
     const { setMcpDepsForTest } = await import("@/lib/mcp/deps");
     const { FIND_TOOL_ENABLED } = await import("@/lib/mcp/tools");
     const { setAfterResponseSchedulerForTest } = await import("@/lib/util/after-response");
@@ -134,6 +140,9 @@ if (!TEST_DB) {
     await probe(shopB, "fail", daysAgo(2));
     await buy(shopA, { status: "settle_failed", http: 500, at: daysAgo(10), network: BASE });
     const shopTx = await buy(shopA, { status: "settled", http: 200, at: daysAgo(2), network: BASE, tx: true });
+    await buy(shopA, { status: "settled", http: 200, at: daysAgo(3), network: BASE, tx: true });
+    await buy(shopA, { status: "settled", http: 200, at: daysAgo(4), network: BASE, tx: true });
+    await buy(shopA, { status: "settled", http: 200, at: daysAgo(5), network: BASE, tx: true });
     await buy(shopB, { status: "settle_failed", http: 404, at: daysAgo(3), network: BASE, tx: true });
 
     const top = await mk("https://api.weatherbest.example/now", { network: BASE, description: "Current weather" });
@@ -162,7 +171,8 @@ if (!TEST_DB) {
         otherChains: (h) => readSellerOtherChains(db, h),
       },
       hostExtras: (h) => readHostExtras(db, h),
-      findSellers: (like, limit) => readFindSellers(db, like, limit),
+      findAlternatives: (like, poolLimit) => readFindAlternatives(db, like, { ...findOpts, limit: poolLimit }),
+      findUntested: (like) => readFindUntested(db, like),
     });
     const pending: Array<() => Promise<void>> = [];
     setAfterResponseSchedulerForTest((task) => pending.push(task));
@@ -251,11 +261,12 @@ if (!TEST_DB) {
         assert.equal(o.not_in_catalog, false);
         assert.ok(["ALLOW", "WARN", "BLOCK"].includes(o.recommendation!));
         assert.ok(o.delivery!.delivered >= 1, JSON.stringify(o.delivery));
-        assert.equal(o.delivery!.paid_attempts, 2);
+        assert.equal(o.delivery!.paid_attempts, 5);
+        assert.equal(o.delivery!.delivered, 4);
         assert.equal(o.delivery!.window_days, 30);
         assert.equal(o.l1_purchases[0].tx_hash, shopTx);
         assert.equal(o.l1_purchases[0].explorer_url, `https://basescan.org/tx/${shopTx}`);
-        assert.equal(o.l1_purchases.length, 2);
+        assert.equal(o.l1_purchases.length, 5);
         assert.equal(o.record_url, `https://vet402.com/observatory/e/${shopA}`);
         assert.equal(o.method_url, "https://vet402.com/observatory/methodology");
         assert.match(o.as_of, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/);
@@ -318,8 +329,8 @@ if (!TEST_DB) {
           const shown = d.listings.flatMap((l) => [l.latest, ...l.earlier]).filter((r) => r !== null);
           assert.equal(o.l1!.paid_attempts, shown.filter((r) => r!.signed).length);
           assert.equal(o.l1!.delivered, shown.filter((r) => r!.bucket === "delivered").length);
-          assert.equal(o.l1!.paid_attempts, 3);
-          assert.equal(o.l1!.delivered, 1);
+          assert.equal(o.l1!.paid_attempts, 6);
+          assert.equal(o.l1!.delivered, 4);
           const modes = new Map<string, number>();
           for (const r of shown) if (r!.mode && r!.bucket !== "delivered") modes.set(r!.mode.key, (modes.get(r!.mode.key) ?? 0) + 1);
           assert.deepEqual(
@@ -333,7 +344,7 @@ if (!TEST_DB) {
             assert.equal(l.network, BASE);
             if (l.next_purchase_earliest_at !== null) assert.match(l.next_purchase_earliest_at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:00Z$/);
           }
-          assert.equal(o.l1_purchases.length, 3);
+          assert.equal(o.l1_purchases.length, 5);
           assert.deepEqual(o.listed_in.map((x: { source: string }) => x.source), ["cdp_bazaar"]);
           assert.equal(o.listed_in[0].listings, 2);
           assert.equal(o.listed_in[0].name, "CDP Bazaar discovery catalog");
@@ -370,14 +381,36 @@ if (!TEST_DB) {
 
       if (FIND_TOOL_ENABLED) {
         await t.test("#7 ② の query weather と #15 売り手の文", async () => {
+          const { handleFind } = await import("@/lib/find/find-handler");
+          const findDeps = {
+            findAlternatives: (l: string, poolLimit: number) =>
+              readFindAlternatives(db, l, { ...findOpts, limit: poolLimit }),
+          };
+          const findRes = await handleFind(new Request("https://vet402.com/api/v1/find?q=weather"), findDeps);
+          const findBody = await findRes.json();
           const { result, text } = await callTool("find_x402_sellers", { query: "weather" });
           outputs.push(text);
           const o = result.structuredContent as FindSellersOutput;
-          assert.ok(o.sellers.length >= 2);
-          for (const s of o.sellers) assert.ok(s.delivered_30d >= 1, JSON.stringify(s));
-          for (let i = 1; i < o.sellers.length; i++) assert.ok(o.sellers[i - 1].delivered_30d >= o.sellers[i].delivered_30d);
-          assert.equal(o.sellers[0].url, "https://api.weatherbest.example/now");
-          assert.equal(o.sellers[0].delivered_30d, 2, "30 日の外の配達は数えない");
+          assert.ok(o.sellers.length >= 1);
+          for (const s of o.sellers) {
+            assert.ok(s.delivered_30d >= 1, JSON.stringify(s));
+            assert.ok(s.paid_attempts_30d >= 1);
+            assert.ok(s.wilson_lower_bound <= (s.delivered_rate_pct ?? 0) / 100 + 0.0001);
+          }
+          for (let i = 1; i < o.sellers.length; i++) {
+            assert.ok(
+              o.sellers[i - 1].wilson_lower_bound >= o.sellers[i].wilson_lower_bound ||
+                (o.sellers[i - 1].wilson_lower_bound === o.sellers[i].wilson_lower_bound &&
+                  o.sellers[i - 1].delivered_30d >= o.sellers[i].delivered_30d),
+            );
+          }
+          assert.deepEqual(
+            o.sellers.map((s) => s.url),
+            findBody.alternatives.map((a: { url: string }) => a.url).slice(0, o.sellers.length),
+          );
+          const best = o.sellers.find((s: { url: string }) => s.url === "https://api.weatherbest.example/now");
+          assert.ok(best);
+          assert.equal(best.delivered_30d, 2, "30 日の外の配達は数えない");
           assert.ok(!o.sellers.some((s: { url: string }) => s.url.includes("weather.old.example")), "30 日の内に配達の無い出品は出さない");
           assert.deepEqual(o.untested.map((s: { url: string }) => s.url), ["https://weather.untested.example/a"]);
           assert.equal(o.untested[0].record_url, `https://vet402.com/observatory/e/${untested}`);

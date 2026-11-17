@@ -167,8 +167,8 @@ if (!TEST_DB) {
       sellerPage: stubPage as unknown as McpDeps["sellerPage"],
       hostExtras: async () =>
         ({ fetchedAt: new Date().toISOString(), listings: [], purchases: [] }) as Awaited<ReturnType<McpDeps["hostExtras"]>>,
-      findSellers: async () =>
-        ({ fetchedAt: new Date().toISOString(), sellers: [], untested: [] }) as Awaited<ReturnType<McpDeps["findSellers"]>>,
+      findAlternatives: async () => ({ fetchedAt: new Date().toISOString(), listings: [] }),
+      findUntested: async () => [],
     };
     decisionCache.clear();
     const mcpOut = await checkSeller(mcpDeps, { url: mcpAlignUrl });

@@ -37,14 +37,15 @@ Claude Code: `claude mcp add --transport http vet402 https://vet402.com/mcp`
 
 ## Check that it works
 
-After the server shows as connected, the client should list four tools:
+After the server shows as connected, the client should list five read-only tools (plus `find_x402_sellers` when enabled on the server):
 
 | Tool | What it returns |
 |---|---|
 | `check_x402_seller` | What happened each time vet402 paid one x402 URL: chain, whether content came back, and the transaction |
 | `check_my_x402_endpoint` | The same record for every listing on one seller's host |
 | `check_payment_proof` | Reads a `PAYMENT-RESPONSE` header on its chain and returns from, to, asset and amount |
-| `find_x402_sellers` | x402 sellers vet402 paid and got content from in the last 30 days, matched to a `query` |
+| `find_x402_sellers` | x402 listings matching `query`, with the same Wilson ranking as `GET /api/v1/find` |
+| `check_8004_agent` | One ERC-8004 feedback proofOfPayment re-read on Base (same as `GET /api/v1/erc8004/check`) |
 
 A quick test prompt: "Use find_x402_sellers with the query weather."
 

@@ -53,7 +53,11 @@ export type RankResult = {
   dropped: RankDropped;
 };
 
-export function rankFindAlternatives(pool: FindListing[], excludeUrl: string | null): RankResult {
+export function rankFindAlternatives(
+  pool: FindListing[],
+  excludeUrl: string | null,
+  maxAlternatives: number = FIND_MAX_ALTERNATIVES,
+): RankResult {
   const dropped: RankDropped = { noPaidTest: 0, lowRate: 0, sameUrl: 0 };
   const byResourceKey = new Map<string, FindListing>();
   for (const s of pool) {
@@ -88,8 +92,9 @@ export function rankFindAlternatives(pool: FindListing[], excludeUrl: string | n
   }
 
   eligible.sort(cmpListing);
+  const cap = Math.max(1, Math.min(maxAlternatives, eligible.length));
   return {
-    alternatives: eligible.slice(0, FIND_MAX_ALTERNATIVES),
+    alternatives: eligible.slice(0, cap),
     dropped,
   };
 }

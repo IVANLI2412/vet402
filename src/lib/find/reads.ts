@@ -2,7 +2,7 @@
 // Find API — one SQL read per request (2026-11-16 U1).
 // Aggregates paid attempts first, filters by delivered rate, joins active
 // listings that match the term, orders by Wilson lower bound, then LIMIT.
-// MCP readFindSellers is separate and unchanged.
+// MCP find_x402_sellers reuses readFindAlternatives and rankFindAlternatives; untested rows use readFindUntested.
 // ============================================================
 import { sql } from "drizzle-orm";
 import type { getDb } from "@/lib/db/client";

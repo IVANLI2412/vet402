@@ -3,7 +3,8 @@
 //
 //   ① check_x402_seller        払う側。resolve → decide（skipScore・callerMaterial なし）→ 最新 5 件の購入
 //   ③ check_my_x402_endpoint   売り手。/sellers/[host] と同じ resolveSellerPage と、ホストの出品・購入
-//   ② find_x402_sellers        払う側。直近 30 日の配達がある出品を、届いた件数の順に（p95 1.5 秒を満たしたときだけ載せる）
+//   ② find_x402_sellers        払う側。GET /api/v1/find と同じ Wilson 順位（p95 1.5 秒を満たしたときだけ載せる）
+//   check_8004_agent           ERC-8004 の feedback 1 件を再読（GET /api/v1/erc8004/check と同じ JSON）
 //
 // 出力は schemas.ts の欄だけを、ライブラリの戻り値から 1 つずつ写して作る（広げて返さない）。
 // 外へ出ない: 読むのは DB だけ。decide は必ず skipScore: true（受取人スコアは RPC へ出る）。
@@ -21,9 +22,17 @@ import { resolveSellerPage, type SellerPageData, type ShownRow } from "@/lib/sel
 import { parseSellerHostParam } from "@/lib/sellers/host";
 import { diagnoseUrlFor } from "@/lib/api/diagnose-url";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import type { FindListing } from "@/lib/find/reads";
+import { FIND_POOL_SIZE, FIND_WINDOW_DAYS, FIND_MIN_DELIVERED_RATE, rankFindAlternatives, wilsonLower } from "@/lib/find/rank";
+import type { Erc8004CheckInput, Erc8004CheckDeps, Erc8004CheckError } from "@/lib/erc8004-check/run-check";
+import type { Erc8004CheckResult } from "@/lib/erc8004-check/types";
+import { getErc8004CheckCached } from "@/lib/erc8004-check/cache";
+import { pct1 } from "@/lib/util/pct";
 import type { FoundListing, HostExtras } from "./reads";
 import { runCheckPaymentProof } from "@/lib/payment-proof/handle";
 import {
+  check8004AgentInput,
+  check8004AgentOutput,
   checkEndpointInput,
   checkEndpointOutput,
   checkPaymentProofInput,
@@ -53,7 +62,10 @@ export const TOOL_NAMES = {
   checkEndpoint: "check_my_x402_endpoint",
   checkPayment: "check_payment_proof",
   findSellers: "find_x402_sellers",
+  check8004: "check_8004_agent",
 } as const;
+
+const FIND_MIN_DELIVERED_PCT = Math.round(FIND_MIN_DELIVERED_RATE * 100);
 
 export { runCheckPaymentProof };
 
@@ -71,7 +83,9 @@ export type McpDeps = {
   l1Purchases: (endpointId: string) => Promise<L1PurchaseOut[]>;
   sellerPage: SellerPageLoaders;
   hostExtras: (host: string) => Promise<HostExtras>;
-  findSellers: (like: string, limit: number) => Promise<{ fetchedAt: string; sellers: FoundListing[]; untested: FoundListing[] }>;
+  findAlternatives: (like: string, poolLimit: number) => Promise<{ fetchedAt: string; listings: FindListing[] }>;
+  findUntested: (like: string) => Promise<FoundListing[]>;
+  erc8004Check?: (input: Erc8004CheckInput, deps?: Erc8004CheckDeps) => Promise<Erc8004CheckResult | { error: Erc8004CheckError }>;
   now?: () => Date;
 };
 
@@ -433,25 +447,33 @@ export async function checkEndpoint(deps: McpDeps, input: { url: string }): Prom
 // ------------------------------------------------------------
 
 export async function findSellers(deps: McpDeps, input: { query: string; limit?: number }): Promise<FindSellersOutput | "invalid_query"> {
-  const like = searchLikePattern(input.query);
+  const query = input.query.trim();
+  const like = searchLikePattern(query);
   if (!like) return "invalid_query";
   const limit = Math.min(Math.max(input.limit ?? 5, 1), 10);
-  const found = await deps.findSellers(like, limit);
+  const [pool, untested] = await Promise.all([
+    deps.findAlternatives(like, FIND_POOL_SIZE),
+    deps.findUntested(like),
+  ]);
+  const ranked = rankFindAlternatives(pool.listings, null, limit);
+  const mapSeller = (s: FindListing) => ({
+    url: s.url,
+    seller_description: sanitizeSellerText(s.description),
+    text_source: "seller" as const,
+    price_usd: priceUsdOf(s.priceAmount),
+    network: s.network,
+    delivered_30d: s.delivered30d,
+    paid_attempts_30d: s.paidAttempts30d,
+    delivered_rate_pct: pct1(s.delivered30d, s.paidAttempts30d),
+    wilson_lower_bound: wilsonLower(s.delivered30d, s.paidAttempts30d),
+    last_attempt_at: s.lastAttemptAt,
+    record_url: recordUrlOf(s.observatoryId),
+  });
   return fitBudget<FindSellersOutput>(
     {
-      query: input.query.trim(),
-      sellers: found.sellers.map((s) => ({
-        url: s.url,
-        seller_description: sanitizeSellerText(s.description),
-        text_source: "seller" as const,
-        price_usd: priceUsdOf(s.priceAmount),
-        network: s.network,
-        delivered_30d: s.delivered30d,
-        paid_attempts_30d: s.paidAttempts30d,
-        last_attempt_at: s.lastAttemptAt,
-        record_url: recordUrlOf(s.observatoryId),
-      })),
-      untested: found.untested.map((s) => ({
+      query,
+      sellers: ranked.alternatives.map(mapSeller),
+      untested: untested.map((s) => ({
         url: s.url,
         seller_description: sanitizeSellerText(s.description),
         text_source: "seller" as const,
@@ -460,12 +482,39 @@ export async function findSellers(deps: McpDeps, input: { query: string; limit?:
         record_url: recordUrlOf(s.observatoryId),
       })),
       method_url: METHOD_URL,
-      as_of: found.fetchedAt,
+      as_of: pool.fetchedAt,
       truncated: false,
     },
     ["untested", "sellers"],
   );
 }
+
+const ERC8004_INPUT_ERRORS = new Set<Erc8004CheckError>([
+  "invalid_chain",
+  "invalid_agent_id",
+  "missing_client_or_index",
+  "invalid_client",
+  "invalid_feedback_index",
+  "feedback_not_found",
+]);
+
+export async function check8004Agent(
+  deps: McpDeps,
+  input: { chain?: string; agentId: string; client?: string; feedbackIndex?: string },
+): Promise<Erc8004CheckResult | { error: Erc8004CheckError }> {
+  const run = deps.erc8004Check ?? ((body, extra) => getErc8004CheckCached(body, extra));
+  return run(
+    {
+      chain: input.chain ?? null,
+      agentId: input.agentId,
+      client: input.client ?? null,
+      feedbackIndex: input.feedbackIndex ?? null,
+    },
+    undefined,
+  );
+}
+
+export { ERC8004_INPUT_ERRORS };
 
 // ------------------------------------------------------------
 // 登録
@@ -548,6 +597,32 @@ export function registerVet402Tools(server: McpServer, deps: McpDeps, state: Mcp
           }
           throw error;
         }
+      }),
+  );
+  server.registerTool(
+    TOOL_NAMES.check8004,
+    {
+      title: TOOL_TEXT.check_8004_agent.title,
+      description: TOOL_TEXT.check_8004_agent.description,
+      inputSchema: check8004AgentInput,
+      outputSchema: check8004AgentOutput,
+      annotations: { title: TOOL_TEXT.check_8004_agent.title, ...CHAIN_READ_ANNOTATIONS },
+    },
+    async (args) =>
+      guarded(state, TOOL_NAMES.check8004, async () => {
+        let out: Awaited<ReturnType<typeof check8004Agent>>;
+        try {
+          out = await check8004Agent(deps, args);
+        } catch (error) {
+          // チェーンや feedbackURI が読めないのは DB の障害ではない。応答全体を 503 にせず、道具の結果として返す。
+          logServerErrorSafe(`mcp.${TOOL_NAMES.check8004}`, error);
+          return fail("chain_unreadable");
+        }
+        if ("error" in out) {
+          if (ERC8004_INPUT_ERRORS.has(out.error)) return fail(out.error as keyof typeof ERROR_TEXT);
+          return fail("invalid_agent_id");
+        }
+        return ok(out as unknown as Record<string, unknown>);
       }),
   );
   if (!FIND_TOOL_ENABLED) return;

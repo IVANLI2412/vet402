@@ -1,3 +1,4 @@
+import { safeFetch } from "@/lib/net/safe-fetch";
 import { keccak256, toBytes, type Hex } from "viem";
 
 const IPFS_GATEWAY = "https://cloudflare-ipfs.com/ipfs/";
@@ -11,10 +12,15 @@ async function defaultFetch(uri: string, signal: AbortSignal): Promise<{ body: s
     if (comma < 0) throw new Error("invalid_data_uri");
     const meta = uri.slice(5, comma);
     const payload = uri.slice(comma + 1);
+    // data: もチェーンに誰でも書ける。デコードの前に大きさで断る（base64 は 4 文字で 3 バイト）。
+    // 1 バイトは base64 で 4/3 文字、percent-encoding で最大 3 文字。デコード後も上限で断る。
+    const maxChars = meta.includes(";base64") ? Math.ceil((FEEDBACK_URI_MAX_BYTES * 4) / 3) + 4 : FEEDBACK_URI_MAX_BYTES * 3;
+    if (payload.length > maxChars) throw new Error("too_large");
     const body =
       meta.includes(";base64")
         ? Buffer.from(payload, "base64").toString("utf8")
         : decodeURIComponent(payload);
+    if (Buffer.byteLength(body, "utf8") > FEEDBACK_URI_MAX_BYTES) throw new Error("too_large");
     return { body, contentType: meta.split(";")[0] || "text/plain" };
   }
 
@@ -24,10 +30,64 @@ async function defaultFetch(uri: string, signal: AbortSignal): Promise<{ body: s
     url = `${IPFS_GATEWAY}${path}`;
   }
 
-  const response = await fetch(url, { signal, redirect: "follow" });
+  assertPublicHttpsUrl(url);
+  // 宛先の検査と接続先の固定（名前の引き直しで内部へ向ける手を塞ぐ）は既存の safeFetch に任せる。リダイレクトは追わない。
+  const response = await safeFetch(url, { signal }, { httpsOnly: true, maxRedirects: 0 });
+  if (response.status >= 300 && response.status < 400) throw new Error("redirect_refused");
   if (!response.ok) throw new Error(`http_${response.status}`);
-  const body = await response.text();
-  return { body, contentType: response.headers.get("content-type") };
+  const declared = Number(response.headers.get("content-length") ?? "0");
+  if (declared > FEEDBACK_URI_MAX_BYTES) throw new Error("too_large");
+  return { body: await readCapped(response, FEEDBACK_URI_MAX_BYTES), contentType: response.headers.get("content-type") };
+}
+
+/** 本文を上限まで読み、超えたら読むのをやめて断る（Content-Length を偽られても全部は読まない）。 */
+async function readCapped(response: Response, cap: number): Promise<string> {
+  if (!response.body) return "";
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > cap) {
+      await reader.cancel().catch(() => undefined);
+      throw new Error("too_large");
+    }
+    chunks.push(value);
+  }
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) {
+    out.set(c, off);
+    off += c.byteLength;
+  }
+  return new TextDecoder().decode(out);
+}
+
+
+/** feedbackURI の本文の上限（2026-11-18）。 */
+export const FEEDBACK_URI_MAX_BYTES = 256 * 1024;
+
+/**
+ * feedbackURI はチェーンに誰でも書ける。サーバーが取りに行くのは https の公開の宛先だけ（2026-11-18）。
+ * localhost・IP の直書き（私用・ループバック・リンクローカル・メタデータを含む全部）・ポート指定・認証情報つきは断る。
+ */
+export function assertPublicHttpsUrl(raw: string): void {
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new Error("invalid_uri");
+  }
+  if (u.protocol !== "https:") throw new Error("uri_scheme_refused");
+  if (u.username || u.password) throw new Error("uri_credentials_refused");
+  if (u.port && u.port !== "443") throw new Error("uri_port_refused");
+  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+  if (host === "localhost" || host.endsWith(".localhost") || host.endsWith(".local") || host.endsWith(".internal")) {
+    throw new Error("uri_host_refused");
+  }
+  if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(":")) throw new Error("uri_ip_literal_refused");
 }
 
 export async function readFeedbackUri(

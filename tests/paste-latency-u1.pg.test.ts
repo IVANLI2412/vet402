@@ -29,7 +29,10 @@ if (!TEST_DB) {
     const { decide } = await import("@/lib/decision/decide");
     const { decisionCache } = await import("@/lib/decision/cache");
     const { readPurchasedHosts, readSellerBoard, readSellerDetail, readSellerOtherChains } = await import("@/lib/sellers/reader");
-    const { readFindSellers, readHostExtras, readL1Purchases } = await import("@/lib/mcp/reads");
+    const { readFindUntested, readHostExtras, readL1Purchases } = await import("@/lib/mcp/reads");
+    const { readFindAlternatives } = await import("@/lib/find/reads");
+    const { FIND_WINDOW_DAYS, FIND_MIN_DELIVERED_RATE } = await import("@/lib/find/rank");
+    const findOpts = { minDeliveredPct: Math.round(FIND_MIN_DELIVERED_RATE * 100), windowDays: FIND_WINDOW_DAYS };
     const { setMcpDepsForTest } = await import("@/lib/mcp/deps");
     const { GET: checkGET } = await import("@/app/api/v1/check/route");
     const { GET: findGET } = await import("@/app/api/v1/find/route");
@@ -83,7 +86,8 @@ if (!TEST_DB) {
         otherChains: (h) => readSellerOtherChains(db, h),
       },
       hostExtras: (h) => readHostExtras(db, h),
-      findSellers: (like, limit) => readFindSellers(db, like, limit),
+      findAlternatives: (like, poolLimit) => readFindAlternatives(db, like, { ...findOpts, limit: poolLimit }),
+      findUntested: (like) => readFindUntested(db, like),
     });
 
     // 20 の URL: 届いた行のある weather/forecast の掲載から取る（判定ありの道）

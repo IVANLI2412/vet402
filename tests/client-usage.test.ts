@@ -405,7 +405,12 @@ test("MCP の client: self-monitor → MCP の表（grok-bot・cursor・claude�
   for (const [ua, want] of cases) assert.equal(mcpClientUsageLabel(ua), want, String(ua));
   // 決まった名前は 1 日の種類の上限の外（寄せ先が自分自身）
   for (const c of MCP_CLIENTS) assert.equal(clientUsageOverflowLabel(c), c);
-  assert.deepEqual([...MCP_USAGE_ROUTES], ["mcp:initialize", "mcp:check_x402_seller", "mcp:check_my_x402_endpoint", "mcp:find_x402_sellers"]);
+  assert.deepEqual([...MCP_USAGE_ROUTES], [
+    "mcp:initialize",
+    "mcp:check_x402_seller",
+    "mcp:check_my_x402_endpoint",
+    "mcp:find_x402_sellers",
+  ]);
 });
 
 test("MCP の順は mcp:* だけ: resolve・decision の client は今までどおり（bot を含めば crawler）", async () => {

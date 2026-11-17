@@ -47,7 +47,10 @@ const COUNTED_TOOLS: Record<string, McpUsageRoute> = {
   [TOOL_NAMES.checkSeller]: "mcp:check_x402_seller",
   [TOOL_NAMES.checkEndpoint]: "mcp:check_my_x402_endpoint",
   [TOOL_NAMES.findSellers]: "mcp:find_x402_sellers",
+  // check_8004_agent は数えない（数えるならプライバシーポリシーの列挙に足す。法務の文なのでオーナー承認の後・2026-11-18）。
 };
+
+const ERC8004_CHECK_RL_LIMIT = 30;
 
 function mcpEnabled(): boolean {
   const v = (process.env.MCP_ENABLED ?? "").trim().toLowerCase();
@@ -176,11 +179,13 @@ export async function POST(request: NextRequest): Promise<Response> {
   const extra =
     tool === TOOL_NAMES.checkPayment
       ? { bucket: "payment-proof", limit: PAYMENT_PROOF_KEYLESS_LIMIT }
-      : FIND_TOOL_ENABLED && tool === TOOL_NAMES.findSellers
-        ? { bucket: "mcp_find", limit: perMin(process.env.MCP_FIND_RATE_PER_MIN, DEFAULT_FIND_RATE_PER_MIN) }
-        : tool === TOOL_NAMES.checkEndpoint
-          ? { bucket: "mcp_seller", limit: perMin(process.env.MCP_SELLER_RATE_PER_MIN, DEFAULT_SELLER_RATE_PER_MIN) }
-          : null;
+      : tool === TOOL_NAMES.check8004
+        ? { bucket: "erc8004-check", limit: ERC8004_CHECK_RL_LIMIT }
+        : FIND_TOOL_ENABLED && tool === TOOL_NAMES.findSellers
+          ? { bucket: "mcp_find", limit: perMin(process.env.MCP_FIND_RATE_PER_MIN, DEFAULT_FIND_RATE_PER_MIN) }
+          : tool === TOOL_NAMES.checkEndpoint
+            ? { bucket: "mcp_seller", limit: perMin(process.env.MCP_SELLER_RATE_PER_MIN, DEFAULT_SELLER_RATE_PER_MIN) }
+            : null;
   if (extra) {
     const more = await publicRateLimit(request, extra.bucket, extra.limit, 60_000);
     if (!more.ok) return rateLimitedOrUnavailable(more.response, id);

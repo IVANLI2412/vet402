@@ -18,7 +18,7 @@ test("#8 /docs/mcp のソースに各節 id と 3 つの tool 名がある", () 
   for (const id of ["connect", "tools", "feed", "limits", "method", "privacy", "contact"]) {
     assert.ok(page.includes(`id="${id}"`), id);
   }
-  for (const tool of ["check_x402_seller", "check_my_x402_endpoint", "find_x402_sellers"]) {
+  for (const tool of ["check_x402_seller", "check_my_x402_endpoint", "find_x402_sellers", "check_payment_proof", "check_8004_agent"]) {
     assert.ok(page.includes(tool), tool);
   }
 });

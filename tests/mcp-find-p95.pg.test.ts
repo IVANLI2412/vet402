@@ -30,8 +30,10 @@ if (!TEST_DB) {
   test("② find_x402_sellers: 本番規模の fixture で p95 1.5 秒以内", async () => {
     const { getDb } = await import("@/lib/db/client");
     const { sql } = await import("drizzle-orm");
-    const { readFindSellers } = await import("@/lib/mcp/reads");
+    const { readFindUntested } = await import("@/lib/mcp/reads");
+    const { readFindAlternatives } = await import("@/lib/find/reads");
     const { findSellers, FIND_TOOL_ENABLED } = await import("@/lib/mcp/tools");
+    const findRank = await import("@/lib/find/rank");
     const db = getDb()!;
     await db.execute(sql`TRUNCATE x402_endpoints, x402_l1_purchases`);
 
@@ -82,7 +84,15 @@ if (!TEST_DB) {
     assert.deepEqual(c, { e: PROD_ENDPOINTS, a: PROD_ACTIVE, p: PROD_PURCHASES, p30: PROD_PURCHASES_30D });
     const seededMs = Date.now() - t0;
 
-    const deps = { findSellers: (like: string, limit: number) => readFindSellers(db, like, limit) } as unknown as Parameters<typeof findSellers>[0];
+    const findOpts = {
+      minDeliveredPct: Math.round(findRank.FIND_MIN_DELIVERED_RATE * 100),
+      windowDays: findRank.FIND_WINDOW_DAYS,
+    };
+    const deps = {
+      findAlternatives: (like: string, poolLimit: number) =>
+        readFindAlternatives(db, like, { ...findOpts, limit: poolLimit }),
+      findUntested: (like: string) => readFindUntested(db, like),
+    } as unknown as Parameters<typeof findSellers>[0];
     const queries = ["weather", "search", "price", "news", "data quality", "host42", "no-such-word-at-all", "api/v3", "Lorem", "x402"];
     for (const q of queries.slice(0, 3)) await findSellers(deps, { query: q }); // 暖機
     const times: number[] = [];

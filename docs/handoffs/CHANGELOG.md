@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-18 — MCP: find_x402_sellers を /api/v1/find と同じ順位に／check_8004_agent 追加
+
+- **What**: MCP `find_x402_sellers` now calls `readFindAlternatives` and `rankFindAlternatives` (80% delivered floor, Wilson lower bound, resource_key dedupe) instead of `readFindSellers`; rows add `delivered_rate_pct` and `wilson_lower_bound`. New MCP tool `check_8004_agent` calls `getErc8004CheckCached` / `runErc8004Check` in-process (same JSON as `GET /api/v1/erc8004/check`), keyless, bucket `erc8004-check` 30/min per IP.
+- **Why**: Hosted MCP と Find API の順位の食い違いをなくし、ERC-8004 再読を MCP からも使えるようにする。
+- **Impact**: `readFindUntested` だけ別 SQL。公開一覧（docs/mcp、llms-install、llms.txt、packages/mcp-server README、`mcp:check_8004_agent` usage）。OpenAPI `/api/mcp` 記述更新。verdict・価格・export 列は不変。
+- **Tests**: `tests/mcp-find-parity.pg.test.ts`, `tests/mcp-erc8004.test.ts`, `packages/mcp-server/test/hosted-tools-doc.test.mjs`。
+
 ## 2026-11-17 — J1: 答えチェックの配線（vet402・保存済み購入のみ）
 
 - **何を**: `checkStoredPurchaseAnswer` が保存済み購入行に `answer-check` 判定器を走らせ、`/api/cron/answer-check` が直近 30 日の settled で `raw_response_meta.answerCheck` を jsonb merge で書く（冪等）。`l1.answerCheck` を `/api/v1/observatory/state` と方法論に公開。`l2-check.ts` で 402 の見本が JSON Schema 文書のとき、カタログ宣言があると `type`/`properties`/`required` を欠落キーと誤認していたのを修正（`readOutputNode` で解釈）。

@@ -47,7 +47,8 @@ if (!TEST_DB) {
     };
     const stubExtras = async () =>
       ({ fetchedAt: new Date().toISOString(), listings: [], purchases: [] }) as Awaited<ReturnType<McpDeps["hostExtras"]>>;
-    const stubFind = async () => ({ fetchedAt: new Date().toISOString(), sellers: [], untested: [] });
+    const stubFindPool = async () => ({ fetchedAt: new Date().toISOString(), listings: [] });
+    const stubUntested = async () => [];
 
     function deps(now?: Date): McpDeps {
       return {
@@ -56,7 +57,8 @@ if (!TEST_DB) {
         l1Purchases: (id) => readL1Purchases(db, id),
         sellerPage: stubPage as unknown as McpDeps["sellerPage"],
         hostExtras: stubExtras as McpDeps["hostExtras"],
-        findSellers: stubFind as McpDeps["findSellers"],
+        findAlternatives: stubFindPool as McpDeps["findAlternatives"],
+        findUntested: stubUntested as McpDeps["findUntested"],
         now: now ? () => now : undefined,
       };
     }
