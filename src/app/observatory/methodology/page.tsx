@@ -1265,6 +1265,28 @@ export default async function ObservatoryMethodologyPage() {
           <code>/api/v1/observatory/erc8004/weekly/&#123;agentId&#125;?week=YYYY-Www</code>.
         </p>
 
+        <h3 className="doc-p font-semibold" id="erc8004-attest">
+          vet402 written ERC-8004 reputation (weekly)
+        </h3>
+        <p className="doc-p">
+          On Base, vet402 may call <code>giveFeedback</code> on the ERC-8004 Reputation Registry once per ISO
+          week for each matched agent whose payTo equals that agent&apos;s{" "}
+          <code>agentWallet</code> (not owner-only matches until mis-binding rates are published).
+          <code>tag1</code> is <code>successRate</code>, <code>tag2</code> is <code>vet402</code>,{" "}
+          <code>valueDecimals</code> is 2, and <code>value</code> is the delivered rate times 100 as an integer
+          (for example 85.50% is <code>8550</code>). The population is vet402 purchase rows in that UTC week
+          with status <code>settled</code>. Rows held as <code>settled_4xx</code> (paid 4xx where vet402 may be
+          at fault) are removed from the denominator, not scored against the seller. Agents with fewer than three
+          settled rows in the week are skipped. <code>feedbackURI</code> points at the weekly rollup URL above;{" "}
+          <code>feedbackHash</code> is the keccak256 of that JSON body (distinct from the response header{" "}
+          <code>x-vet402-feedback-sha256</code>, which is SHA-256). A representative <code>proofOfPayment</code>{" "}
+          for the week is carried inside that JSON. The writer wallet is fixed, must not be a vet402 purchase
+          payer, and must not be the agent&apos;s owner or an approved operator. Seller replies use{" "}
+          <code>appendResponse</code> on the registry. On-chain writes require operator approval and{" "}
+          <code>ERC8004_ATTEST_ENABLED=1</code>; dry runs use <code>npm run erc8004:attest</code> without{" "}
+          <code>--send</code>.
+        </p>
+
         <h2 className="sec-head">
           <span className="sec-no">8.</span>
           <span>Fairness commitments</span>

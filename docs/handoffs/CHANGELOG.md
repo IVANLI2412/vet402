@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-17 — ERC-8004 feedback・weekly の 503 を直す／段階 D（Attest）の送信経路
+
+- **何を（直し）**: `erc8004-purchase-match.ts` が存在しない列 `pu.l2_detail`・`pu.l2_body_head`・`pu.l2_content_type` を読んでいて、本番の `/api/v1/observatory/erc8004/feedback/{purchase_id}` と `/weekly/{agentId}` が 503 だった。`l2ReadingColumnsSql("pu")`（raw_response_meta から読む共通の列）に置き換え、週の範囲と agent 番号は型つきの引数に。`tests/erc8004-purchase-match.pg.test.ts` で本物の表に当てる。
+- **何を（D）**: `npm run erc8004:attest -- --week YYYY-Www [--send]` と `npm run erc8004:writer-keygen`。送信は `--send` かつ `ERC8004_ATTEST_ENABLED=1` のときだけ。台帳は `~/.vet402/erc8004-attest/<week>.json`（worktree の外・送る前に pending を書く）で、同じ週・同じ agent に二度書かない。対象は agentWallet でも一致した agent だけ。書き手 `0x2180A4d582B0551c596830320139adb163bd271a`（購入元・agent の owner と同じなら止める）。methodology に節 `#erc8004-attest`。
+- **なぜ**: 2026-11-12 オーナー承認（6条件）。
+- **影響**: 送信はまだ一度もしていない。書き手の Base ETH はオーナーが入れる。
+
 ## 2026-11-17 — ERC-8004 Identity 状態読み索引（eth_getLogs 代替）
 
 - **何を**: `src/lib/indexer/erc8004-state-indexer.ts` を追加。Multicall3 `aggregate3` で `ownerOf` と `getAgentWallet` を鎖ごとに 500 件ずつ読み、checkpoint `erc8004_state:<caip2>`（`last_block` = 最後に読んだ agent 番号、`last_cursor` = 周回）に保存。200 件連続 revert で周回完了し cursor を 0 に戻す。`runIdentityIndexes` はログ索引（`erc8004-chain-indexer`・Base WalletSet）の代わりに状態読みを呼ぶ（Base owner は従来どおり）。RPC は `ERC8004_STATE_RPC_*`（未設定は publicnode 既定）。`erc8004.byChain` に `stateIndexToken`・`stateSupplyEstimate`・`stateLap` を追加。`index_not_started` は状態読み checkpoint が無いときのみ。

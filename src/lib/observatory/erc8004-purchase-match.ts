@@ -2,6 +2,8 @@
 import { sql } from "drizzle-orm";
 import type { getDb } from "@/lib/db/client";
 import { erc8004AgentColumnSql } from "@/lib/observatory/erc8004-export-agent";
+// 2026-11-17: l2 の材料は列ではなく raw_response_meta の中。存在しない列を読んで本番の feedback・weekly が 503 だった。
+import { l2ReadingColumnsSql } from "@/lib/observatory/l2-check";
 import type { PurchaseFeedbackRow } from "@/lib/observatory/erc8004-feedback";
 
 const MATCH_KIND_SQL = `(
@@ -31,9 +33,7 @@ const PURCHASE_FEEDBACK_SELECT = `
   pu.http_status_paid,
   pu.latency_ms,
   pu.l2_schema,
-  pu.l2_detail,
-  pu.l2_body_head,
-  pu.l2_content_type,
+  ${l2ReadingColumnsSql("pu")},
   pu.pay_to,
   pu.payer,
   pu.payload_non_empty,
@@ -97,12 +97,12 @@ export async function readPurchasesForErc8004AgentWeek(
   const agentFilter =
     chainId === 8453
       ? sql`(
-          EXISTS (SELECT 1 FROM agents a WHERE a.chain_id = 8453 AND a.agent_id = ${agentId} AND a.wallet = lower(pu.pay_to))
-          OR EXISTS (SELECT 1 FROM owner_agents oa WHERE oa.agent_id = ${agentId} AND oa.owner = lower(pu.pay_to))
+          EXISTS (SELECT 1 FROM agents a WHERE a.chain_id = 8453 AND a.agent_id = ${agentId.toString()}::bigint AND a.wallet = lower(pu.pay_to))
+          OR EXISTS (SELECT 1 FROM owner_agents oa WHERE oa.agent_id = ${agentId.toString()}::bigint AND oa.owner = lower(pu.pay_to))
         )`
       : sql`EXISTS (
           SELECT 1 FROM erc8004_chain_agents ca
-          WHERE ca.chain_id = ${chainId} AND ca.agent_id = ${agentId}
+          WHERE ca.chain_id = ${chainId}::bigint AND ca.agent_id = ${agentId.toString()}::bigint
             AND (ca.owner = lower(pu.pay_to) OR ca.wallet = lower(pu.pay_to))
         )`;
 
@@ -110,8 +110,8 @@ export async function readPurchasesForErc8004AgentWeek(
     SELECT ${sql.raw(PURCHASE_FEEDBACK_SELECT)}
     FROM x402_l1_purchases pu
     JOIN x402_endpoints e ON e.id = pu.endpoint_id
-    WHERE pu.attempted_at >= ${start}::timestamptz
-      AND pu.attempted_at < ${end}::timestamptz
+    WHERE pu.attempted_at >= ${start.toISOString()}::timestamptz
+      AND pu.attempted_at < ${end.toISOString()}::timestamptz
       AND pu.status NOT IN ('budget_denied', 'halted', 'request_error', 'in_flight')
       AND ${agentFilter}
     ORDER BY pu.attempted_at ASC, pu.id ASC
