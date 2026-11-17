@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-17 — skill-live: SKILL.md §3 tools/list に diagnose_x402_url を追記
+
+- **何を**: `SKILL.md` の `# live:` ブロック（§3 MCP stdio `tools/list`）の期待ツール名配列と直後の説明を、repo ビルドの 8 ツール（`diagnose_x402_url` 追加後）に合わせた。
+- **なぜ**: 11/15 以降の skill-live（Issue #97）が §3 だけ `expect → false` で赤。MCP 実装は `packages/mcp-server/test/tool-contract.test.mjs` と一致しており、文書側が 7 ツールのままだった。
+- **試験**: `node scripts/skill-live-check.mjs`（workflow と同じ sdk→mcp-server build 後）。
+- **影響**: npm の `@vet402/mcp-server@0.3.0` は公開時 7 ツールの記述のまま（歴史的文言）。本 runbook の repo ビルド経路のみ 8 ツール。
+
 ## 2026-11-17 — surface-canary: 記録頁 Stage 行を Whose side から外す・mcp-server zod 4.6.7
 
 - **何を**: `parseRecordPage` の fact-subrow で `Whose side` の語だけ取り、続く `Stage:` 行を latest_row_side の語比較から外す（2026-11-14 wave1 B1）。`tests/surface-consistency-canary.test.ts` に unsorted×Stage の型を追加。`packages/mcp-server` の runtime `zod` を `^4.6.7` に上げ GHSA-mrhx-c7xc-m3w5 を解消。

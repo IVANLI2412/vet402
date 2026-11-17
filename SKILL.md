@@ -211,7 +211,7 @@ no signature exists.
 ### 3. The MCP server over stdio, listing the tool
 
 ```bash
-# live: expect .[0].result.tools | map(.name) == ["check_agent_trust","check_wallet_trust","check_payee_trust","explain_trust_score","attest_x402_payment","check_resource_decision","pay_if_trusted"]
+# live: expect .[0].result.tools | map(.name) == ["check_agent_trust","check_wallet_trust","check_payee_trust","explain_trust_score","attest_x402_payment","check_resource_decision","diagnose_x402_url","pay_if_trusted"]
 cd packages/mcp-server && printf '%s\n%s\n%s\n' \
  '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"judge","version":"0"}}}' \
  '{"jsonrpc":"2.0","method":"notifications/initialized"}' \
@@ -219,11 +219,11 @@ cd packages/mcp-server && printf '%s\n%s\n%s\n' \
  | VOUCH_API_KEY=dummy node dist/index.js | tail -1
 ```
 
-Returns seven tools; the new one is last:
+Returns eight tools; `pay_if_trusted` is last:
 
 ```
 check_agent_trust, check_wallet_trust, check_payee_trust, explain_trust_score,
-attest_x402_payment, check_resource_decision, pay_if_trusted
+attest_x402_payment, check_resource_decision, diagnose_x402_url, pay_if_trusted
 ```
 
 `pay_if_trusted` input schema: `resourceId, resource, payee, amountUsd, method, maxPerTxUsd, policy`
