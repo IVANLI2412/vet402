@@ -12,13 +12,13 @@ import { z } from "zod";
 import { ActionProvider } from "@coinbase/agentkit";
 import { CreateAction } from "@coinbase/agentkit";
 import { Vet402PayInputSchema } from "./schemas.js";
-import { executeVet402Pay } from "./pay-tool-core.js";
+import { bindVet402PayTool, executeVet402Pay } from "./pay-tool-core.js";
 export class Vet402ActionProvider extends ActionProvider {
     config;
-    constructor(config) {
+    constructor(options) {
         super("vet402", []);
-        this.config = config;
         this.supportsNetwork = () => true;
+        this.config = bindVet402PayTool(options);
     }
     async vet402Pay(args) {
         const result = await executeVet402Pay(args, this.config);

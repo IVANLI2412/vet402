@@ -7,7 +7,7 @@ import { type Vet402PayToolOptions } from "./pay-tool-core.js";
 export type Vet402ActionProviderOptions = Vet402PayToolOptions;
 export declare class Vet402ActionProvider extends ActionProvider {
     private readonly config;
-    constructor(config: Vet402ActionProviderOptions);
+    constructor(options: Vet402ActionProviderOptions);
     vet402Pay(args: z.infer<typeof Vet402PayInputSchema>): Promise<string>;
     supportsNetwork: (network: Network) => boolean;
 }

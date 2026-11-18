@@ -1,21 +1,26 @@
 import { tool } from "@langchain/core/tools";
 import { z } from "zod";
-import { executeVet402Pay, type Vet402PayToolOptions } from "./pay-tool-core.js";
+import { bindVet402PayTool, executeVet402Pay, type Vet402PayToolOptions } from "./pay-tool-core.js";
 
-const payInputSchema = z.object({
-  url: z.string().describe("HTTPS URL of the x402 seller to call"),
-  method: z.string().optional().describe("HTTP method. Defaults to GET when omitted."),
-  body: z.string().optional().describe("Request body as a string when the seller expects one."),
-  headers: z
-    .record(z.string(), z.string())
-    .optional()
-    .describe("Extra request headers. Authorization and payment headers are rejected."),
-});
+const payInputSchema = z.record(z.unknown());
 
 export function vet402PayTool(options: Vet402PayToolOptions) {
+  const bound = bindVet402PayTool(options);
   return tool(
     async (input) => {
-      const result = await executeVet402Pay(input, options);
+      if (typeof input !== "object" || input === null || Array.isArray(input)) {
+        return JSON.stringify({
+          status: "refused",
+          recommendation: null,
+          reasonCodes: ["tool_input_invalid"],
+          txHash: null,
+          responseBody: null,
+          responseBodyTruncated: false,
+          guidance: "Payment was not made.",
+          receipt: null,
+        });
+      }
+      const result = await executeVet402Pay(input as Record<string, unknown>, bound);
       return JSON.stringify(result);
     },
     {

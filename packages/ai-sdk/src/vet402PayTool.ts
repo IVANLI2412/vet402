@@ -1,6 +1,6 @@
 import { tool } from "ai";
 import { z } from "zod";
-import { executeVet402Pay, type Vet402PayToolOptions } from "./pay-tool-core.js";
+import { bindVet402PayTool, executeVet402Pay, type Vet402PayToolOptions } from "./pay-tool-core.js";
 
 const payInputSchema = z.object({
   url: z.string().describe("HTTPS URL of the x402 seller to call"),
@@ -13,11 +13,12 @@ const payInputSchema = z.object({
 });
 
 export function vet402PayTool(options: Vet402PayToolOptions) {
+  const bound = bindVet402PayTool(options);
   return tool({
     description:
       "Check an x402 seller with vet402, then pay only when the verdict is ALLOW. " +
       "Returns status, recommendation, reason codes, tx hash and the seller body.",
     inputSchema: payInputSchema,
-    execute: async (input) => executeVet402Pay(input, options),
+    execute: async (input) => executeVet402Pay(input, bound),
   });
 }

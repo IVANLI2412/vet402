@@ -6,16 +6,16 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
     metadata?: import("@ai-sdk/provider").JSONObject;
     inputSchema: import("ai").FlexibleSchema<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }>;
     contextSchema?: import("ai").FlexibleSchema<import("@ai-sdk/provider-utils").Context> | undefined;
     needsApproval?: boolean | import("@ai-sdk/provider-utils").ToolNeedsApprovalFunction<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }, NoInfer<import("@ai-sdk/provider-utils").Context>> | undefined;
     onInputStart?: ((options: import("ai").ToolExecutionOptions<NoInfer<import("@ai-sdk/provider-utils").Context>>) => void | PromiseLike<void>) | undefined;
     onInputDelta?: ((options: {
@@ -24,18 +24,18 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
     onInputAvailable?: ((options: {
         input: {
             url: string;
-            headers?: Record<string, string> | undefined;
-            method?: string | undefined;
             body?: string | undefined;
+            method?: string | undefined;
+            headers?: Record<string, string> | undefined;
         };
     } & import("ai").ToolExecutionOptions<NoInfer<import("@ai-sdk/provider-utils").Context>>) => void | PromiseLike<void>) | undefined;
     toModelOutput?: ((options: {
         toolCallId: string;
         input: {
             url: string;
-            headers?: Record<string, string> | undefined;
-            method?: string | undefined;
             body?: string | undefined;
+            method?: string | undefined;
+            headers?: Record<string, string> | undefined;
         };
         output: NoInfer<import("./pay-tool-core.js").Vet402PayToolResult>;
     }) => import("@ai-sdk/provider-utils").ToolResultOutput | PromiseLike<import("@ai-sdk/provider-utils").ToolResultOutput>) | undefined;
@@ -43,9 +43,9 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
     outputSchema?: import("ai").FlexibleSchema<import("./pay-tool-core.js").Vet402PayToolResult> | undefined;
     execute: import("ai").ToolExecuteFunction<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }, import("./pay-tool-core.js").Vet402PayToolResult, NoInfer<import("@ai-sdk/provider-utils").Context>>;
 } & {
     description?: string | ((options: {
@@ -56,9 +56,9 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
     inputExamples?: {
         input: NoInfer<{
             url: string;
-            headers?: Record<string, string> | undefined;
-            method?: string | undefined;
             body?: string | undefined;
+            method?: string | undefined;
+            headers?: Record<string, string> | undefined;
         }>;
     }[] | undefined;
     id?: never;
@@ -70,9 +70,9 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
 } & {
     execute: import("ai").ToolExecuteFunction<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }, import("./pay-tool-core.js").Vet402PayToolResult, NoInfer<import("@ai-sdk/provider-utils").Context>>;
 }) | ({
     deferLoading?: boolean;
@@ -81,16 +81,16 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
     metadata?: import("@ai-sdk/provider").JSONObject;
     inputSchema: import("ai").FlexibleSchema<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }>;
     contextSchema?: import("ai").FlexibleSchema<import("@ai-sdk/provider-utils").Context> | undefined;
     needsApproval?: boolean | import("@ai-sdk/provider-utils").ToolNeedsApprovalFunction<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }, NoInfer<import("@ai-sdk/provider-utils").Context>> | undefined;
     onInputStart?: ((options: import("ai").ToolExecutionOptions<NoInfer<import("@ai-sdk/provider-utils").Context>>) => void | PromiseLike<void>) | undefined;
     onInputDelta?: ((options: {
@@ -99,18 +99,18 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
     onInputAvailable?: ((options: {
         input: {
             url: string;
-            headers?: Record<string, string> | undefined;
-            method?: string | undefined;
             body?: string | undefined;
+            method?: string | undefined;
+            headers?: Record<string, string> | undefined;
         };
     } & import("ai").ToolExecutionOptions<NoInfer<import("@ai-sdk/provider-utils").Context>>) => void | PromiseLike<void>) | undefined;
     toModelOutput?: ((options: {
         toolCallId: string;
         input: {
             url: string;
-            headers?: Record<string, string> | undefined;
-            method?: string | undefined;
             body?: string | undefined;
+            method?: string | undefined;
+            headers?: Record<string, string> | undefined;
         };
         output: NoInfer<import("./pay-tool-core.js").Vet402PayToolResult>;
     }) => import("@ai-sdk/provider-utils").ToolResultOutput | PromiseLike<import("@ai-sdk/provider-utils").ToolResultOutput>) | undefined;
@@ -118,9 +118,9 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
     outputSchema?: import("ai").FlexibleSchema<import("./pay-tool-core.js").Vet402PayToolResult> | undefined;
     execute: import("ai").ToolExecuteFunction<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }, import("./pay-tool-core.js").Vet402PayToolResult, NoInfer<import("@ai-sdk/provider-utils").Context>>;
 } & {
     description?: string | ((options: {
@@ -131,9 +131,9 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
     inputExamples?: {
         input: NoInfer<{
             url: string;
-            headers?: Record<string, string> | undefined;
-            method?: string | undefined;
             body?: string | undefined;
+            method?: string | undefined;
+            headers?: Record<string, string> | undefined;
         }>;
     }[] | undefined;
     id?: never;
@@ -145,9 +145,9 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
 } & {
     execute: import("ai").ToolExecuteFunction<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }, import("./pay-tool-core.js").Vet402PayToolResult, NoInfer<import("@ai-sdk/provider-utils").Context>>;
 }) | ({
     deferLoading?: boolean;
@@ -156,16 +156,16 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
     metadata?: import("@ai-sdk/provider").JSONObject;
     inputSchema: import("ai").FlexibleSchema<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }>;
     contextSchema?: import("ai").FlexibleSchema<import("@ai-sdk/provider-utils").Context> | undefined;
     needsApproval?: boolean | import("@ai-sdk/provider-utils").ToolNeedsApprovalFunction<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }, NoInfer<import("@ai-sdk/provider-utils").Context>> | undefined;
     onInputStart?: ((options: import("ai").ToolExecutionOptions<NoInfer<import("@ai-sdk/provider-utils").Context>>) => void | PromiseLike<void>) | undefined;
     onInputDelta?: ((options: {
@@ -174,18 +174,18 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
     onInputAvailable?: ((options: {
         input: {
             url: string;
-            headers?: Record<string, string> | undefined;
-            method?: string | undefined;
             body?: string | undefined;
+            method?: string | undefined;
+            headers?: Record<string, string> | undefined;
         };
     } & import("ai").ToolExecutionOptions<NoInfer<import("@ai-sdk/provider-utils").Context>>) => void | PromiseLike<void>) | undefined;
     toModelOutput?: ((options: {
         toolCallId: string;
         input: {
             url: string;
-            headers?: Record<string, string> | undefined;
-            method?: string | undefined;
             body?: string | undefined;
+            method?: string | undefined;
+            headers?: Record<string, string> | undefined;
         };
         output: NoInfer<import("./pay-tool-core.js").Vet402PayToolResult>;
     }) => import("@ai-sdk/provider-utils").ToolResultOutput | PromiseLike<import("@ai-sdk/provider-utils").ToolResultOutput>) | undefined;
@@ -193,9 +193,9 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
     outputSchema?: import("ai").FlexibleSchema<import("./pay-tool-core.js").Vet402PayToolResult> | undefined;
     execute: import("ai").ToolExecuteFunction<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }, import("./pay-tool-core.js").Vet402PayToolResult, NoInfer<import("@ai-sdk/provider-utils").Context>>;
 } & {
     type: "provider";
@@ -210,9 +210,9 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
 } & {
     execute: import("ai").ToolExecuteFunction<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }, import("./pay-tool-core.js").Vet402PayToolResult, NoInfer<import("@ai-sdk/provider-utils").Context>>;
 }) | ({
     deferLoading?: boolean;
@@ -221,16 +221,16 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
     metadata?: import("@ai-sdk/provider").JSONObject;
     inputSchema: import("ai").FlexibleSchema<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }>;
     contextSchema?: import("ai").FlexibleSchema<import("@ai-sdk/provider-utils").Context> | undefined;
     needsApproval?: boolean | import("@ai-sdk/provider-utils").ToolNeedsApprovalFunction<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }, NoInfer<import("@ai-sdk/provider-utils").Context>> | undefined;
     onInputStart?: ((options: import("ai").ToolExecutionOptions<NoInfer<import("@ai-sdk/provider-utils").Context>>) => void | PromiseLike<void>) | undefined;
     onInputDelta?: ((options: {
@@ -239,18 +239,18 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
     onInputAvailable?: ((options: {
         input: {
             url: string;
-            headers?: Record<string, string> | undefined;
-            method?: string | undefined;
             body?: string | undefined;
+            method?: string | undefined;
+            headers?: Record<string, string> | undefined;
         };
     } & import("ai").ToolExecutionOptions<NoInfer<import("@ai-sdk/provider-utils").Context>>) => void | PromiseLike<void>) | undefined;
     toModelOutput?: ((options: {
         toolCallId: string;
         input: {
             url: string;
-            headers?: Record<string, string> | undefined;
-            method?: string | undefined;
             body?: string | undefined;
+            method?: string | undefined;
+            headers?: Record<string, string> | undefined;
         };
         output: NoInfer<import("./pay-tool-core.js").Vet402PayToolResult>;
     }) => import("@ai-sdk/provider-utils").ToolResultOutput | PromiseLike<import("@ai-sdk/provider-utils").ToolResultOutput>) | undefined;
@@ -258,9 +258,9 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
     outputSchema?: import("ai").FlexibleSchema<import("./pay-tool-core.js").Vet402PayToolResult> | undefined;
     execute: import("ai").ToolExecuteFunction<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }, import("./pay-tool-core.js").Vet402PayToolResult, NoInfer<import("@ai-sdk/provider-utils").Context>>;
 } & {
     type: "provider";
@@ -275,8 +275,8 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): ({
 } & {
     execute: import("ai").ToolExecuteFunction<{
         url: string;
-        headers?: Record<string, string> | undefined;
-        method?: string | undefined;
         body?: string | undefined;
+        method?: string | undefined;
+        headers?: Record<string, string> | undefined;
     }, import("./pay-tool-core.js").Vet402PayToolResult, NoInfer<import("@ai-sdk/provider-utils").Context>>;
 });

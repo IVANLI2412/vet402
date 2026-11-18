@@ -14,7 +14,7 @@ test("AgentKit action can be invoked from getActions", async () => {
     return h.fetchImpl(input, init);
   };
   try {
-    const provider = vet402ActionProvider({ account: h.account, fetch: h.fetchImpl });
+    const provider = vet402ActionProvider({ account: h.account, fetch: h.fetchImpl, allowedHosts: ["seller.example"] });
     const actions = provider.getActions({});
     const pay = actions.find((a) => a.name === "Vet402ActionProvider_vet402_pay");
     assert.ok(pay);

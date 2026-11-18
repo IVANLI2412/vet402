@@ -4,14 +4,17 @@ import { ActionProvider } from "@coinbase/agentkit";
 import { CreateAction } from "@coinbase/agentkit";
 import { Network } from "@coinbase/agentkit";
 import { Vet402PayInputSchema } from "./schemas.js";
-import { executeVet402Pay, type Vet402PayToolOptions } from "./pay-tool-core.js";
+import { bindVet402PayTool, executeVet402Pay, type Vet402PayToolOptions } from "./pay-tool-core.js";
 
 export type Vet402ActionProviderOptions = Vet402PayToolOptions;
 
 export class Vet402ActionProvider extends ActionProvider {
-  constructor(private readonly config: Vet402ActionProviderOptions) {
+  private readonly config: Vet402PayToolOptions;
+
+  constructor(options: Vet402ActionProviderOptions) {
     super("vet402", []);
     this.supportsNetwork = () => true;
+    this.config = bindVet402PayTool(options);
   }
 
   @CreateAction({
