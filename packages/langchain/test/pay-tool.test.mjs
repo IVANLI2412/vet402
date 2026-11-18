@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { bindVet402PayTool, executeVet402Pay, RESPONSE_BODY_CAP } from "../dist/index.js";
+import { bindVet402PayTool, RESPONSE_BODY_CAP } from "../dist/index.js";
+import { executeVet402Pay } from "../dist/pay-tool-core.js";
 import {
   URL_A,
   URL_OTHER,
@@ -62,7 +63,8 @@ test("rejects policy fields coming from tool input", async () => {
 
 test("missing allowedHosts is refused at runtime", async () => {
   const h = harness();
-  const r = await executeVet402Pay({ url: URL_A }, { account: h.account, fetch: h.fetchImpl });
+  const opts = bindVet402PayTool({ account: h.account, fetch: h.fetchImpl });
+  const r = await executeVet402Pay({ url: URL_A }, opts);
   assert.equal(r.reasonCodes[0], "allowed_hosts_required");
   assert.equal(h.seen.signatures, 0);
 });
@@ -158,7 +160,7 @@ test("duplicate failed payments are blocked on the same tool instance", async ()
   const second = await executeVet402Pay({ url: URL_A, method: "POST" }, opts);
   assert.equal(second.status, "refused");
   assert.equal(second.reasonCodes[0], "duplicate_payment_blocked");
-  assert.match(second.guidance, /再試行しない/);
+  assert.equal(second.guidance, "Do not retry this payment.");
   assert.ok(second.receipt?.payTo);
   assert.equal(h.seen.signatures, 1);
   assertNoSecrets(second);
@@ -206,4 +208,100 @@ test("invalid SDK errors map to tool_execution_error", async () => {
   const h = harness();
   const r = await executeVet402Pay({ url: URL_A }, toolOpts(h, { network: "not-a-network" }));
   assert.equal(r.reasonCodes[0], "tool_execution_error");
+});
+
+test("invalid allowedHosts throws when binding the tool", () => {
+  assert.throws(
+    () => bindVet402PayTool({ account: { address: "0x0", signTypedData: async () => "0x" }, allowedHosts: "seller.example" }),
+    /allowedHosts_must_be_string_array/,
+  );
+});
+
+test("unbound options refuse instead of bypassing maxTotalUsd", async () => {
+  const h = harness();
+  const opts = { account: h.account, fetch: h.fetchImpl, allowedHosts: HOSTS, maxUsd: 0.01, maxTotalUsd: 0.01 };
+  const first = await executeVet402Pay({ url: URL_A }, opts);
+  assert.equal(first.reasonCodes[0], "tool_not_bound");
+  assert.equal(h.seen.signatures, 0);
+});
+
+test("URLSearchParams headers are rejected before signing", async () => {
+  const h = harness();
+  const r = await executeVet402Pay({ url: URL_A, headers: new URLSearchParams({ "x-test": "1" }) }, toolOpts(h));
+  assert.equal(r.reasonCodes[0], "tool_input_invalid_headers");
+  assert.equal(h.seen.signatures, 0);
+});
+
+test("seller body within the character cap is not marked truncated", async () => {
+  const body = "あ".repeat(RESPONSE_BODY_CAP);
+  const h = harness({ paidBody: body });
+  const r = await executeVet402Pay({ url: URL_A }, toolOpts(h));
+  assert.equal(r.status, "paid");
+  assert.equal(r.responseBodyTruncated, false);
+  assert.equal(r.responseBody, body);
+});
+
+test("long seller bodies truncate on character boundaries", async () => {
+  const body = `${"あ".repeat(RESPONSE_BODY_CAP)}あ`;
+  const h = harness({ paidBody: body });
+  const r = await executeVet402Pay({ url: URL_A }, toolOpts(h));
+  assert.equal(r.responseBodyTruncated, true);
+  assert.ok(r.responseBody.endsWith("...[truncated]"));
+  assert.ok(!r.responseBody.includes("\uD800"));
+});
+
+test("payment header values stay out of non-body result fields", async () => {
+  const h = harness();
+  const r = await executeVet402Pay({ url: URL_A }, toolOpts(h));
+  const { responseBody: _body, ...rest } = r;
+  const text = JSON.stringify(rest);
+  assert.equal(text.includes("payment-signature"), false);
+  assert.equal(text.includes("0xab"), false);
+});
+
+test("concurrent same-URL calls sign only once", async () => {
+  const h = harness();
+  const slow = async (input, init) => {
+    const url = String(input);
+    if (url.startsWith("https://vet402.com/")) return h.fetchImpl(input, init);
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    return h.fetchImpl(input, init);
+  };
+  const opts = toolOpts(h, { fetch: slow });
+  const [a, b, c] = await Promise.all([
+    executeVet402Pay({ url: URL_A }, opts),
+    executeVet402Pay({ url: URL_A }, opts),
+    executeVet402Pay({ url: URL_A }, opts),
+  ]);
+  const paid = [a, b, c].filter((r) => r.status === "paid");
+  const blocked = [a, b, c].filter((r) => r.reasonCodes[0] === "duplicate_payment_blocked");
+  assert.equal(paid.length, 1);
+  assert.equal(blocked.length, 2);
+  assert.equal(h.seen.signatures, 1);
+});
+
+test("fragment and empty-query respellings do not sign again", async () => {
+  const h = harness();
+  const opts = toolOpts(h);
+  const first = await executeVet402Pay({ url: URL_A }, opts);
+  assert.equal(first.status, "paid");
+  const second = await executeVet402Pay({ url: `${URL_A}#a` }, opts);
+  const third = await executeVet402Pay({ url: `${URL_A}?` }, opts);
+  assert.equal(second.reasonCodes[0], "duplicate_payment_blocked");
+  assert.equal(third.reasonCodes[0], "duplicate_payment_blocked");
+  assert.equal(h.seen.signatures, 1);
+});
+
+test("paid URL respellings are blocked without a second signature", async () => {
+  const h = harness();
+  const opts = toolOpts(h);
+  await executeVet402Pay({ url: URL_A }, opts);
+  const again = await executeVet402Pay({ url: URL_A, method: "GET" }, opts);
+  assert.equal(again.reasonCodes[0], "duplicate_payment_blocked");
+  assert.equal(h.seen.signatures, 1);
+});
+
+test("executeVet402Pay is not part of the public package export", async () => {
+  const mod = await import("../dist/index.js");
+  assert.equal("executeVet402Pay" in mod, false);
 });

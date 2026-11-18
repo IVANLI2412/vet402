@@ -3,16 +3,29 @@ export const RESPONSE_BODY_CAP = 20_000;
 export const DEFAULT_FETCH_TIMEOUT_MS = 30_000;
 const TRUNC_SUFFIX = "...[truncated]";
 const TRUNCATED_TEXT_MAX = RESPONSE_BODY_CAP - TRUNC_SUFFIX.length;
-const RESPONSE_READ_BYTE_LIMIT = RESPONSE_BODY_CAP + 8_192;
+const RESPONSE_READ_BYTE_LIMIT = RESPONSE_BODY_CAP * 4 + 8_192;
 const FORBIDDEN_HEADERS = new Set(["authorization", "cookie", "payment-signature", "x-payment"]);
 const POLICY_INPUT_KEYS = ["account", "maxUsd", "allowWarn", "allowUnknown", "maxTotalUsd"];
 const STATE = Symbol.for("@vet402/pay-tool-instance-state");
 const USDC_UNITS = 1_000_000;
 function createInstanceState() {
-    return { failedAttempts: new Map(), committedUsd: 0, reservedUsd: 0, lock: Promise.resolve() };
+    return {
+        paymentAttempts: { inProgress: new Set(), blocked: new Map() },
+        committedUsd: 0,
+        reservedUsd: 0,
+        lock: Promise.resolve(),
+    };
+}
+function assertAllowedHosts(allowedHosts) {
+    if (allowedHosts === undefined)
+        return;
+    if (!Array.isArray(allowedHosts) || allowedHosts.some((entry) => typeof entry !== "string")) {
+        throw new Error("vet402_pay_tool_allowedHosts_must_be_string_array");
+    }
 }
 /** Attach per-instance counters and duplicate guards. Factories call this once per tool. */
 export function bindVet402PayTool(options) {
+    assertAllowedHosts(options.allowedHosts);
     const bound = { ...options };
     if (!bound[STATE])
         bound[STATE] = createInstanceState();
@@ -20,9 +33,7 @@ export function bindVet402PayTool(options) {
 }
 function instanceState(options) {
     const withState = options;
-    if (!withState[STATE])
-        withState[STATE] = createInstanceState();
-    return withState[STATE];
+    return withState[STATE] ?? null;
 }
 function refuse(reason, recommendation = null, extra = {}) {
     return {
@@ -38,13 +49,14 @@ function refuse(reason, recommendation = null, extra = {}) {
     };
 }
 function truncateToCodePointBoundary(text, maxLen) {
-    if (text.length <= maxLen)
+    if ([...text].length <= maxLen)
         return text;
+    const units = [...text];
     let end = maxLen;
-    const code = text.charCodeAt(end - 1);
-    if (code >= 0xd800 && code <= 0xdbff)
+    const code = units[end - 1]?.codePointAt(0);
+    if (code !== undefined && code >= 0xd800 && code <= 0xdbff)
         end -= 1;
-    return text.slice(0, end);
+    return units.slice(0, end).join("");
 }
 async function readResponseBody(response) {
     if (!response?.body)
@@ -79,7 +91,8 @@ async function readResponseBody(response) {
     finally {
         reader.cancel().catch(() => undefined);
     }
-    const truncated = extra || decoded.length > TRUNCATED_TEXT_MAX;
+    const charCount = [...decoded].length;
+    const truncated = extra || charCount > RESPONSE_BODY_CAP;
     if (!truncated)
         return { text: decoded, truncated: false };
     const text = `${truncateToCodePointBoundary(decoded, TRUNCATED_TEXT_MAX)}${TRUNC_SUFFIX}`;
@@ -95,8 +108,15 @@ function guidanceFor(status) {
     }
     return "Payment was not made.";
 }
-function paymentAttemptKey(url, method) {
-    return `${method}\0${url}`;
+function normalizedPaymentUrl(parsed) {
+    const u = new URL(parsed.toString());
+    u.hash = "";
+    if (u.search === "" || u.search === "?")
+        return `${u.origin}${u.pathname}`;
+    return `${u.origin}${u.pathname}${u.search}`;
+}
+function paymentAttemptKey(parsed, method) {
+    return `${method}\0${normalizedPaymentUrl(parsed)}`;
 }
 function receiptSummary(receipt) {
     if (!receipt)
@@ -140,6 +160,16 @@ function hostIsAllowed(parsed, allowedHosts) {
         const rule = parseAllowedHost(entry);
         return rule.host === hostname && rule.port === port;
     });
+}
+function isPlainHeaderRecord(headers) {
+    if (typeof headers !== "object" || headers === null || Array.isArray(headers))
+        return false;
+    if (headers instanceof Headers || headers instanceof Map || headers instanceof URLSearchParams)
+        return false;
+    if (typeof headers[Symbol.iterator] === "function")
+        return false;
+    const proto = Object.getPrototypeOf(headers);
+    return proto === Object.prototype || proto === null;
 }
 function withTimeoutFetch(base, timeoutMs) {
     return async (input, init = {}) => {
@@ -188,6 +218,26 @@ async function withInstanceLock(state, fn) {
         release();
     }
 }
+function beginPaymentAttempt(state, key) {
+    const ledger = state.paymentAttempts;
+    const prior = ledger.blocked.get(key);
+    if (prior)
+        return prior;
+    if (ledger.inProgress.has(key))
+        return "in_progress";
+    ledger.inProgress.add(key);
+    return null;
+}
+function clearInProgressAttempt(state, key) {
+    state.paymentAttempts.inProgress.delete(key);
+}
+function finalizePaymentAttempt(state, key, status, summary) {
+    const ledger = state.paymentAttempts;
+    ledger.inProgress.delete(key);
+    if ((status === "paid" || status === "failed") && summary) {
+        ledger.blocked.set(key, summary);
+    }
+}
 function duplicateBlocked(summary) {
     return {
         status: "refused",
@@ -196,11 +246,44 @@ function duplicateBlocked(summary) {
         txHash: null,
         responseBody: null,
         responseBodyTruncated: false,
-        guidance: "この支払いを再試行しないでください",
-        receipt: summary,
+        guidance: "Do not retry this payment.",
+        receipt: summary ?? null,
+    };
+}
+function scrubValue(text, secrets) {
+    if (text === null || secrets.length === 0)
+        return text;
+    let out = text;
+    for (const secret of secrets) {
+        if (secret.length > 0)
+            out = out.split(secret).join("");
+    }
+    return out;
+}
+function scrubToolResult(result, secrets, responseBody) {
+    const receipt = result.receipt
+        ? {
+            nonce: scrubValue(result.receipt.nonce, secrets),
+            payTo: scrubValue(result.receipt.payTo, secrets),
+            amount: scrubValue(result.receipt.amount, secrets),
+            network: scrubValue(result.receipt.network, secrets),
+        }
+        : result.receipt;
+    return {
+        status: result.status,
+        recommendation: scrubValue(result.recommendation, secrets),
+        reasonCodes: result.reasonCodes.map((code) => scrubValue(code, secrets) ?? ""),
+        txHash: scrubValue(result.txHash, secrets),
+        responseBody,
+        responseBodyTruncated: result.responseBodyTruncated,
+        guidance: scrubValue(result.guidance, secrets) ?? result.guidance,
+        receipt,
     };
 }
 export async function executeVet402Pay(rawInput, options) {
+    const state = instanceState(options);
+    if (!state)
+        return refuse("tool_not_bound");
     if (options.allowedHosts === undefined) {
         return refuse("allowed_hosts_required");
     }
@@ -233,22 +316,17 @@ export async function executeVet402Pay(rawInput, options) {
             : null;
     if (method === null)
         return refuse("tool_input_invalid_method");
-    const state = instanceState(options);
-    const attemptKey = paymentAttemptKey(url, method);
-    const priorFailure = state.failedAttempts.get(attemptKey);
-    if (priorFailure)
-        return duplicateBlocked(priorFailure);
     const headers = rawInput.headers;
     if (headers !== undefined) {
-        if (headers instanceof Headers || headers instanceof Map) {
-            return refuse("tool_input_invalid_headers");
-        }
-        if (typeof headers !== "object" || headers === null || Array.isArray(headers)) {
+        if (!isPlainHeaderRecord(headers)) {
             return refuse("tool_input_invalid_headers");
         }
         for (const name of Object.keys(headers)) {
             if (FORBIDDEN_HEADERS.has(name.toLowerCase())) {
                 return refuse("forbidden_header");
+            }
+            if (typeof headers[name] !== "string") {
+                return refuse("tool_input_invalid_headers");
             }
         }
     }
@@ -261,6 +339,13 @@ export async function executeVet402Pay(rawInput, options) {
     if (headers) {
         init.headers = headers;
     }
+    const sellerUrl = normalizedPaymentUrl(parsed);
+    const attemptKey = paymentAttemptKey(parsed, method);
+    const attemptGate = beginPaymentAttempt(state, attemptKey);
+    if (attemptGate !== null) {
+        const summary = attemptGate === "in_progress" ? null : attemptGate;
+        return duplicateBlocked(summary);
+    }
     const perTxUsd = options.maxUsd ?? DEFAULT_MAX_PER_TX_USD;
     const totalCap = options.maxTotalUsd ?? perTxUsd * 10;
     const reserved = await withInstanceLock(state, async () => {
@@ -270,13 +355,22 @@ export async function executeVet402Pay(rawInput, options) {
         state.reservedUsd += perTxUsd;
         return true;
     });
-    if (!reserved)
+    if (!reserved) {
+        clearInProgressAttempt(state, attemptKey);
         return refuse("max_total_usd_exceeded");
+    }
     const timeoutMs = options.fetchTimeoutMs ?? DEFAULT_FETCH_TIMEOUT_MS;
     const baseFetch = options.fetch ?? globalThis.fetch;
     const innerTimed = withTimeoutFetch(baseFetch, timeoutMs);
+    const paymentHeaderSecrets = [];
     let sellerTimedOut = false;
     const timedFetch = async (input, init) => {
+        const hdrs = new Headers(init?.headers);
+        for (const name of ["payment-signature", "x-payment"]) {
+            const value = hdrs.get(name);
+            if (value)
+                paymentHeaderSecrets.push(value);
+        }
         try {
             return await innerTimed(input, init);
         }
@@ -287,7 +381,7 @@ export async function executeVet402Pay(rawInput, options) {
         }
     };
     try {
-        const result = await pay(url, init, {
+        const result = await pay(sellerUrl, init, {
             account: options.account,
             maxUsd: options.maxUsd,
             allowWarn: options.allowWarn,
@@ -305,6 +399,7 @@ export async function executeVet402Pay(rawInput, options) {
             await withInstanceLock(state, async () => {
                 state.reservedUsd -= perTxUsd;
             });
+            clearInProgressAttempt(state, attemptKey);
             return refuse("fetch_timeout");
         }
         const summary = receiptSummary(result.receipt);
@@ -312,15 +407,12 @@ export async function executeVet402Pay(rawInput, options) {
         const spentUsd = signedSpend ? (amountUsdFromReceipt(result.receipt) ?? perTxUsd) : 0;
         await withInstanceLock(state, async () => {
             state.reservedUsd -= perTxUsd;
-            if (signedSpend) {
+            if (signedSpend)
                 state.committedUsd += spentUsd;
-                if (result.status === "failed" && summary) {
-                    state.failedAttempts.set(attemptKey, summary);
-                }
-            }
         });
+        finalizePaymentAttempt(state, attemptKey, result.status, summary);
         const body = await readResponseBody(result.response);
-        return {
+        const raw = {
             status: result.status,
             recommendation: result.recommendation,
             reasonCodes: result.reasonCodes,
@@ -330,11 +422,13 @@ export async function executeVet402Pay(rawInput, options) {
             guidance: guidanceFor(result.status),
             receipt: summary,
         };
+        return scrubToolResult(raw, paymentHeaderSecrets, body.text);
     }
     catch (err) {
         await withInstanceLock(state, async () => {
             state.reservedUsd -= perTxUsd;
         });
+        clearInProgressAttempt(state, attemptKey);
         const message = err instanceof Error ? err.message : "tool_execution_error";
         if (message === "fetch_timeout")
             return refuse("fetch_timeout");
