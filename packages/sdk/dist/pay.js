@@ -47,6 +47,9 @@ function readOffer(response, network) {
                 continue;
             if (typeof accept.asset !== "string" || accept.asset.toLowerCase() !== profile.asset.toLowerCase())
                 continue;
+            const extra = accept.extra;
+            if (extra?.assetTransferMethod !== undefined && extra.assetTransferMethod !== "eip3009")
+                continue;
             if (typeof accept.payTo !== "string" || !WALLET_RE.test(accept.payTo))
                 continue;
             if (typeof amount !== "string" || !AMOUNT_RE.test(amount))

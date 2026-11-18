@@ -93,6 +93,8 @@ function readOffer(response: Response, network: ChainProfileName): Offer | null 
       if (accept.scheme !== "exact") continue;
       if (accept.network !== profile.network && accept.network !== profile.v1Slug) continue;
       if (typeof accept.asset !== "string" || accept.asset.toLowerCase() !== profile.asset.toLowerCase()) continue;
+      const extra = accept.extra as { assetTransferMethod?: unknown } | null | undefined;
+      if (extra?.assetTransferMethod !== undefined && extra.assetTransferMethod !== "eip3009") continue;
       if (typeof accept.payTo !== "string" || !WALLET_RE.test(accept.payTo)) continue;
       if (typeof amount !== "string" || !AMOUNT_RE.test(amount)) continue;
       return { payTo: accept.payTo, amountUsd: Number(amount) / USDC_UNITS };

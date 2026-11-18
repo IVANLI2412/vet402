@@ -113,6 +113,23 @@ test("allowUnknown only opens the payee score path, and a failed score still ref
   assert.equal(h.seen.signatures, 0);
 });
 
+test("allowUnknown pays only when the payee score says ALLOW", async () => {
+  const score = (recommendation) => () => json(200, { address: PAY_TO, score: 74, recommendation, dataDepth: "moderate", degraded: false, signalsUnavailable: [] });
+  const none = () => json(404, { error: "not_found" });
+
+  const allowed = harness({ decision: none, score: score("ALLOW") });
+  const paid = await pay(URL_A, undefined, { account: allowed.account, fetch: allowed.fetchImpl, allowUnknown: true });
+  assert.equal(paid.status, "paid");
+  assert.equal(allowed.seen.signatures, 1);
+
+  for (const word of ["WARN", "BLOCK"]) {
+    const h = harness({ decision: none, score: score(word) });
+    const r = await pay(URL_A, undefined, { account: h.account, fetch: h.fetchImpl, allowUnknown: true });
+    assert.equal(r.status, "refused");
+    assert.equal(h.seen.signatures, 0);
+  }
+});
+
 test("allowWarn pays WARN only when vet402 recorded a delivery", async () => {
   const delivered = harness({ decision: () => json(200, verdict("WARN")) });
   const paid = await pay(URL_A, undefined, { account: delivered.account, fetch: delivered.fetchImpl, allowWarn: true });
@@ -172,6 +189,30 @@ for (const [name, offers] of [
     assert.equal(h.seen.signatures, 0);
   });
 }
+
+test("an unpayable first offer is skipped and the payable one is paid", async () => {
+  const h = harness({ offers: () => [offer({ asset: OTHER, payTo: OTHER }), offer()] });
+  const r = await pay(URL_A, undefined, { account: h.account, fetch: h.fetchImpl });
+  assert.equal(r.status, "paid");
+  assert.equal(h.seen.signatures, 1);
+});
+
+test("an offer with another transfer method is not payable", async () => {
+  const h = harness({ offers: () => [offer({ extra: { name: "USD Coin", version: "2", assetTransferMethod: "permit2" } })] });
+  const r = await pay(URL_A, undefined, { account: h.account, fetch: h.fetchImpl });
+  assert.deepEqual(r.reasonCodes, ["no_eligible_accept"]);
+  assert.equal(h.seen.signatures, 0);
+});
+
+test("when payOrRefuse would choose a different offer, nothing is signed", async () => {
+  const noncanonical = offer({ extra: { name: "Not USDC", version: "9" } });
+  const canonical = offer({ payTo: OTHER });
+  const h = harness({ offers: () => [noncanonical, canonical] });
+  const r = await pay(URL_A, undefined, { account: h.account, fetch: h.fetchImpl });
+  assert.equal(r.status, "refused");
+  assert.equal(h.seen.signatures, 0);
+  assert.match(r.reasonCodes.join(","), /payee_mismatch/);
+});
 
 test("a seller that answers without a 402 is returned unpaid", async () => {
   const account = { address: OTHER, signTypedData: async () => assert.fail("must not sign") };
