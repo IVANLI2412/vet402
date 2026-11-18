@@ -13,6 +13,12 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-18 — M5a: GET /api/v1/check の seller 読み取りを 60 秒サーバキャッシュ
+
+- **何を**: `checkSeller` の成功応答（`not_in_catalog` 含む）を正規化 URL と method を鍵に `unstable_cache` で最大 60 秒使い回す（`src/lib/api/check-seller-cache.ts`）。回数制限は従来どおり先。`as_of` と `x-vet402-retrieved-at` は `checkSeller` が返した時刻のまま。`Server-Timing: check;dur=…` を付与。外向きの `Cache-Control: private, no-store` は不変。
+- **なぜ**: 東京実測で `/api/v1/check` 中央値 0.65s・最大 1.49s。毎回 `checkSeller` が DB を読んでいた。
+- **影響**: MCP の `check_x402_seller` はキャッシュせず（形は不変）。失敗は保存せず、`spending_halted: true` は再利用しない。`diagnose_url` は要求ごとに作る。`as_of` は判定を作った時刻で、判定の中身は既存の 5 分の LRU を含めて最大約 6 分前のものになり得る。`spending_halted` の反映は 60 秒以内。試験 `tests/check-seller-cache.test.ts`。
+
 ## 2026-11-18 /status の履歴の読み取りを30日分に絞った（vet402.com）
 
 - 変更: `getStatusHistory` が health_snapshots の全行（23,360行）を毎リクエスト読んでいたのを、30日の窓の行と最新・最古の1行ずつに変えた。

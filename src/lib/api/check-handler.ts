@@ -5,7 +5,8 @@ import { rejectUnknownQuery } from "@/lib/api/export-guard";
 import { withNoindex } from "@/lib/api/public-read-robots";
 import { isHttpsAbsoluteUrl } from "@/lib/mcp/schemas";
 import { ERROR_TEXT } from "@/lib/mcp/text";
-import { checkSeller, type CheckSellerDeps } from "@/lib/mcp/tools";
+import { getCheckSellerCached } from "@/lib/api/check-seller-cache";
+import type { CheckSellerDeps } from "@/lib/mcp/tools";
 import { attachVerdictReceipt, checkCanonicalInput, receiptVerdictOf } from "@/lib/receipts/verdict-receipt";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { NextResponse } from "next/server";
@@ -37,6 +38,7 @@ function successHeaders(retrievedAt: string, extra: Record<string, string> = {})
 }
 
 export async function handleCheck(request: Request, deps: CheckSellerDeps): Promise<Response> {
+  const t0 = performance.now();
   const url = new URL(request.url);
   const baseHeaders: Record<string, string> = {};
 
@@ -75,7 +77,7 @@ export async function handleCheck(request: Request, deps: CheckSellerDeps): Prom
 
   try {
     const method = methodRaw ? methodRaw.toUpperCase() : null;
-    const out = await checkSeller(deps, {
+    const out = await getCheckSellerCached(deps, {
       url: urlRaw,
       method: method ?? undefined,
     });
@@ -85,11 +87,15 @@ export async function handleCheck(request: Request, deps: CheckSellerDeps): Prom
       verdict ? { canonicalInput: checkCanonicalInput(urlRaw, method), verdict, asOf: out.as_of } : null,
     );
     const retrievedAt = out.as_of;
-    return NextResponse.json(body, {
+    const res = NextResponse.json(body, {
       headers: withNoindex(successHeaders(retrievedAt, baseHeaders)),
     });
+    res.headers.set("Server-Timing", `check;dur=${(performance.now() - t0).toFixed(1)}`);
+    return res;
   } catch (error) {
     logServerErrorSafe("check", error);
-    return json(503, { error: "temporarily_unavailable" }, baseHeaders);
+    const res = json(503, { error: "temporarily_unavailable" }, baseHeaders);
+    res.headers.set("Server-Timing", `check;dur=${(performance.now() - t0).toFixed(1)}`);
+    return res;
   }
 }
