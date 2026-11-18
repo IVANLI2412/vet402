@@ -224,6 +224,30 @@ test("two offers to one payee never sign more than the price pay read", async ()
   assert.match(r.reasonCodes.join(","), /price_above_declared/);
 });
 
+test("every seller request refuses redirects, whatever the caller passes", async () => {
+  const modes = [];
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    if (String(input) === URL_A) modes.push(init.redirect);
+    return h.fetchImpl(input, init);
+  };
+  const r = await pay(URL_A, { redirect: "follow" }, { account: h.account, fetch: fetchImpl });
+  assert.equal(r.status, "paid");
+  assert.ok(modes.length >= 3);
+  assert.ok(modes.every((mode) => mode === "error"));
+});
+
+test("a seller that redirects is refused with no signature", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    if (String(input) === URL_A && init.redirect === "error") throw new TypeError("unexpected redirect");
+    return h.fetchImpl(input, init);
+  };
+  const r = await pay(URL_A, undefined, { account: h.account, fetch: fetchImpl });
+  assert.deepEqual(r.reasonCodes, ["seller_unreachable"]);
+  assert.equal(h.seen.signatures, 0);
+});
+
 test("a seller that answers without a 402 is returned unpaid", async () => {
   const account = { address: OTHER, signTypedData: async () => assert.fail("must not sign") };
   const r = await pay(URL_A, undefined, { account, fetch: async () => new Response("free", { status: 200 }) });

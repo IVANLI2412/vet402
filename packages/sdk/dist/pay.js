@@ -93,7 +93,8 @@ export async function pay(url, init, options) {
             return baseFetch(input, callInit);
         const headers = new Headers(init?.headers);
         new Headers(callInit?.headers).forEach((value, key) => headers.set(key, value));
-        const answer = await baseFetch(resource, { ...init, ...callInit, method, headers, body: init?.body });
+        // A redirect could carry the signed payment to a host nobody checked, so it is never followed.
+        const answer = await baseFetch(resource, { ...init, ...callInit, method, headers, body: init?.body, redirect: "error" });
         if (headers.has("payment-signature") || headers.has("x-payment"))
             sellerAnswer = answer.clone();
         return answer;
