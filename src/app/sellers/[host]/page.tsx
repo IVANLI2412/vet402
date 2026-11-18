@@ -28,6 +28,7 @@ import TrackView from "@/components/site/TrackView";
 import SellerCalledVsDeliveredSection from "@/components/site/sellers/SellerCalledVsDeliveredSection";
 import SellerHostBadgeSection from "@/components/site/sellers/SellerHostBadgeSection";
 import SellerRefundSection from "@/components/site/sellers/SellerRefundSection";
+import SellerErc8004Section from "@/components/site/sellers/SellerErc8004Section";
 
 /**
  * /sellers/[host] — one seller's Base listings, each with its latest purchase, what vet402 saw,
@@ -180,6 +181,7 @@ export default async function SellerPage({ params, searchParams }: Props) {
           <>
             <SellerCalledVsDeliveredSection host={detail.host} />
             <SellerRefundSection host={detail.host} />
+            <SellerErc8004Section host={detail.host} />
             <SellerHostBadgeSection host={detail.host} />
           </>
         }

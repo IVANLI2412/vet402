@@ -21,8 +21,10 @@ import { PUBLIC_READ_REVALIDATE } from "@/lib/observatory/public-read-revalidate
 import type { SellerBoard, SellerDetail, SellerOtherChains } from "./board";
 import { readHostCalledVsDelivered, type HostCalledVsDelivered } from "./called-vs-delivered";
 import { readPurchasedHosts, readSellerBoard, readSellerDetail, readSellerOtherChains } from "./reader";
+import { readSellerErc8004Binding, type SellerErc8004Binding } from "./erc8004-binding";
 import { readSellerRefundStats } from "./refund-reader";
 import type { RefundStats } from "./refunds";
+import { logServerErrorSafe } from "@/lib/util/log-safe";
 
 export class SellersUnavailable extends Error {}
 
@@ -86,4 +88,32 @@ export const getSellerRefundStatsCached: (host: string) => Promise<RefundStats |
   ["sellers:refunds:v3"],
   { revalidate: PUBLIC_READ_REVALIDATE, tags: ["observatory"] },
 );
+
+class SellerErc8004Unavailable extends Error {
+  constructor(readonly binding: SellerErc8004Binding) {
+    super("seller erc8004 binding unavailable");
+  }
+}
+
+const sellerErc8004BindingCached = unstable_cache(
+  async (host: string): Promise<SellerErc8004Binding> => {
+    const result = await readSellerErc8004Binding(host);
+    if (result.status === "unavailable") throw new SellerErc8004Unavailable(result);
+    return result;
+  },
+  ["sellers:erc8004-binding:v1"],
+  { revalidate: PUBLIC_READ_REVALIDATE, tags: ["observatory", "erc8004"] },
+);
+
+/** Cached per host. Unavailable reads are not stored in the data cache. */
+export async function getSellerErc8004BindingCached(host: string): Promise<SellerErc8004Binding> {
+  try {
+    return await sellerErc8004BindingCached(host);
+  } catch (error) {
+    if (error instanceof SellerErc8004Unavailable) return error.binding;
+    logServerErrorSafe("sellers.erc8004-binding-cache", error);
+    const readAt = new Date().toISOString();
+    return { status: "unavailable", reason: "query_failed", readAt };
+  }
+}
 
