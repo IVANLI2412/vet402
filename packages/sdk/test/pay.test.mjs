@@ -214,6 +214,16 @@ test("when payOrRefuse would choose a different offer, nothing is signed", async
   assert.match(r.reasonCodes.join(","), /payee_mismatch/);
 });
 
+test("two offers to one payee never sign more than the price pay read", async () => {
+  const noncanonical = offer({ amount: "10000", extra: { name: "Not USDC", version: "9" } });
+  const canonical = offer({ amount: "20000" });
+  const h = harness({ offers: () => [noncanonical, canonical] });
+  const r = await pay(URL_A, undefined, { account: h.account, fetch: h.fetchImpl });
+  assert.equal(r.status, "refused");
+  assert.equal(h.seen.signatures, 0);
+  assert.match(r.reasonCodes.join(","), /price_above_declared/);
+});
+
 test("a seller that answers without a 402 is returned unpaid", async () => {
   const account = { address: OTHER, signTypedData: async () => assert.fail("must not sign") };
   const r = await pay(URL_A, undefined, { account, fetch: async () => new Response("free", { status: 200 }) });
