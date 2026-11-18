@@ -2,7 +2,7 @@
 // Two existing routes through @vet402/sdk's client, so the key, timeout and
 // User-Agent behave exactly as they do there:
 //   GET /api/v1/resolve?q=<url>                       (key-less)
-//   GET /api/v1/resources/{resourceId}/decision?role=payer (key-less at 10/min per IP)
+//   GET /api/v1/resources/{resourceId}/decision?role=payer (key-less at 60/min per IP)
 // No payment code here.
 import { createVouchClient, DEFAULT_API_URL, VouchApiError, type DecisionRecommendation } from "@vet402/sdk";
 

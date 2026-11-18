@@ -12,7 +12,7 @@ npm install vet402
 
 Setup guide for each stack: [vet402.com/connect](https://vet402.com/connect).
 A free API key: [vet402.com/signup](https://vet402.com/signup). `check` works without one
-(10 requests/min per IP).
+(60 requests/min per IP).
 
 ## Buyer: check a URL before paying
 

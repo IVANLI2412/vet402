@@ -13,6 +13,13 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-18 SDK に確認してから払う `pay()` を追加（vet402.com）
+
+- 変更: `@vet402/sdk` に `pay(url, init, { account })` を追加した。判断はすべて既存の `payOrRefuse` に任せ、既定では ALLOW だけ支払う。
+- なぜ: 開発者が payTo・金額・メソッドを渡さずに、確認から支払いまで1回で終えられるようにする。
+- 影響: `payOrRefuse` の挙動は変えていない。npm 公開はオーナーの承認後。README の鍵なし上限を毎分60回に直した。
+
+---
 ## 2026-11-18 — M5a: GET /api/v1/check の seller 読み取りを 60 秒サーバキャッシュ
 
 - **何を**: `checkSeller` の成功応答（`not_in_catalog` 含む）を正規化 URL と method を鍵に `unstable_cache` で最大 60 秒使い回す（`src/lib/api/check-seller-cache.ts`）。回数制限は従来どおり先。`as_of` と `x-vet402-retrieved-at` は `checkSeller` が返した時刻のまま。`Server-Timing: check;dur=…` を付与。外向きの `Cache-Control: private, no-store` は不変。

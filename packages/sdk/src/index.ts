@@ -59,6 +59,10 @@ export {
   type Eip3009Authorization,
 } from "./pay-or-refuse.js";
 
+// pay(): the standard path. Checks the seller with vet402, then pays through payOrRefuse.
+export { pay, type PayOptions, type PayResult, type PayStatus } from "./pay.js";
+
+
 // x402 auth-capture（E4・2026-11-11）。届かなかった hold を期限後に**買い手の財布が**取り戻す関数と、エスクローの状態の読み。
 // このモジュールは実行時の import を持たない（署名と @x402/evm は payOrRefuse の ALLOW ブランチでだけ読む）。
 export {

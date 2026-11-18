@@ -6,6 +6,8 @@ export { SpendGuard, DEFAULT_MAX_SCORE_AGE_MS, } from "./spend-guard.js";
 export { payOrRefuse, readDemoDecisions, readL1Decisions, appendDecision, DEFAULT_DECISION_STORE, BASE_CHAIN, BASE_CHAIN_ID, BASE_USDC, DEFAULT_MAX_PER_TX_USD, PAY_REFUSE_REASONS, 
 // 2026-09-15: Solana（SVM exact）。payee が base58 なら svm の署名者で払う。web3.js は ALLOW でだけ読む。
 SOLANA_MAINNET, SOLANA_USDC, svmAccountFromKeypair, } from "./pay-or-refuse.js";
+// pay(): the standard path. Checks the seller with vet402, then pays through payOrRefuse.
+export { pay } from "./pay.js";
 // x402 auth-capture（E4・2026-11-11）。届かなかった hold を期限後に**買い手の財布が**取り戻す関数と、エスクローの状態の読み。
 // このモジュールは実行時の import を持たない（署名と @x402/evm は payOrRefuse の ALLOW ブランチでだけ読む）。
 export { reclaimAuthCapture, readAuthCaptureState, outcomeFromState, AUTH_CAPTURE_SCHEME, AUTH_CAPTURE_ESCROW_V1_1, AUTH_CAPTURE_EIP3009_COLLECTOR_V1_1, AUTH_CAPTURE_SPEC_URL, MAX_CAPTURE_WINDOW_SECONDS, DEFAULT_DELIVERY_TIMEOUT_MS, } from "./auth-capture.js";

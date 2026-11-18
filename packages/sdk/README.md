@@ -10,7 +10,7 @@ npm install @vet402/sdk
 Get a key at [vet402.com/dashboard/keys](https://vet402.com/dashboard/keys),
 export it as `VOUCH_API_KEY`, and this runs as-is. `apiKey` is optional
 (2026-09-07): without it the client sends no `Authorization` header and
-`getDecision` still answers, key-less at 10 requests/min per IP (429
+`getDecision` still answers, key-less at 60 requests/min per IP (429
 `rate_limited` beyond that). Scores, webhooks, watchlist and attest still
 need a key — the server answers 401 `missing_api_key`, passed through as-is.
 
@@ -118,6 +118,29 @@ which the fast body can supply. It is a pre-check, not a replacement for
 > (errors are plain `Error`s whose `message` is the API's code), and the
 > fail-closed `trustPolicy` default (see SpendGuard below). Everything else
 > below is the same on both.
+
+## Check, then pay
+
+`pay` reads the seller's 402, checks the URL with vet402 and pays only when the checks pass.
+
+```typescript
+import { pay } from "@vet402/sdk";
+
+const result = await pay("https://api.example.com/v1/quote", undefined, { account });
+if (result.status === "paid") console.log(await result.response.json());
+else console.log(result.status, result.reasonCodes);
+```
+
+For a POST, pass the method, headers and body as the second argument, the same way as `fetch`.
+
+| vet402 says | Default | With an option |
+|---|---|---|
+| ALLOW | Pays | |
+| WARN | Stops before signing | `allowWarn: true` pays when vet402 has recorded a delivery |
+| No record | Stops before signing | `allowUnknown: true` pays when the payee score passes |
+| BLOCK | Stops before signing | Always stops |
+
+`maxUsd` caps one payment and defaults to $1. If vet402 cannot be read, or the seller changes the price or payee after the check, nothing is signed. When `status` is `"failed"`, a payment may exist, so read `receipt` before trying again.
 
 ## `payOrRefuse` on Solana (0.7.0)
 
