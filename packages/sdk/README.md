@@ -311,6 +311,12 @@ it once. Keep it out of logs that others can read.
 
 ## Changes
 
+### 0.8.0
+
+- Adds `pay(url, init, { account })`. It reads the seller's 402, checks the URL with vet402 and pays through `payOrRefuse`. Only ALLOW pays by default. WARN needs `allowWarn` and a URL with no record needs `allowUnknown`.
+- `pay` never follows a seller redirect.
+- `payOrRefuse` is unchanged.
+
 ### 0.7.2
 
 - `SpendGuard` counts the day's total in whole micro-dollars (0.000001 USD) instead of adding dollar floats. Before, 99 payments of 0.01 added up to 0.99000000000000007, so a 1.00 `dailyBudgetUsd` refused the 100th payment it should have allowed. The error only ever refused, it never let extra money through. Amounts are rounded up and limits rounded down to the micro-dollar, so a value finer than that can only make the guard refuse sooner. Values within float noise of a whole micro-dollar count as that whole number.
