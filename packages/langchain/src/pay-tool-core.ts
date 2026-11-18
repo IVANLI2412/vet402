@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import {
   pay,
   DEFAULT_MAX_PER_TX_USD,
@@ -168,15 +169,47 @@ function guidanceFor(status: PayStatus): string {
   return "Payment was not made.";
 }
 
-function normalizedPaymentUrl(parsed: URL): string {
-  const u = new URL(parsed.toString());
-  u.hash = "";
-  if (u.search === "" || u.search === "?") return `${u.origin}${u.pathname}`;
-  return `${u.origin}${u.pathname}${u.search}`;
+const UNRESERVED_SEGMENT = /%[0-9A-Fa-f]{2}/g;
+
+function decodeUnnecessaryPathEncoding(pathname: string): string {
+  return pathname.replace(UNRESERVED_SEGMENT, (encoded) => {
+    try {
+      const decoded = decodeURIComponent(encoded);
+      if (/^[A-Za-z0-9\-._~]+$/.test(decoded)) return decoded;
+    } catch {
+      /* keep percent-encoded */
+    }
+    return encoded;
+  });
 }
 
-function paymentAttemptKey(parsed: URL, method: string): string {
-  return `${method}\0${normalizedPaymentUrl(parsed)}`;
+function normalizedHostPort(parsed: URL): string {
+  const host = parsed.hostname.toLowerCase();
+  const port = parsed.port && parsed.port !== "443" ? `:${parsed.port}` : "";
+  return `${host}${port}`;
+}
+
+/** Normalized URL for pay() and in-flight deduplication keys. */
+function normalizedPaymentUrl(parsed: URL): string {
+  const hostPort = normalizedHostPort(parsed);
+  const path = decodeUnnecessaryPathEncoding(parsed.pathname);
+  const query = parsed.search === "?" || parsed.search === "" ? "" : parsed.search;
+  return `https://${hostPort}${path}${query}`;
+}
+
+/** Origin plus pathname only; used after `failed` to block respellings. */
+function failedPaymentPathKey(parsed: URL): string {
+  const hostPort = normalizedHostPort(parsed);
+  const path = decodeUnnecessaryPathEncoding(parsed.pathname);
+  return `https://${hostPort}${path}`;
+}
+
+function bodySha256(body: string | undefined): string {
+  return createHash("sha256").update(body ?? "", "utf8").digest("hex");
+}
+
+function paymentAttemptKey(parsed: URL, method: string, body: string | undefined): string {
+  return `${method}\0${normalizedPaymentUrl(parsed)}\0${bodySha256(body)}`;
 }
 
 function receiptSummary(receipt: PayReceipt | null): Vet402PayReceiptSummary | null {
@@ -281,12 +314,16 @@ async function withInstanceLock<T>(state: InstanceState, fn: () => Promise<T>): 
   }
 }
 
-function beginPaymentAttempt(state: InstanceState, key: string): Vet402PayReceiptSummary | "in_progress" | null {
+function beginPaymentAttempt(
+  state: InstanceState,
+  attemptKey: string,
+  failedPathKey: string,
+): Vet402PayReceiptSummary | "in_progress" | null {
   const ledger = state.paymentAttempts;
-  const prior = ledger.blocked.get(key);
-  if (prior) return prior;
-  if (ledger.inProgress.has(key)) return "in_progress";
-  ledger.inProgress.add(key);
+  const priorFailed = ledger.blocked.get(failedPathKey);
+  if (priorFailed) return priorFailed;
+  if (ledger.inProgress.has(attemptKey)) return "in_progress";
+  ledger.inProgress.add(attemptKey);
   return null;
 }
 
@@ -296,15 +333,29 @@ function clearInProgressAttempt(state: InstanceState, key: string): void {
 
 function finalizePaymentAttempt(
   state: InstanceState,
-  key: string,
+  attemptKey: string,
+  failedPathKey: string,
   status: PayStatus,
   summary: Vet402PayReceiptSummary | null,
 ): void {
   const ledger = state.paymentAttempts;
-  ledger.inProgress.delete(key);
-  if ((status === "paid" || status === "failed") && summary) {
-    ledger.blocked.set(key, summary);
+  ledger.inProgress.delete(attemptKey);
+  if (status === "failed" && summary) {
+    ledger.blocked.set(failedPathKey, summary);
   }
+}
+
+function duplicateInProgress(): Vet402PayToolResult {
+  return {
+    status: "refused",
+    recommendation: null,
+    reasonCodes: ["duplicate_payment_in_progress"],
+    txHash: null,
+    responseBody: null,
+    responseBodyTruncated: false,
+    guidance: "Payment was not made.",
+    receipt: null,
+  };
 }
 
 function duplicateBlocked(summary: Vet402PayReceiptSummary | null | undefined): Vet402PayToolResult {
@@ -324,7 +375,7 @@ function scrubValue(text: string | null, secrets: readonly string[]): string | n
   if (text === null || secrets.length === 0) return text;
   let out = text;
   for (const secret of secrets) {
-    if (secret.length > 0) out = out.split(secret).join("");
+    if (secret.length > 0) out = out.split(secret).join("[redacted]");
   }
   return out;
 }
@@ -413,21 +464,22 @@ export async function executeVet402Pay(
     }
   }
 
+  const bodyString = rawInput.body !== undefined ? (typeof rawInput.body === "string" ? rawInput.body : null) : undefined;
+  if (bodyString === null) return refuse("tool_input_invalid_body");
+
   const init: RequestInit = { method };
-  if (rawInput.body !== undefined) {
-    if (typeof rawInput.body !== "string") return refuse("tool_input_invalid_body");
-    init.body = rawInput.body;
-  }
+  if (bodyString !== undefined) init.body = bodyString;
   if (headers) {
     init.headers = headers;
   }
 
   const sellerUrl = normalizedPaymentUrl(parsed);
-  const attemptKey = paymentAttemptKey(parsed, method);
-  const attemptGate = beginPaymentAttempt(state, attemptKey);
+  const attemptKey = paymentAttemptKey(parsed, method, bodyString);
+  const failedPathKey = failedPaymentPathKey(parsed);
+  const attemptGate = beginPaymentAttempt(state, attemptKey, failedPathKey);
   if (attemptGate !== null) {
-    const summary = attemptGate === "in_progress" ? null : attemptGate;
-    return duplicateBlocked(summary);
+    if (attemptGate === "in_progress") return duplicateInProgress();
+    return duplicateBlocked(attemptGate);
   }
 
   const perTxUsd = options.maxUsd ?? DEFAULT_MAX_PER_TX_USD;
@@ -497,20 +549,21 @@ export async function executeVet402Pay(
       if (signedSpend) state.committedUsd += spentUsd;
     });
 
-    finalizePaymentAttempt(state, attemptKey, result.status, summary);
+    finalizePaymentAttempt(state, attemptKey, failedPathKey, result.status, summary);
 
     const body = await readResponseBody(result.response);
+    const redactedBody = scrubValue(body.text, paymentHeaderSecrets);
     const raw: Vet402PayToolResult = {
       status: result.status,
       recommendation: result.recommendation,
       reasonCodes: result.reasonCodes,
       txHash: result.txHash,
-      responseBody: body.text,
+      responseBody: redactedBody,
       responseBodyTruncated: body.truncated,
       guidance: guidanceFor(result.status),
       receipt: summary,
     };
-    return scrubToolResult(raw, paymentHeaderSecrets, body.text);
+    return scrubToolResult(raw, paymentHeaderSecrets, redactedBody);
   } catch (err) {
     await withInstanceLock(state, async () => {
       state.reservedUsd -= perTxUsd;

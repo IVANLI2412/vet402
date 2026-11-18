@@ -5,8 +5,10 @@ import { executeVet402Pay } from "../dist/pay-tool-core.js";
 import {
   URL_A,
   URL_OTHER,
+  API,
   harness,
   json,
+  b64,
   assertNoSecrets,
   verdict,
 } from "./_harness.mjs";
@@ -274,17 +276,69 @@ test("concurrent same-URL calls sign only once", async () => {
     executeVet402Pay({ url: URL_A }, opts),
   ]);
   const paid = [a, b, c].filter((r) => r.status === "paid");
-  const blocked = [a, b, c].filter((r) => r.reasonCodes[0] === "duplicate_payment_blocked");
+  const inProgress = [a, b, c].filter((r) => r.reasonCodes[0] === "duplicate_payment_in_progress");
   assert.equal(paid.length, 1);
-  assert.equal(blocked.length, 2);
+  assert.equal(inProgress.length, 2);
   assert.equal(h.seen.signatures, 1);
 });
 
-test("fragment and empty-query respellings do not sign again", async () => {
+test("concurrent same request with different bodies both pay", async () => {
+  const h = harness();
+  const slow = async (input, init) => {
+    const url = String(input);
+    if (url.startsWith("https://vet402.com/")) return h.fetchImpl(input, init);
+    await new Promise((resolve) => setTimeout(resolve, 40));
+    return h.fetchImpl(input, init);
+  };
+  const opts = toolOpts(h, { fetch: slow });
+  const [a, b] = await Promise.all([
+    executeVet402Pay({ url: URL_A, method: "POST", body: "one" }, opts),
+    executeVet402Pay({ url: URL_A, method: "POST", body: "two" }, opts),
+  ]);
+  assert.equal(a.status, "paid");
+  assert.equal(b.status, "paid");
+  assert.equal(h.seen.signatures, 2);
+});
+
+test("paid URLs can be purchased again on the same instance", async () => {
   const h = harness();
   const opts = toolOpts(h);
   const first = await executeVet402Pay({ url: URL_A }, opts);
   assert.equal(first.status, "paid");
+  const again = await executeVet402Pay({ url: URL_A, method: "GET" }, opts);
+  assert.equal(again.status, "paid");
+  assert.equal(h.seen.signatures, 2);
+});
+
+test("different POST bodies on the same URL both pay", async () => {
+  const h = harness();
+  const opts = toolOpts(h);
+  const a = await executeVet402Pay({ url: URL_A, method: "POST", body: "alpha" }, opts);
+  const b = await executeVet402Pay({ url: URL_A, method: "POST", body: "beta" }, opts);
+  assert.equal(a.status, "paid");
+  assert.equal(b.status, "paid");
+  assert.equal(h.seen.signatures, 2);
+});
+
+function missingReceiptFetch(h) {
+  return async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith("https://vet402.com/")) return h.fetchImpl(input, init);
+    const headers = new Headers(init.headers);
+    if (headers.has("payment-signature")) {
+      return new Response('{"ok":true}', { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return h.fetchImpl(input, init);
+  };
+}
+
+test("failed path blocks fragment and empty-query respellings without another signature", async () => {
+  const h = harness();
+  const opts = bindVet402PayTool({ account: h.account, fetch: missingReceiptFetch(h), allowedHosts: HOSTS });
+  const first = await executeVet402Pay({ url: URL_A, method: "POST" }, opts);
+  assert.equal(first.status, "failed");
+  assert.equal(h.seen.signatures, 1);
+
   const second = await executeVet402Pay({ url: `${URL_A}#a` }, opts);
   const third = await executeVet402Pay({ url: `${URL_A}?` }, opts);
   assert.equal(second.reasonCodes[0], "duplicate_payment_blocked");
@@ -292,13 +346,77 @@ test("fragment and empty-query respellings do not sign again", async () => {
   assert.equal(h.seen.signatures, 1);
 });
 
-test("paid URL respellings are blocked without a second signature", async () => {
+test("failed path blocks respelled URLs without another signature", async () => {
   const h = harness();
-  const opts = toolOpts(h);
-  await executeVet402Pay({ url: URL_A }, opts);
-  const again = await executeVet402Pay({ url: URL_A, method: "GET" }, opts);
-  assert.equal(again.reasonCodes[0], "duplicate_payment_blocked");
+  const opts = bindVet402PayTool({ account: h.account, fetch: missingReceiptFetch(h), allowedHosts: HOSTS });
+  const first = await executeVet402Pay({ url: URL_A, method: "POST", body: "first" }, opts);
+  assert.equal(first.status, "failed");
+
+  const variants = [
+    `https://SELLER.EXAMPLE/v1/search`,
+    `${URL_A}?q=1`,
+    `https://seller.example/v1/%73earch`,
+    `${URL_A}`,
+  ];
+  for (const url of variants) {
+    const r = await executeVet402Pay({ url, method: "GET", body: "other" }, opts);
+    assert.equal(r.reasonCodes[0], "duplicate_payment_blocked", url);
+  }
+  const postAgain = await executeVet402Pay({ url: URL_A, method: "POST", body: "retry" }, opts);
+  assert.equal(postAgain.reasonCodes[0], "duplicate_payment_blocked");
   assert.equal(h.seen.signatures, 1);
+});
+
+test("refused verdict does not block a later payment", async () => {
+  const h = harness();
+  let blockDecision = true;
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith(`${API}/`) && blockDecision) {
+      return json(200, verdict("BLOCK"));
+    }
+    return h.fetchImpl(input, init);
+  };
+  const opts = toolOpts(h, { fetch: fetchImpl });
+  const refused = await executeVet402Pay({ url: URL_A }, opts);
+  assert.equal(refused.status, "refused");
+  assert.equal(h.seen.signatures, 0);
+
+  blockDecision = false;
+  const paid = await executeVet402Pay({ url: URL_A }, opts);
+  assert.equal(paid.status, "paid");
+  assert.equal(h.seen.signatures, 1);
+});
+
+test("payment signature values in seller body are redacted", async () => {
+  const h = harness();
+  let capturedSig = "";
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith("https://vet402.com/")) return h.fetchImpl(input, init);
+    const headers = new Headers(init.headers);
+    if (headers.has("payment-signature")) {
+      capturedSig = headers.get("payment-signature") ?? "";
+      return new Response(JSON.stringify({ echoed: capturedSig }), {
+        status: 200,
+        headers: {
+          "content-type": "application/json",
+          "payment-response": b64({
+            success: true,
+            transaction: `0x${"cd".repeat(32)}`,
+            network: "eip155:8453",
+            payer: h.account.address,
+          }),
+        },
+      });
+    }
+    return h.fetchImpl(input, init);
+  };
+  const r = await executeVet402Pay({ url: URL_A }, toolOpts(h, { fetch: fetchImpl }));
+  assert.equal(r.status, "paid");
+  assert.ok(capturedSig.length > 0);
+  assert.match(r.responseBody, /\[redacted\]/);
+  assert.equal(r.responseBody.includes(capturedSig), false);
 });
 
 test("executeVet402Pay is not part of the public package export", async () => {
