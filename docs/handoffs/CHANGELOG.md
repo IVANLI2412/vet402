@@ -13,6 +13,12 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-18 AgentKit・LangChain・AI SDK 用の支払い道具（wave2 M3）
+
+- 変更: `packages/agentkit`（`vet402ActionProvider`）、`packages/langchain`（`vet402PayTool`）、`packages/ai-sdk`（`vet402PayTool`）を追加。いずれも `@vet402/sdk` の `pay()` を呼ぶ薄い層。
+- なぜ: 主要なエージェント枠組みから数行で vet402 付きの x402 支払いを使えるようにする。
+- 影響: `packages/sdk` は読むだけ。npm 公開は別途。LLM が渡せるのは URL・メソッド・本文・ヘッダのみ（`account`・`maxUsd` 等は開発者コード側）。
+
 ## 2026-11-18 SDK に確認してから払う `pay()` を追加（vet402.com）
 
 - 変更: `@vet402/sdk` に `pay(url, init, { account })` を追加した。判断はすべて既存の `payOrRefuse` に任せ、既定では ALLOW だけ支払う。

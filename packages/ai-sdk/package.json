@@ -1,0 +1,56 @@
+{
+  "name": "@vet402/ai-sdk",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "npm run build && node --test 'test/*.test.mjs'"
+  },
+  "dependencies": {
+    "@vet402/sdk": "file:../sdk",
+    "zod": "^3.23.8"
+  },
+  "peerDependencies": {
+    "ai": ">=5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "ai": "^7.0.176",
+    "typescript": "^5"
+  },
+  "description": "Vercel AI SDK tool that checks an x402 seller with vet402, then pays through the SDK.",
+  "license": "MIT",
+  "author": "KIZUNA Creation",
+  "homepage": "https://vet402.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/kzmttkc/vet402.git",
+    "directory": "packages/ai-sdk"
+  },
+  "keywords": [
+    "x402",
+    "ai-sdk",
+    "vercel",
+    "ai-agent",
+    "agent-payments",
+    "vet402"
+  ],
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
