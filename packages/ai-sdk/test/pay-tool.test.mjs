@@ -423,3 +423,100 @@ test("executeVet402Pay is not part of the public package export", async () => {
   const mod = await import("../dist/index.js");
   assert.equal("executeVet402Pay" in mod, false);
 });
+
+function failingFetch(h) {
+  return async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith("https://vet402.com/")) return h.fetchImpl(input, init);
+    const headers = new Headers(init.headers);
+    if (headers.has("payment-signature")) {
+      return new Response('{"ok":true}', { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return h.fetchImpl(input, init);
+  };
+}
+
+test("invalid spending limits throw when binding the tool", () => {
+  const h = harness();
+  for (const value of [Number.NaN, Infinity, 0, -1, "1"]) {
+    assert.throws(() => toolOpts(h, { maxTotalUsd: value }), /maxTotalUsd_must_be_a_positive_number/);
+    assert.throws(() => toolOpts(h, { maxUsd: value }), /maxUsd_must_be_a_positive_number/);
+  }
+});
+
+test("failed guidance forbids any retry", async () => {
+  const h = harness();
+  const opts = bindVet402PayTool({ account: h.account, fetch: failingFetch(h), allowedHosts: HOSTS });
+  const r = await executeVet402Pay({ url: URL_A }, opts);
+  assert.equal(r.status, "failed");
+  assert.match(r.guidance, /Do not retry this payment\.$/);
+  assert.doesNotMatch(r.guidance, /without checking/);
+  assert.equal(r.receipt.payTo, "0x36038e1d712c5e39f35952164ec58ec2b96caee7");
+  assert.equal(r.receipt.amount, "10000");
+  assert.equal(typeof r.receipt.nonce, "string");
+});
+
+test("after failed, path respellings never sign again", async () => {
+  const base = "https://seller.example/fail/%E3%81%82";
+  for (const respelled of [
+    "https://seller.example/fail/%e3%81%82",
+    "https://seller.example/fail/%E3%81%82/",
+    "https://seller.example//fail//%E3%81%82",
+    "https://seller.example/fail/%E3%81%82;v=1",
+    "https://seller.example/FAIL/%E3%81%82",
+  ]) {
+    const h = harness({ decision: () => json(200, verdict("ALLOW")) });
+    const opts = bindVet402PayTool({ account: h.account, fetch: failingFetch(h), allowedHosts: HOSTS });
+    assert.equal((await executeVet402Pay({ url: base }, opts)).status, "failed");
+    const second = await executeVet402Pay({ url: respelled }, opts);
+    assert.deepEqual(second.reasonCodes, ["duplicate_payment_blocked"], respelled);
+    assert.equal(h.seen.signatures, 1, respelled);
+  }
+});
+
+test("a refused payment releases its reservation", async () => {
+  let verdictWord = "BLOCK";
+  const h = harness({ decision: () => json(200, verdict(verdictWord)) });
+  const opts = toolOpts(h, { maxUsd: 0.01, maxTotalUsd: 0.01 });
+  assert.equal((await executeVet402Pay({ url: URL_A }, opts)).status, "refused");
+  verdictWord = "ALLOW";
+  assert.equal((await executeVet402Pay({ url: URL_A }, opts)).status, "paid");
+});
+
+test("the seller receives the normalized URL", async () => {
+  const h = harness();
+  const urls = [];
+  const fetchImpl = async (input, init = {}) => {
+    if (!String(input).startsWith("https://vet402.com/")) urls.push(String(input));
+    return h.fetchImpl(input, init);
+  };
+  const opts = bindVet402PayTool({ account: h.account, fetch: fetchImpl, allowedHosts: HOSTS });
+  await executeVet402Pay({ url: "https://SELLER.example:443/v1/%73earch?#frag" }, opts);
+  assert.ok(urls.length > 0);
+  assert.ok(urls.every((url) => url === URL_A));
+});
+
+test("a header value that is not a string is refused", async () => {
+  const h = harness();
+  const r = await executeVet402Pay({ url: URL_A, headers: { "x-test": 1 } }, toolOpts(h));
+  assert.deepEqual(r.reasonCodes, ["tool_input_invalid_headers"]);
+  assert.equal(h.seen.seller, 0);
+});
+
+test("a decoded payment header echoed by the seller is redacted", async () => {
+  const h = harness();
+  let sent = "";
+  const fetchImpl = async (input, init = {}) => {
+    const headers = new Headers(init.headers);
+    const value = headers.get("payment-signature");
+    if (!value) return h.fetchImpl(input, init);
+    sent = Buffer.from(value, "base64").toString("utf8");
+    const answer = await h.fetchImpl(input, init);
+    return new Response(`echo:${sent}`, { status: 200, headers: answer.headers });
+  };
+  const opts = bindVet402PayTool({ account: h.account, fetch: fetchImpl, allowedHosts: HOSTS });
+  const r = await executeVet402Pay({ url: URL_A }, opts);
+  assert.equal(r.status, "paid");
+  assert.ok(sent.length > 0);
+  assert.equal(r.responseBody, "echo:[redacted]");
+});

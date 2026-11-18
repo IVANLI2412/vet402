@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import {
   pay,
   DEFAULT_MAX_PER_TX_USD,
@@ -85,9 +84,18 @@ function assertAllowedHosts(allowedHosts: unknown): void {
   }
 }
 
+function assertPositiveUsd(name: string, value: unknown): void {
+  if (value === undefined) return;
+  if (typeof value !== "number" || !Number.isFinite(value) || value <= 0) {
+    throw new Error(`vet402_pay_tool_${name}_must_be_a_positive_number`);
+  }
+}
+
 /** Attach per-instance counters and duplicate guards. Factories call this once per tool. */
 export function bindVet402PayTool(options: Vet402PayToolOptions): Vet402PayToolOptions {
   assertAllowedHosts(options.allowedHosts);
+  assertPositiveUsd("maxUsd", options.maxUsd);
+  assertPositiveUsd("maxTotalUsd", options.maxTotalUsd);
   const bound = { ...options } as Vet402PayToolOptions & { [STATE]?: InstanceState };
   if (!bound[STATE]) bound[STATE] = createInstanceState();
   return bound;
@@ -164,7 +172,7 @@ function guidanceFor(status: PayStatus): string {
   if (status === "paid") return "Payment completed.";
   if (status === "no_payment_required") return "The seller answered without requiring payment.";
   if (status === "failed") {
-    return "Payment may have succeeded. Do not retry without checking chain state.";
+    return "A payment may already exist. Do not retry this payment.";
   }
   return "Payment was not made.";
 }
@@ -179,7 +187,7 @@ function decodeUnnecessaryPathEncoding(pathname: string): string {
     } catch {
       /* keep percent-encoded */
     }
-    return encoded;
+    return encoded.toUpperCase();
   });
 }
 
@@ -197,19 +205,33 @@ function normalizedPaymentUrl(parsed: URL): string {
   return `https://${hostPort}${path}${query}`;
 }
 
-/** Origin plus pathname only; used after `failed` to block respellings. */
+/**
+ * Origin plus a deliberately broad path; used after `failed`. A false match only stops a payment
+ * on this tool instance, while a missed respelling could pay twice.
+ */
 function failedPaymentPathKey(parsed: URL): string {
   const hostPort = normalizedHostPort(parsed);
-  const path = decodeUnnecessaryPathEncoding(parsed.pathname);
-  return `https://${hostPort}${path}`;
-}
-
-function bodySha256(body: string | undefined): string {
-  return createHash("sha256").update(body ?? "", "utf8").digest("hex");
+  const path = decodeUnnecessaryPathEncoding(parsed.pathname)
+    .split("/")
+    .map((segment) => segment.split(";")[0])
+    .filter((segment) => segment.length > 0)
+    .join("/")
+    .toLowerCase();
+  return `https://${hostPort}/${path}`;
 }
 
 function paymentAttemptKey(parsed: URL, method: string, body: string | undefined): string {
-  return `${method}\0${normalizedPaymentUrl(parsed)}\0${bodySha256(body)}`;
+  return JSON.stringify([method, normalizedPaymentUrl(parsed), body ?? ""]);
+}
+
+/** The header as sent, and the JSON inside it when it is base64. */
+function paymentSecretForms(value: string): string[] {
+  try {
+    const decoded = new TextDecoder().decode(Uint8Array.from(atob(value), (c) => c.charCodeAt(0)));
+    return decoded.length > 0 ? [value, decoded] : [value];
+  } catch {
+    return [value];
+  }
 }
 
 function receiptSummary(receipt: PayReceipt | null): Vet402PayReceiptSummary | null {
@@ -504,7 +526,7 @@ export async function executeVet402Pay(
     const hdrs = new Headers(init?.headers);
     for (const name of ["payment-signature", "x-payment"]) {
       const value = hdrs.get(name);
-      if (value) paymentHeaderSecrets.push(value);
+      if (value) paymentHeaderSecrets.push(...paymentSecretForms(value));
     }
     try {
       return await innerTimed(input, init);

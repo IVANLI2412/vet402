@@ -1,3 +1,4 @@
+import { type ToolRunnableConfig } from "@langchain/core/tools";
 import { z } from "zod";
 import { type Vet402PayToolOptions } from "./pay-tool-core.js";
 export declare function vet402PayTool(options: Vet402PayToolOptions): import("@langchain/core/tools").DynamicStructuredTool<z.ZodObject<{
@@ -26,5 +27,5 @@ export declare function vet402PayTool(options: Vet402PayToolOptions): import("@l
     method?: string | undefined;
     headers?: Record<string, string> | undefined;
 }, string, unknown, "vet402_pay"> & {
-    invoke(input: unknown, ...rest: unknown[]): Promise<string>;
+    invoke(input: unknown, config?: ToolRunnableConfig): Promise<unknown>;
 };

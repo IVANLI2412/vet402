@@ -65,3 +65,28 @@ test("LangChain convertToOpenAITool exposes object parameters with required url"
   assert.ok(params.properties.body.description?.includes("body"));
   assert.ok(params.properties.headers.description?.includes("headers"));
 });
+
+test("LangChain agents can call the tool with a ToolCall", async () => {
+  const h = harness();
+  const payTool = vet402PayTool({ account: h.account, fetch: h.fetchImpl, allowedHosts: ["seller.example"] });
+  const message = await payTool.invoke({ type: "tool_call", id: "call_1", name: "vet402_pay", args: { url: URL_A } });
+  assert.equal(message.tool_call_id, "call_1");
+  assert.equal(parseResult(message.content).status, "paid");
+  assert.equal(h.seen.signatures, 1);
+});
+
+test("a bad ToolCall returns a ToolMessage refusal", async () => {
+  const h = harness();
+  const payTool = vet402PayTool({ account: h.account, fetch: h.fetchImpl, allowedHosts: ["seller.example"] });
+  for (const [args, reason] of [
+    [{ url: URL_A, method: 1 }, "tool_input_invalid_method"],
+    [{ url: URL_A, headers: [] }, "tool_input_invalid_headers"],
+    [{ url: URL_A, body: 1 }, "tool_input_invalid_body"],
+    [{ url: 1 }, "tool_input_invalid_url"],
+  ]) {
+    const message = await payTool.invoke({ type: "tool_call", id: "call_2", name: "vet402_pay", args });
+    assert.equal(message.tool_call_id, "call_2");
+    assert.deepEqual(parseResult(message.content).reasonCodes, [reason]);
+  }
+  assert.equal(h.seen.signatures, 0);
+});

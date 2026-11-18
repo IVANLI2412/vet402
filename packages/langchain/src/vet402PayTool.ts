@@ -1,3 +1,4 @@
+import { ToolMessage } from "@langchain/core/messages";
 import { tool, type ToolRunnableConfig } from "@langchain/core/tools";
 import { z } from "zod";
 import { bindVet402PayTool, executeVet402Pay, type Vet402PayToolOptions } from "./pay-tool-core.js";
@@ -11,6 +12,30 @@ const payParametersSchema = z.object({
     .optional()
     .describe("Extra request headers. Authorization and payment headers are rejected."),
 });
+
+const TOOL_NAME = "vet402_pay";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** LangChain agents call a tool with this envelope. The arguments are inside `args`. */
+function toolCallOf(input: unknown): { id: string; args: unknown } | null {
+  if (!isRecord(input) || input.type !== "tool_call" || typeof input.id !== "string") return null;
+  return { id: input.id, args: input.args };
+}
+
+function inputProblem(args: unknown): string | null {
+  if (!isRecord(args)) return "tool_input_invalid";
+  if (typeof args.url !== "string") return "tool_input_invalid_url";
+  if (args.method !== undefined && typeof args.method !== "string") return "tool_input_invalid_method";
+  if (args.body !== undefined && typeof args.body !== "string") return "tool_input_invalid_body";
+  if (args.headers === undefined) return null;
+  if (!isRecord(args.headers) || Object.values(args.headers).some((value) => typeof value !== "string")) {
+    return "tool_input_invalid_headers";
+  }
+  return null;
+}
 
 function refusalJson(reasonCodes: string[]): string {
   return JSON.stringify({
@@ -33,27 +58,21 @@ export function vet402PayTool(options: Vet402PayToolOptions) {
       return JSON.stringify(result);
     },
     {
-      name: "vet402_pay",
+      name: TOOL_NAME,
       description:
         "Check an x402 seller with vet402, then pay only when the verdict is ALLOW. " +
         "Returns status, recommendation, reason codes, tx hash and the seller body.",
       schema: payParametersSchema,
     },
   );
-  const baseInvoke = structured.invoke.bind(structured);
+  const baseInvoke = structured.invoke.bind(structured) as (input: unknown, config?: ToolRunnableConfig) => Promise<unknown>;
   return Object.assign(structured, {
-    async invoke(input: unknown, ...rest: unknown[]) {
-      if (input === null || Array.isArray(input)) {
-        return refusalJson(["tool_input_invalid"]);
-      }
-      if (typeof input !== "object" || input === null) {
-        return refusalJson(["tool_input_invalid"]);
-      }
-      const record = input as Record<string, unknown>;
-      if (typeof record.url !== "string") {
-        return refusalJson(["tool_input_invalid_url"]);
-      }
-      return baseInvoke(input as z.infer<typeof payParametersSchema>, rest[0] as ToolRunnableConfig | undefined);
+    async invoke(input: unknown, config?: ToolRunnableConfig) {
+      const call = toolCallOf(input);
+      const problem = inputProblem(call ? call.args : input);
+      if (problem === null) return baseInvoke(input, config);
+      const content = refusalJson([problem]);
+      return call ? new ToolMessage({ content, tool_call_id: call.id, name: TOOL_NAME }) : content;
     },
   });
 }
