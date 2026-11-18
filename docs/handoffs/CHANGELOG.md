@@ -13,6 +13,14 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-18 /status の履歴の読み取りを30日分に絞った（vet402.com）
+
+- 変更: `getStatusHistory` が health_snapshots の全行（23,360行）を毎リクエスト読んでいたのを、30日の窓の行と最新・最古の1行ずつに変えた。
+- なぜ: 行は増え続け、頁の表示に使わない行まで毎回運んでいた。
+- 影響: 頁の表示と判定は同じ。頁はリクエスト時に読むままで、キャッシュは足していない。
+
+---
+
 ## 2026-11-18 — ERC-8004: 週次 rollup の Check と W47 以降の proofOfPayment
 
 - **何を**: `GET /api/v1/erc8004/check` が週次 JSON（`transactions[]`）から代表 tx を再読できるようになった（`checks.proof_source`）。`2026-W47` 以降の週次 JSON は `buildProofOfPayment` の代表行で top-level `proofOfPayment` を付与。`2026-W46` 以前の本文は不変（鎖上の feedbackHash 固定）。

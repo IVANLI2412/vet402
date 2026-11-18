@@ -1,4 +1,4 @@
-import { desc } from "drizzle-orm";
+import { asc, desc, gte } from "drizzle-orm";
 import { getDb } from "@/lib/db/client";
 import { isMissingSchemaError } from "@/lib/db/pg-errors";
 import { healthSnapshots } from "@/lib/db/schema";
@@ -293,17 +293,30 @@ export async function getStatusHistory(windowDays = 30): Promise<StatusHistory> 
   if (!db) return { current: null, days: [], monitoringSince: null };
   try {
     const cutoff = new Date(Date.now() - windowDays * 24 * 60 * 60 * 1000);
-    const rows = await db
-      .select({
-        checkedAt: healthSnapshots.checkedAt,
-        status: healthSnapshots.status,
-        detail: healthSnapshots.detail,
-      })
-      .from(healthSnapshots)
-      .orderBy(desc(healthSnapshots.checkedAt));
-    const current = rows[0] ? { status: rows[0].status as HealthStatus, checkedAt: rows[0].checkedAt } : null;
-    const inWindow = rows.filter((r) => r.checkedAt >= cutoff);
-    const monitoringSince = rows.length > 0 ? rows[rows.length - 1].checkedAt : null;
+    // 2026-11-18: 表の全行（8 月からの 23,360 行）を毎リクエスト読んで JS で絞っていた。
+    // 窓の行と、窓の外でも要る両端の 1 行ずつだけを読む。窓が空でも「最後の行」は stale の判定に要る。
+    const [inWindow, newest, oldest] = await Promise.all([
+      db
+        .select({
+          checkedAt: healthSnapshots.checkedAt,
+          status: healthSnapshots.status,
+          detail: healthSnapshots.detail,
+        })
+        .from(healthSnapshots)
+        .where(gte(healthSnapshots.checkedAt, cutoff)),
+      db
+        .select({ checkedAt: healthSnapshots.checkedAt, status: healthSnapshots.status })
+        .from(healthSnapshots)
+        .orderBy(desc(healthSnapshots.checkedAt))
+        .limit(1),
+      db
+        .select({ checkedAt: healthSnapshots.checkedAt })
+        .from(healthSnapshots)
+        .orderBy(asc(healthSnapshots.checkedAt))
+        .limit(1),
+    ]);
+    const current = newest[0] ? { status: newest[0].status as HealthStatus, checkedAt: newest[0].checkedAt } : null;
+    const monitoringSince = oldest[0]?.checkedAt ?? null;
     return { current, days: summarizeByDay(inWindow), monitoringSince };
   } catch (error) {
     if (isMissingSchemaError(error)) return { current: null, days: [], monitoringSince: null };
