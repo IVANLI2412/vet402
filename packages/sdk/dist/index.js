@@ -7,7 +7,7 @@ export { payOrRefuse, readDemoDecisions, readL1Decisions, appendDecision, DEFAUL
 // 2026-09-15: Solana（SVM exact）。payee が base58 なら svm の署名者で払う。web3.js は ALLOW でだけ読む。
 SOLANA_MAINNET, SOLANA_USDC, svmAccountFromKeypair, } from "./pay-or-refuse.js";
 // pay(): the standard path. Checks the seller with vet402, then pays through payOrRefuse.
-export { pay } from "./pay.js";
+export { pay, DEFAULT_PAID_RESPONSE_TIMEOUT_MS, } from "./pay.js";
 export { createVet402Fetch, MAX_REQUEST_BODY_BYTES, Vet402RefusedError, Vet402PayFailedError, } from "./vet402-fetch.js";
 // x402 auth-capture（E4・2026-11-11）。届かなかった hold を期限後に**買い手の財布が**取り戻す関数と、エスクローの状態の読み。
 // このモジュールは実行時の import を持たない（署名と @x402/evm は payOrRefuse の ALLOW ブランチでだけ読む）。

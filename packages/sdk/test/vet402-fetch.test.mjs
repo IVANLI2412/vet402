@@ -580,9 +580,10 @@ test("paid seller fetch that ignores signal still completes and rejects with pai
   ]);
   assert.equal(err?.name, "AbortError");
   assert.ok(err.vet402PayResult);
-  assert.equal(err.vet402PayResult.status, "paid");
-  assert.ok(err.vet402PayResult.txHash);
-  assert.equal(attests, 1);
+  assert.equal(err.vet402PayResult.status, "failed");
+  assert.equal(err.vet402PayResult.signed, true);
+  assert.ok(err.vet402PayResult.receipt?.retry?.authorization?.nonce);
+  assert.equal(attests, 0);
 });
 
 test("four entry points deliver invalid UTF-8 bytes with no Content-Type on every seller call", async () => {
@@ -762,7 +763,7 @@ test("abort after paid headers reach the seller attests once with paid vet402Pay
           ? new Promise((resolve) => setTimeout(() => resolve(json(200, { ok: true })), 30))
           : json(200, { ok: true });
       }
-      if (!respectSignal && url === URL_A) {
+      if (url === URL_A) {
         const headers = new Headers(init.headers);
         if (headers.has("payment-signature")) {
           h.seen.seller.push({
@@ -789,9 +790,10 @@ test("abort after paid headers reach the seller attests once with paid vet402Pay
     ]);
     assert.equal(err?.name, "AbortError", label);
     assert.ok(err.vet402PayResult, label);
-    assert.equal(err.vet402PayResult.status, "paid", label);
-    assert.ok(err.vet402PayResult.txHash, label);
-    assert.equal(attests, 1, label);
+    assert.equal(err.vet402PayResult.status, "failed", label);
+    assert.equal(err.vet402PayResult.signed, true, label);
+    assert.ok(err.vet402PayResult.receipt?.retry?.authorization?.nonce, label);
+    assert.equal(attests, 0, label);
   }
 });
 
@@ -854,7 +856,9 @@ test("abort after pay does not mutate signal.reason", async () => {
   assert.notEqual(err, customReason);
   assert.equal(err.cause, customReason);
   assert.ok(err.vet402PayResult);
-  assert.equal(err.vet402PayResult.status, "paid");
+  assert.equal(err.vet402PayResult.status, "failed");
+  assert.equal(err.vet402PayResult.signed, true);
+  assert.ok(err.vet402PayResult.receipt?.retry?.authorization?.nonce);
   assert.equal(Object.prototype.hasOwnProperty.call(customReason, "vet402PayResult"), false);
 });
 

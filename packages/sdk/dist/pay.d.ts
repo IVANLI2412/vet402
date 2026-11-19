@@ -5,10 +5,18 @@
  * the seller's unpaid 402 so the caller does not have to supply payTo and price, then hands those
  * values to payOrRefuse, which reads the 402 again and refuses when they no longer match.
  *
+ * Transport: vet402 reads stop on {@link PayOptions.requestTimeoutMs} and caller abort. Unpaid seller
+ * probes wait only for headers within that limit and close the connection when headers time out.
+ * After payment is sent the seller request is not cut off. The call waits for headers up to
+ * {@link PayOptions.paidResponseTimeoutMs} or caller abort, then returns failed with signed and nonce
+ * if headers never arrived. Response bodies still complete once headers land.
+ *
  * Default: only ALLOW pays. WARN needs allowWarn. A URL vet402 has no record of needs allowUnknown.
  */
 import { type ChainProfileName } from "./chain-profile.js";
 import { type PayReceipt, type PayerAccount } from "./pay-or-refuse.js";
+/** Default wall-clock limit for paid seller response headers after a payment is sent. */
+export declare const DEFAULT_PAID_RESPONSE_TIMEOUT_MS = 120000;
 export type PayOptions = {
     /** EIP-3009 signer. vet402 never holds it. */
     account: PayerAccount;
@@ -28,6 +36,11 @@ export type PayOptions = {
     decisionStore?: string;
     /** Wall-clock limit for vet402 reads and unpaid seller probes. Default {@link DEFAULT_REQUEST_TIMEOUT_MS}. */
     requestTimeoutMs?: number;
+    /**
+     * Wall-clock limit for waiting on paid seller response headers after payment is sent.
+     * Default {@link DEFAULT_PAID_RESPONSE_TIMEOUT_MS}. Does not cut off the request once headers arrive.
+     */
+    paidResponseTimeoutMs?: number;
 };
 export type PayStatus = "paid" | "refused" | "failed" | "no_payment_required";
 export type PayResult = {

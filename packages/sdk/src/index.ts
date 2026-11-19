@@ -60,7 +60,13 @@ export {
 } from "./pay-or-refuse.js";
 
 // pay(): the standard path. Checks the seller with vet402, then pays through payOrRefuse.
-export { pay, type PayOptions, type PayResult, type PayStatus } from "./pay.js";
+export {
+  pay,
+  DEFAULT_PAID_RESPONSE_TIMEOUT_MS,
+  type PayOptions,
+  type PayResult,
+  type PayStatus,
+} from "./pay.js";
 export {
   createVet402Fetch,
   MAX_REQUEST_BODY_BYTES,

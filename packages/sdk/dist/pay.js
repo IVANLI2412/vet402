@@ -5,6 +5,12 @@
  * the seller's unpaid 402 so the caller does not have to supply payTo and price, then hands those
  * values to payOrRefuse, which reads the 402 again and refuses when they no longer match.
  *
+ * Transport: vet402 reads stop on {@link PayOptions.requestTimeoutMs} and caller abort. Unpaid seller
+ * probes wait only for headers within that limit and close the connection when headers time out.
+ * After payment is sent the seller request is not cut off. The call waits for headers up to
+ * {@link PayOptions.paidResponseTimeoutMs} or caller abort, then returns failed with signed and nonce
+ * if headers never arrived. Response bodies still complete once headers land.
+ *
  * Default: only ALLOW pays. WARN needs allowWarn. A URL vet402 has no record of needs allowUnknown.
  */
 import { CHAIN_PROFILES } from "./chain-profile.js";
@@ -14,6 +20,17 @@ const USDC_UNITS = 1_000_000;
 const WALLET_RE = /^0x[a-fA-F0-9]{40}$/;
 const AMOUNT_RE = /^[1-9][0-9]*$/;
 const PAYMENT_HEADERS = ["payment-signature", "x-payment"];
+/** Default wall-clock limit for paid seller response headers after a payment is sent. */
+export const DEFAULT_PAID_RESPONSE_TIMEOUT_MS = 120_000;
+function assertBoundedTimeoutMs(ms, code) {
+    if (typeof ms !== "number" || !Number.isFinite(ms) || ms < 1 || ms > 2_147_483_647 || Math.trunc(ms) !== ms) {
+        throw new Error(`${code}: pass an integer from 1 through 2147483647`);
+    }
+    return ms;
+}
+function operationTimedOut() {
+    return new DOMException("The operation timed out", "TimeoutError");
+}
 /** Reject when `signal` aborts even if the underlying fetch ignores `signal`. */
 function raceAbort(promise, signal) {
     if (signal?.aborted) {
@@ -99,10 +116,8 @@ export async function pay(url, init, options) {
     const maxUsd = options.maxUsd ?? DEFAULT_MAX_PER_TX_USD;
     if (typeof maxUsd !== "number" || !Number.isFinite(maxUsd) || maxUsd <= 0)
         throw new Error("invalid_max_usd: pass a positive number");
-    const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
-    if (typeof requestTimeoutMs !== "number" || !Number.isFinite(requestTimeoutMs) || requestTimeoutMs <= 0) {
-        throw new Error("invalid_request_timeout_ms: pass a positive number");
-    }
+    const requestTimeoutMs = assertBoundedTimeoutMs(options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS, "invalid_request_timeout_ms");
+    const paidResponseTimeoutMs = assertBoundedTimeoutMs(options.paidResponseTimeoutMs ?? DEFAULT_PAID_RESPONSE_TIMEOUT_MS, "invalid_paid_response_timeout_ms");
     const network = options.network ?? "base";
     if (!Object.hasOwn(CHAIN_PROFILES, network))
         throw new Error("invalid_network");
@@ -150,6 +165,33 @@ export async function pay(url, init, options) {
             return caller;
         return combineAbortSignals([caller, timed]);
     };
+    /** Close the transport on header timeout while still allowing the response body to finish once headers land. */
+    const headerCloseGate = (caller, ms) => {
+        const controller = new AbortController();
+        let timer = setTimeout(() => {
+            controller.abort(operationTimedOut());
+        }, ms);
+        const fetchParts = [controller.signal];
+        if (caller !== undefined)
+            fetchParts.push(caller);
+        const stopTimer = () => {
+            if (timer !== undefined) {
+                clearTimeout(timer);
+                timer = undefined;
+            }
+        };
+        const closeTransport = () => {
+            stopTimer();
+            if (!controller.signal.aborted)
+                controller.abort(operationTimedOut());
+        };
+        return {
+            fetchSignal: combineAbortSignals(fetchParts),
+            waitSignal: vet402ReadSignal(caller),
+            onHeaders: stopTimer,
+            closeTransport,
+        };
+    };
     const guardedFetch = async (input, callInit) => {
         const target = input instanceof Request ? input.url : String(input);
         const signal = callInit?.signal ?? init?.signal ?? undefined;
@@ -160,17 +202,29 @@ export async function pay(url, init, options) {
         }
         if (target !== resource) {
             if (isAttestPost) {
-                const attestTimeout = timeoutSignal();
-                const attestInit = { ...callInit };
-                delete attestInit.signal;
-                return raceAbort(baseFetch(input, attestInit), attestTimeout);
+                const gate = headerCloseGate(undefined, requestTimeoutMs);
+                try {
+                    const attestInit = { ...callInit, signal: gate.fetchSignal };
+                    return await raceAbort(baseFetch(input, attestInit), gate.waitSignal);
+                }
+                catch (err) {
+                    gate.closeTransport();
+                    throw err;
+                }
             }
-            const readSignal = vet402ReadSignal(signal);
-            if (readSignal?.aborted)
-                throw readSignal.reason ?? new DOMException("The operation was aborted", "AbortError");
-            const res = await raceAbort(baseFetch(input, { ...callInit, signal: readSignal }), readSignal);
-            const body = await raceAbort(res.arrayBuffer(), readSignal);
-            return new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers });
+            const gate = headerCloseGate(signal, requestTimeoutMs);
+            if (gate.waitSignal?.aborted)
+                throw gate.waitSignal.reason ?? new DOMException("The operation was aborted", "AbortError");
+            try {
+                const res = await raceAbort(baseFetch(input, { ...callInit, signal: gate.fetchSignal }), gate.waitSignal);
+                gate.onHeaders();
+                const body = await raceAbort(res.arrayBuffer(), gate.waitSignal);
+                return new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers });
+            }
+            catch (err) {
+                gate.closeTransport();
+                throw err;
+            }
         }
         const headers = new Headers(init?.headers);
         for (const k of PAYMENT_HEADERS)
@@ -189,16 +243,45 @@ export async function pay(url, init, options) {
         if (isPaid) {
             const paidFetchInit = { ...init, ...callInit, method, headers, body: init?.body, redirect: "error" };
             delete paidFetchInit.signal;
-            const answer = await baseFetch(resource, paidFetchInit);
-            sellerAnswer = answer.clone();
+            const paidWaitParts = [];
+            const paidTimed = timeoutSignal(paidResponseTimeoutMs);
+            if (paidTimed !== undefined)
+                paidWaitParts.push(paidTimed);
+            if (signal !== undefined)
+                paidWaitParts.push(signal);
+            const paidWaitSignal = paidWaitParts.length === 0 ? undefined : paidWaitParts.length === 1 ? paidWaitParts[0] : combineAbortSignals(paidWaitParts);
+            const paidFlight = baseFetch(resource, paidFetchInit);
+            try {
+                const answer = await raceAbort(paidFlight, paidWaitSignal);
+                sellerAnswer = answer.clone();
+                return answer;
+            }
+            catch (err) {
+                paidFlight.catch(() => undefined);
+                throw err;
+            }
+        }
+        const gate = headerCloseGate(signal, requestTimeoutMs);
+        if (gate.waitSignal?.aborted)
+            throw gate.waitSignal.reason ?? new DOMException("The operation was aborted", "AbortError");
+        const unpaidFetchInit = {
+            ...init,
+            ...callInit,
+            method,
+            headers,
+            body: init?.body,
+            redirect: "error",
+            signal: gate.fetchSignal,
+        };
+        try {
+            const answer = await raceAbort(baseFetch(resource, unpaidFetchInit), gate.waitSignal);
+            gate.onHeaders();
             return answer;
         }
-        const roundSignal = vet402ReadSignal(signal);
-        if (roundSignal?.aborted)
-            throw roundSignal.reason ?? new DOMException("The operation was aborted", "AbortError");
-        const unpaidFetchInit = { ...init, ...callInit, method, headers, body: init?.body, redirect: "error", signal };
-        const answer = await raceAbort(baseFetch(resource, unpaidFetchInit), roundSignal);
-        return answer;
+        catch (err) {
+            gate.closeTransport();
+            throw err;
+        }
     };
     let first;
     try {

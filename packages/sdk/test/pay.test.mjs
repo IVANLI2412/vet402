@@ -1,8 +1,9 @@
 // pay(): every case runs against a fake seller and a fake vet402. No network, no money.
+import http from "node:http";
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
-import { pay } from "../dist/index.js";
+import { pay, DEFAULT_PAID_RESPONSE_TIMEOUT_MS } from "../dist/index.js";
 
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const PAY_TO = "0x36038e1d712c5e39f35952164ec58ec2b96caee7";
@@ -414,11 +415,152 @@ test("attest stall with signal-ignoring fetch returns paid within requestTimeout
 
 test("invalid requestTimeoutMs throws before the seller is called", async () => {
   const h = harness();
-  for (const v of [-1, NaN, Infinity, "50"]) {
+  for (const v of [-1, NaN, Infinity, "50", 0, 0.5, 2 ** 31, 2 ** 32]) {
     await assert.rejects(pay(URL_A, undefined, { account: h.account, fetch: h.fetchImpl, requestTimeoutMs: v }), /invalid_request_timeout_ms/);
   }
   assert.equal(h.seen.seller.length, 0);
   assert.equal(h.seen.signatures, 0);
+});
+
+test("invalid paidResponseTimeoutMs throws before the seller is called", async () => {
+  const h = harness();
+  for (const v of [0, 0.5, NaN, 2 ** 31]) {
+    await assert.rejects(pay(URL_A, undefined, { account: h.account, fetch: h.fetchImpl, paidResponseTimeoutMs: v }), /invalid_paid_response_timeout_ms/);
+  }
+  assert.equal(h.seen.seller.length, 0);
+});
+
+test("DEFAULT_PAID_RESPONSE_TIMEOUT_MS is 120 seconds", () => {
+  assert.equal(DEFAULT_PAID_RESPONSE_TIMEOUT_MS, 120_000);
+});
+
+test("paid seller that never sends headers returns failed signed:true with nonce within paidResponseTimeoutMs", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith(`${API}/`)) return h.fetchImpl(input, init);
+    if (new Headers(init.headers).has("payment-signature")) return new Promise(() => {});
+    return h.fetchImpl(input, init);
+  };
+  const started = Date.now();
+  const r = await pay(URL_A, undefined, { account: h.account, fetch: fetchImpl, paidResponseTimeoutMs: 50 });
+  assert.equal(r.status, "failed");
+  assert.equal(r.signed, true);
+  assert.ok(r.receipt?.retry?.authorization?.nonce);
+  assert.ok(Date.now() - started < 500);
+  assert.equal(h.seen.signatures, 1);
+});
+
+test("caller abort while waiting for paid headers returns failed signed:true with nonce", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith(`${API}/`)) return h.fetchImpl(input, init);
+    if (new Headers(init.headers).has("payment-signature")) return new Promise(() => {});
+    return h.fetchImpl(input, init);
+  };
+  const controller = new AbortController();
+  const work = pay(URL_A, { signal: controller.signal }, { account: h.account, fetch: fetchImpl, paidResponseTimeoutMs: 60_000 });
+  for (let i = 0; i < 200 && h.seen.signatures < 1; i += 1) await new Promise((r) => setTimeout(r, 5));
+  assert.equal(h.seen.signatures, 1);
+  controller.abort(new Error("caller gave up"));
+  const r = await work;
+  assert.equal(r.status, "failed");
+  assert.equal(r.signed, true);
+  assert.ok(r.receipt?.retry?.authorization?.nonce);
+});
+
+test("unpaid probe header stall repeated 20 times leaves no open seller sockets", async () => {
+  const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
+  const PAY_TO = "0x36038e1d712c5e39f35952164ec58ec2b96caee7";
+  const SELLER = "https://seller-probe.test/v1/x";
+  const b64j = (v) => Buffer.from(JSON.stringify(v)).toString("base64");
+  const offerHdr = b64j({
+    x402Version: 2,
+    resource: { url: SELLER },
+    accepts: [{
+      scheme: "exact",
+      network: "eip155:8453",
+      asset: USDC,
+      amount: "10000",
+      payTo: PAY_TO,
+      maxTimeoutSeconds: 60,
+      extra: { name: "USD Coin", version: "2" },
+    }],
+  });
+  const verdict = {
+    subject: { type: "resource", id: "a".repeat(64) },
+    role: "payer",
+    recommendation: "ALLOW",
+    reason_codes: ["l0_pass"],
+    facts: { l0: { status: "pass" }, l1: { n_delivered: 3, n_attempts: 3 }, l2: { status: "undeclared" } },
+    evidence: [],
+    degraded: false,
+    policy: "allow_only",
+    rules_version: "test",
+  };
+  const held = [];
+  const stats = { open: 0, signatures: 0 };
+  const server = http.createServer((req, res) => {
+    if (req.url.startsWith("/api/v1/resources/")) {
+      res.setHeader("content-type", "application/json");
+      return res.end(JSON.stringify(verdict));
+    }
+    if (req.url.startsWith("/api/v1/")) return res.end("{}");
+    if (req.url.startsWith("/seller")) {
+      held.push(res);
+      return;
+    }
+    res.statusCode = 404;
+    res.end();
+  });
+  server.on("connection", (s) => {
+    stats.open += 1;
+    s.on("close", () => {
+      stats.open -= 1;
+    });
+  });
+  await new Promise((r) => server.listen(0, "127.0.0.1", r));
+  const port = server.address().port;
+  const base = `http://127.0.0.1:${port}`;
+  const account = {
+    address: "0xDB62BD202914609830fA656F87996b91be3Aa673",
+    signTypedData: async () => {
+      stats.signatures += 1;
+      return `0x${"ab".repeat(65)}`;
+    },
+  };
+  const mkFetch = (inner = globalThis.fetch) => (input, init) => {
+    const u = String(input instanceof Request ? input.url : input);
+    if (u.startsWith("https://seller-probe.test/")) {
+      return inner(`${base}/seller${u.slice("https://seller-probe.test".length)}`, init);
+    }
+    return inner(input, init);
+  };
+  try {
+    for (let i = 0; i < 20; i += 1) {
+      const r = await pay(SELLER, undefined, {
+        account,
+        fetch: mkFetch(),
+        apiUrl: `${base}/api/v1`,
+        requestTimeoutMs: 150,
+      });
+      assert.equal(r.status, "refused");
+      assert.match(r.reasonCodes.join(","), /seller_unreachable/);
+    }
+    await new Promise((r) => setTimeout(r, 1000));
+    const heldOpen = held.filter((res) => res.socket && !res.socket.destroyed).length;
+    globalThis.gc?.();
+    await new Promise((r) => setTimeout(r, 500));
+    globalThis.gc?.();
+    const heldOpenGc = held.filter((res) => res.socket && !res.socket.destroyed).length;
+    assert.equal(stats.signatures, 0);
+    assert.equal(heldOpen, 0);
+    assert.equal(heldOpenGc, 0);
+  } finally {
+    server.closeAllConnections?.();
+    server.close();
+  }
 });
 
 test("vet402 decision body stall stops at requestTimeoutMs without signing", async () => {
