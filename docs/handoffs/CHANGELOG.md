@@ -13,6 +13,12 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-19 November State of x402 report: ten chains plus Tempo
+
+- **What**: We fixed the chain count in `content/reports/state-of-x402-2026-11.md` preamble from nine chains to ten chains plus Tempo over MPP, matching Robinhood Chain purchases on the production ledger through 2026-11-09. We updated the pinned sha256 in `tests/state-of-x402-report.test.ts`.
+- **Why**: vet402 already paid on Robinhood Chain (eip155:4663) before the report date, so the prose was wrong.
+- **Impact**: Report table numbers are unchanged (still the 2026-11-09 snapshot). The small-chain omission note in the By chain section stays consistent. Redeploy only if we want the live page to pick up the markdown file.
+
 ## 2026-11-18 AgentKit・LangChain・AI SDK 用の支払い道具（wave2 M3）
 
 - 変更: `packages/agentkit`（`vet402ActionProvider`）、`packages/langchain`（`vet402PayTool`）、`packages/ai-sdk`（`vet402PayTool`）を追加。いずれも `@vet402/sdk` の `pay()` を呼ぶ薄い層。

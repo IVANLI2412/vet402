@@ -12,7 +12,7 @@ import {
 } from "@/lib/reports/markdown";
 
 const REPORT_REL = "content/reports/state-of-x402-2026-11.md";
-const REPORT_SHA256 = "8bdeb1821277414a191b84d978373fb81c27822cafa7f75d863c7ca09e6186a1";
+const REPORT_SHA256 = "97452966db1214c2125353472a3e1971b43be033ad57464f0d4efb7cc98ddf1b";
 
 const PAGE_DESCRIPTION =
   "87.9 percent of vet402's paid call attempts with a final outcome came back with content, as of 2026-11-09 (UTC). By chain, and why paid x402 calls fail.";
