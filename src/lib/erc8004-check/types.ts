@@ -16,13 +16,17 @@ export type Erc8004CheckTriState = "pass" | "fail" | "unknown";
 
 export type Erc8004CheckProofSource = "proofOfPayment" | "rollup_transactions";
 
-export type Erc8004CheckUnreadableReason =
-  | "proof_tx_not_found_on_known_chains"
-  | "feedback_log_not_found_in_time"
-  | "feedback_uri_unreadable";
+/** The MCP outputSchema reads these lists, so a reason added here is accepted there too. */
+export const ERC8004_UNREADABLE_REASONS = [
+  "proof_tx_not_found_on_known_chains",
+  "feedback_log_not_found_in_time",
+  "feedback_uri_unreadable",
+] as const;
+export type Erc8004CheckUnreadableReason = (typeof ERC8004_UNREADABLE_REASONS)[number];
 
 /** Why a feedback has no payment proof to check. */
-export type Erc8004CheckNoProofReason = "no_feedback_uri" | "no_proof_in_feedback";
+export const ERC8004_NO_PROOF_REASONS = ["no_feedback_uri", "no_proof_in_feedback"] as const;
+export type Erc8004CheckNoProofReason = (typeof ERC8004_NO_PROOF_REASONS)[number];
 
 export type Erc8004CheckChecks = {
   tx_exists: Erc8004CheckTriState;

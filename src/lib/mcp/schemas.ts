@@ -6,6 +6,7 @@
 // pay_to は verified_terms の中にだけある。
 // ============================================================
 import { z } from "zod";
+import { ERC8004_NO_PROOF_REASONS, ERC8004_UNREADABLE_REASONS } from "@/lib/erc8004-check/types";
 import { INPUT_TEXT } from "./text";
 
 export const MAX_URL_CHARS = 2048;
@@ -335,7 +336,8 @@ export const check8004AgentOutput = z
         proof_chain: z.string().optional(),
       })
       .strict(),
-    unreadable_reason: z.enum(["proof_tx_not_found_on_known_chains", "feedback_log_not_found_in_time"]).optional(),
+    unreadable_reason: z.enum(ERC8004_UNREADABLE_REASONS).optional(),
+    no_proof_reason: z.enum(ERC8004_NO_PROOF_REASONS).optional(),
     sources: z.array(
       z
         .object({
