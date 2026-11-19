@@ -176,7 +176,8 @@ export async function pay(url, init, options) {
         }
         const isPaid = headers.has("payment-signature") || headers.has("x-payment");
         // A redirect could carry the signed payment to a host nobody checked, so it is never followed.
-        if (!isPaid && signal?.aborted)
+        // An abort that lands before the paid request leaves stops it. Once it has left, it is not cut (below).
+        if (signal?.aborted)
             throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
         const sellerSignal = isPaid ? timeoutSignal() : signal;
         const answer = await raceAbort(baseFetch(resource, { ...init, ...callInit, method, headers, body: init?.body, redirect: "error", signal: sellerSignal }), sellerSignal);
