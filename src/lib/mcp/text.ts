@@ -66,7 +66,7 @@ export const TOOL_TEXT = {
     title: "Re-read ERC-8004 feedback proofOfPayment",
     description:
       "check_8004_agent loads one ERC-8004 Reputation Registry feedback on Base by default (chain eip155:8453), fetches its feedbackURI JSON, re-reads proofOfPayment on chain, and returns the same verdict and checks as GET /api/v1/erc8004/check. " +
-      "Pass agentId with client to read that client's latest feedback, or with feedbackIndex to read one feedback. chain accepts eip155:8453 and defaults to it. verdict is verified, verified_payment_unlinked_client, mismatch, no_proof, or unreadable. " +
+      "Pass agentId with client to read that client's latest feedback, or with feedbackIndex to read one feedback. Pass client when more than one client left feedback at the same index. chain accepts eip155:8453 and defaults to it. verdict is verified, verified_payment_unlinked_client, mismatch, no_proof, or unreadable. " +
       "Use it when an agent's reputation cites a payment. To read a seller PAYMENT-RESPONSE directly, use check_payment_proof. " +
       "It changes no data, needs no API key and has no charge. It reads the registry and the feedback URI over the network and writes nothing on chain. Up to 30 calls per minute per IP.",
   },
@@ -125,6 +125,8 @@ export const ERROR_TEXT = {
   invalid_client: "client must be a 0x-prefixed EVM address.",
   invalid_feedback_index: "feedbackIndex must be a non-negative integer.",
   feedback_not_found: "No feedback matches agentId with that client or feedbackIndex.",
+  ambiguous_feedback_index:
+    "Several clients left feedback at this index. Pass client with feedbackIndex to choose one.",
   temporarily_unavailable: "The vet402 database could not be read. Retry in 30 seconds.",
   chain_unreadable: "The ERC-8004 registry or the feedback URI could not be read right now. Retry in 30 seconds.",
 } as const;

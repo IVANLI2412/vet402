@@ -2,6 +2,7 @@ import { unstable_cache } from "next/cache";
 import { runErc8004Check, type Erc8004CheckInput, type Erc8004CheckDeps } from "./run-check";
 
 export const ERC8004_CHECK_CACHE_SECONDS = 30 * 60;
+export const ERC8004_CHECK_LOG_TIMEOUT_CACHE_SECONDS = 60;
 
 function cacheKey(input: Erc8004CheckInput): string {
   return JSON.stringify({

@@ -1,3 +1,4 @@
+import { DeadlineExceededError } from "@/lib/util/deadline";
 import { canonicalNetworkId } from "@/lib/observatory/chains";
 import { BASE_USDC } from "@/lib/observatory/x402-payer";
 import {
@@ -38,6 +39,8 @@ import {
   readOnChainFeedbackMeta,
   resolveClientForIndex,
   resolveFeedbackIndex,
+  type FindFeedbackLogResult,
+  type FeedbackLogSlice,
   type RegistryReaders,
 } from "./registry-read";
 import type {
@@ -61,7 +64,13 @@ export type Erc8004CheckDeps = {
   paymentReaders?: PaymentProofReaders;
   fetchFeedbackUri?: FeedbackUriReader;
   resolvePayTargets?: (agentId: bigint, chainId: number) => Promise<AgentPayTargets>;
-  findFeedbackLog?: typeof findFeedbackLog;
+  findFeedbackLog?: (
+    agentId: bigint,
+    client: import("viem").Address,
+    feedbackIndex: bigint,
+    chainId: number,
+    readers?: RegistryReaders,
+  ) => Promise<FindFeedbackLogResult | FeedbackLogSlice | null>;
   lookupPurchaseNetwork?: (txHash: string) => Promise<string | null>;
 };
 
@@ -71,7 +80,8 @@ export type Erc8004CheckError =
   | "missing_client_or_index"
   | "invalid_client"
   | "invalid_feedback_index"
-  | "feedback_not_found";
+  | "feedback_not_found"
+  | "ambiguous_feedback_index";
 
 const EMPTY_CHECKS: Erc8004CheckChecks = {
   tx_exists: "unknown",
@@ -113,9 +123,15 @@ export async function runErc8004Check(
   }
 
   if (!client && feedbackIndex !== null) {
-    const resolved = await resolveClientForIndex(agentId, feedbackIndex, chain.chainId, rpc);
-    if (!resolved) return { error: "feedback_not_found" };
-    client = resolved;
+    try {
+      const resolved = await resolveClientForIndex(agentId, feedbackIndex, chain.chainId, rpc, deps?.readers);
+      if (resolved.status === "ambiguous") return { error: "ambiguous_feedback_index" };
+      if (resolved.status === "not_found") return { error: "feedback_not_found" };
+      client = resolved.client;
+    } catch (error) {
+      if (error instanceof DeadlineExceededError) return { error: "ambiguous_feedback_index" };
+      throw error;
+    }
   }
 
   if (!client || feedbackIndex === null) return { error: "feedback_not_found" };
@@ -128,8 +144,22 @@ export async function runErc8004Check(
   });
 
   const loadLog = deps?.findFeedbackLog ?? findFeedbackLog;
-  const log = await loadLog(agentId, client, feedbackIndex, chain.chainId, deps?.readers);
-  if (!log) return { error: "feedback_not_found" };
+  const logLookup = normalizeFindFeedbackLogResult(
+    await loadLog(agentId, client, feedbackIndex, chain.chainId, deps?.readers),
+  );
+  if (logLookup.kind === "deadline") {
+    return logScanDeadlineResult({
+      chain,
+      agentId,
+      client,
+      feedbackIndex,
+      meta,
+      sources,
+      deps,
+    });
+  }
+  if (logLookup.kind === "not_found") return { error: "feedback_not_found" };
+  const log = logLookup.log;
   sources.push({
     kind: "new_feedback_log",
     detail: log.txHash ? `tx=${log.txHash}` : "getLogs",
@@ -413,6 +443,54 @@ function networkFromChainId(chainId: number | string): string {
   return ERC8004_CHECK_CHAIN;
 }
 
+const EMPTY_LOG_HASH = `0x${"00".repeat(32)}` as import("viem").Hex;
+
+function normalizeFindFeedbackLogResult(
+  raw: FindFeedbackLogResult | FeedbackLogSlice | null,
+): FindFeedbackLogResult {
+  if (raw === null) return { kind: "not_found" };
+  if (typeof raw === "object" && "kind" in raw) return raw;
+  return { kind: "found", log: raw };
+}
+
+function logScanDeadlineResult(args: {
+  chain: { caip: string };
+  agentId: bigint;
+  client: string;
+  feedbackIndex: bigint;
+  meta: Awaited<ReturnType<typeof readOnChainFeedbackMeta>>;
+  sources: Erc8004CheckResult["sources"];
+  deps?: Erc8004CheckDeps;
+}): Erc8004CheckResult {
+  const placeholder: FeedbackLogSlice = {
+    clientAddress: args.client as import("viem").Address,
+    feedbackIndex: args.feedbackIndex,
+    value: args.meta.value,
+    valueDecimals: args.meta.valueDecimals,
+    tag1: args.meta.tag1,
+    tag2: args.meta.tag2,
+    endpoint: "",
+    feedbackURI: "",
+    feedbackHash: EMPTY_LOG_HASH,
+    blockNumber: 0n,
+    txHash: "0x" as import("viem").Hex,
+  };
+  return baseResult({
+    verdict: "unreadable",
+    unreadable_reason: "feedback_log_not_found_in_time",
+    chain: args.chain,
+    agentId: args.agentId,
+    client: args.client,
+    feedbackIndex: args.feedbackIndex,
+    log: placeholder,
+    meta: args.meta,
+    proof: null,
+    checks: { ...EMPTY_CHECKS },
+    sources: args.sources,
+    deps: args.deps,
+  });
+}
+
 function baseResult(args: {
   verdict: Erc8004CheckVerdict;
   reasons?: import("./types").Erc8004CheckMismatchReason[];
@@ -421,7 +499,7 @@ function baseResult(args: {
   agentId: bigint;
   client: string;
   feedbackIndex: bigint;
-  log: NonNullable<Awaited<ReturnType<typeof findFeedbackLog>>>;
+  log: FeedbackLogSlice;
   meta: Awaited<ReturnType<typeof readOnChainFeedbackMeta>>;
   proof: ProofOfPayment | null;
   checks: Erc8004CheckChecks;
@@ -437,10 +515,11 @@ function baseResult(args: {
     clientAddress: args.client,
     feedbackIndex: args.feedbackIndex.toString(),
     feedback: {
-      value: args.log.value.toString(),
-      valueDecimals: args.log.valueDecimals,
+      value: args.meta.value.toString(),
+      valueDecimals: args.meta.valueDecimals,
       tag1: args.meta.tag1 || args.log.tag1,
       tag2: args.meta.tag2 || args.log.tag2,
+      isRevoked: args.meta.isRevoked,
       endpoint: args.log.endpoint,
       feedbackURI: args.log.feedbackURI,
       feedbackHash: args.log.feedbackHash,

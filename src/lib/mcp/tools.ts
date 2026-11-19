@@ -496,6 +496,7 @@ const ERC8004_INPUT_ERRORS = new Set<Erc8004CheckError>([
   "invalid_client",
   "invalid_feedback_index",
   "feedback_not_found",
+  "ambiguous_feedback_index",
 ]);
 
 export async function check8004Agent(

@@ -1,7 +1,11 @@
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { NextRequest, NextResponse } from "next/server";
 import { publicRateLimit } from "@/lib/api/public-route";
-import { ERC8004_CHECK_CACHE_SECONDS, getErc8004CheckCached } from "@/lib/erc8004-check/cache";
+import {
+  ERC8004_CHECK_CACHE_SECONDS,
+  ERC8004_CHECK_LOG_TIMEOUT_CACHE_SECONDS,
+  getErc8004CheckCached,
+} from "@/lib/erc8004-check/cache";
 
 const RL_LIMIT = 30;
 const RL_WINDOW_MS = 60_000;
@@ -37,7 +41,8 @@ export async function GET(request: NextRequest) {
             result.error === "invalid_agent_id" ||
             result.error === "invalid_client" ||
             result.error === "invalid_feedback_index" ||
-            result.error === "missing_client_or_index"
+            result.error === "missing_client_or_index" ||
+            result.error === "ambiguous_feedback_index"
           ? 400
           : 400;
     return NextResponse.json(
@@ -52,12 +57,17 @@ export async function GET(request: NextRequest) {
     );
   }
 
+  const sMaxAge =
+    result.verdict === "unreadable" && result.unreadable_reason === "feedback_log_not_found_in_time"
+      ? ERC8004_CHECK_LOG_TIMEOUT_CACHE_SECONDS
+      : ERC8004_CHECK_CACHE_SECONDS;
+
   return NextResponse.json(result, {
     status: 200,
     headers: {
       ...gate.headers,
       ...gate.cacheHeaders,
-      "Cache-Control": `public, max-age=60, s-maxage=${ERC8004_CHECK_CACHE_SECONDS}, stale-while-revalidate=300`,
+      "Cache-Control": `public, max-age=60, s-maxage=${sMaxAge}, stale-while-revalidate=300`,
     },
   });
 }

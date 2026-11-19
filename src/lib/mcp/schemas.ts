@@ -318,6 +318,7 @@ export const check8004AgentOutput = z
         endpoint: z.string(),
         feedbackURI: z.string(),
         feedbackHash: z.string(),
+        isRevoked: z.boolean(),
       })
       .strict(),
     proofOfPayment: z.record(z.string(), z.unknown()).nullable(),
@@ -334,7 +335,7 @@ export const check8004AgentOutput = z
         proof_chain: z.string().optional(),
       })
       .strict(),
-    unreadable_reason: z.enum(["proof_tx_not_found_on_known_chains"]).optional(),
+    unreadable_reason: z.enum(["proof_tx_not_found_on_known_chains", "feedback_log_not_found_in_time"]).optional(),
     sources: z.array(
       z
         .object({

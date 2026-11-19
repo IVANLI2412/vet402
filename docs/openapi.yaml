@@ -2256,8 +2256,10 @@ paths:
                           found (rollup_transactions path only).
                   unreadable_reason:
                     type: string
-                    enum: [proof_tx_not_found_on_known_chains]
-                    description: Present when verdict is unreadable for rollup probe.
+                    enum: [proof_tx_not_found_on_known_chains, feedback_log_not_found_in_time]
+                    description: |
+                      Present when verdict is unreadable: rollup probe could not find the tx,
+                      or the NewFeedback log scan timed out before locating the issuance event.
                   sources:
                     type: array
                     items:
@@ -2266,7 +2268,9 @@ paths:
                     type: string
                     format: date-time
         "400":
-          description: Invalid query
+          description: |
+            Invalid query, or `ambiguous_feedback_index` when feedbackIndex alone matches
+            more than one client (pass client too).
         "404":
           description: Feedback not found
         "429":

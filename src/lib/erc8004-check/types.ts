@@ -16,7 +16,9 @@ export type Erc8004CheckTriState = "pass" | "fail" | "unknown";
 
 export type Erc8004CheckProofSource = "proofOfPayment" | "rollup_transactions";
 
-export type Erc8004CheckUnreadableReason = "proof_tx_not_found_on_known_chains";
+export type Erc8004CheckUnreadableReason =
+  | "proof_tx_not_found_on_known_chains"
+  | "feedback_log_not_found_in_time";
 
 export type Erc8004CheckChecks = {
   tx_exists: Erc8004CheckTriState;
@@ -67,7 +69,7 @@ export type Erc8004CheckResult = {
   feedbackIndex: string;
   feedback: Pick<
     Erc8004FeedbackOnChain,
-    "value" | "valueDecimals" | "tag1" | "tag2" | "endpoint" | "feedbackURI" | "feedbackHash"
+    "value" | "valueDecimals" | "tag1" | "tag2" | "endpoint" | "feedbackURI" | "feedbackHash" | "isRevoked"
   >;
   proofOfPayment: Record<string, unknown> | null;
   checks: Erc8004CheckChecks;

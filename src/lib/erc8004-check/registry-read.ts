@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { type Address, decodeEventLog, isAddress, type Hex } from "viem";
 import { getLogsChunked } from "@/lib/chain/chunked-logs";
+import { createDeadline, DeadlineExceededError } from "@/lib/util/deadline";
 import { getLogScanClient, getPublicClient } from "@/lib/chain/client";
 import { ERC8004_ADDRESSES, IDENTITY_REGISTRY_FROM_BLOCK } from "@/lib/chain/config";
 import { ERC8004_INDEXED_CHAIN } from "@/lib/observatory/erc8004-match";
@@ -10,6 +11,20 @@ import { feedbackEvents } from "@/lib/db/schema";
 
 export const ERC8004_CHECK_CHAIN = ERC8004_INDEXED_CHAIN;
 export const ERC8004_CHECK_CHAIN_ID = 8453;
+
+/** Cap readFeedback probes when resolving feedbackIndex without client. */
+export const RESOLVE_CLIENT_MAX_READS = 25;
+export const RESOLVE_CLIENT_DEADLINE_MS = 8_000;
+
+export type ResolveClientForIndexResult =
+  | { status: "found"; client: Address }
+  | { status: "not_found" }
+  | { status: "ambiguous" };
+
+export type FindFeedbackLogResult =
+  | { kind: "found"; log: FeedbackLogSlice }
+  | { kind: "not_found" }
+  | { kind: "deadline" };
 
 export type FeedbackLogSlice = {
   clientAddress: Address;
@@ -60,15 +75,24 @@ export async function resolveClientForIndex(
   feedbackIndex: bigint,
   chainId: number,
   client?: RegistryRpc,
-): Promise<Address | null> {
+  readers?: RegistryReaders,
+): Promise<ResolveClientForIndexResult> {
   const rpc: RegistryRpc = client ?? (getPublicClient(chainId) as RegistryRpc);
-  const clients = (await rpc.readContract({
-    address: ERC8004_ADDRESSES.reputationRegistry,
-    abi: reputationRegistryAbi,
-    functionName: "getClients",
-    args: [agentId],
-  })) as readonly Address[];
+  const deadline = createDeadline(RESOLVE_CLIENT_DEADLINE_MS);
+  const clients = readers?.getClients
+    ? await readers.getClients(agentId)
+    : ((await rpc.readContract({
+        address: ERC8004_ADDRESSES.reputationRegistry,
+        abi: reputationRegistryAbi,
+        functionName: "getClients",
+        args: [agentId],
+      })) as readonly Address[]);
+  const matches: Address[] = [];
+  let reads = 0;
   for (const candidate of clients) {
+    deadline.throwIfExpired("resolveClientForIndex");
+    if (reads >= RESOLVE_CLIENT_MAX_READS) return { status: "ambiguous" };
+    reads += 1;
     try {
       await rpc.readContract({
         address: ERC8004_ADDRESSES.reputationRegistry,
@@ -76,12 +100,14 @@ export async function resolveClientForIndex(
         functionName: "readFeedback",
         args: [agentId, candidate, feedbackIndex],
       });
-      return candidate;
+      matches.push(candidate);
+      if (matches.length >= 2) return { status: "ambiguous" };
     } catch {
       // not this client
     }
   }
-  return null;
+  if (matches.length === 1) return { status: "found", client: matches[0] };
+  return { status: "not_found" };
 }
 
 export async function resolveFeedbackIndex(
@@ -140,38 +166,44 @@ export async function findFeedbackLog(
   feedbackIndex: bigint,
   chainId: number,
   readers?: RegistryReaders,
-): Promise<FeedbackLogSlice | null> {
+): Promise<FindFeedbackLogResult> {
   const rpc: RegistryRpc = readers?.publicClient ?? (getPublicClient(chainId) as RegistryRpc);
   const loadHashes = readers?.loadTxHashes ?? defaultLoadTxHashes;
   const hashes = await loadHashes(chainId, agentId, client);
   for (const hash of hashes) {
     const slice = await decodeFeedbackFromTx(rpc, hash, agentId, client, feedbackIndex);
-    if (slice) return slice;
+    if (slice) return { kind: "found", log: slice };
   }
   const logClient = readers?.logClient ?? getLogScanClient(chainId);
-  const logs = (await getLogsChunked(
-    logClient,
-    {
-      address: ERC8004_ADDRESSES.reputationRegistry,
-      event: NEW_FEEDBACK_EVENT,
-      args: { agentId, clientAddress: client },
-      fromBlock: IDENTITY_REGISTRY_FROM_BLOCK,
-      toBlock: "latest",
-    },
-    undefined,
-    2,
-    { deadlineMs: 12_000, delayMs: 0 },
-  )) as {
+  let logs: {
     args?: Record<string, unknown>;
     blockNumber?: bigint;
     transactionHash?: Hex;
   }[];
-  for (const log of logs) {
-  const idx = toBigInt(log.args?.feedbackIndex);
-    if (idx !== feedbackIndex) continue;
-    return logSliceFromArgs(client, log);
+  try {
+    logs = (await getLogsChunked(
+      logClient,
+      {
+        address: ERC8004_ADDRESSES.reputationRegistry,
+        event: NEW_FEEDBACK_EVENT,
+        args: { agentId, clientAddress: client },
+        fromBlock: IDENTITY_REGISTRY_FROM_BLOCK,
+        toBlock: "latest",
+      },
+      undefined,
+      2,
+      { deadlineMs: 12_000, delayMs: 0 },
+    )) as typeof logs;
+  } catch (error) {
+    if (error instanceof DeadlineExceededError) return { kind: "deadline" };
+    throw error;
   }
-  return null;
+  for (const log of logs) {
+    const idx = toBigInt(log.args?.feedbackIndex);
+    if (idx !== feedbackIndex) continue;
+    return { kind: "found", log: logSliceFromArgs(client, log) };
+  }
+  return { kind: "not_found" };
 }
 
 async function decodeFeedbackFromTx(
