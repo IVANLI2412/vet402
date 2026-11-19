@@ -702,6 +702,99 @@ test("abort during a slow vet402 decision and GC before pay never signs (four en
   }
 });
 
+test("abort during signTypedData rejects with failed signed vet402PayResult and no paid seller call (string and request)", async () => {
+  const entries = [
+    ["string", (vf, signal) => vf(URL_A, { signal })],
+    ["request", (vf, signal) => vf(new Request(URL_A, { signal }))],
+  ];
+  for (const [label, run] of entries) {
+    const h = harness();
+    const controller = new AbortController();
+    const innerSign = h.account.signTypedData.bind(h.account);
+    h.account.signTypedData = async (...args) => {
+      controller.abort();
+      return innerSign(...args);
+    };
+    const vet402Fetch = createVet402Fetch({ account: h.account, fetch: h.fetchImpl });
+    const err = await run(vet402Fetch, controller.signal).catch((e) => e);
+    assert.equal(err?.name, "AbortError", label);
+    assert.ok(err.vet402PayResult, label);
+    assert.equal(err.vet402PayResult.status, "failed", label);
+    assert.equal(err.vet402PayResult.signed, true, label);
+    assert.equal(h.seen.seller.filter((c) => c.paid).length, 0, label);
+    assert.equal(h.seen.signatures, 1, label);
+  }
+});
+
+test("abort after paid headers reach the seller attests once with paid vet402PayResult (signal-respecting and ignoring fetch)", async () => {
+  const slowPaid = (account) =>
+    new Promise((resolve) =>
+      setTimeout(
+        () =>
+          resolve(
+            new Response('{"answer":42}', {
+              status: 200,
+              headers: {
+                "payment-response": b64({
+                  success: true,
+                  transaction: `0x${"cd".repeat(32)}`,
+                  network: "eip155:8453",
+                  payer: account.address,
+                }),
+              },
+            }),
+          ),
+        80,
+      ),
+    );
+  for (const [label, respectSignal] of [
+    ["respecting signal", true],
+    ["ignoring signal on paid fetch", false],
+  ]) {
+    let attests = 0;
+    const h = harness();
+    const controller = new AbortController();
+    const fetchImpl = async (input, init = {}) => {
+      const url = String(input);
+      if (url === `${API}/payments/x402` && init.method === "POST") {
+        attests += 1;
+        return respectSignal
+          ? new Promise((resolve) => setTimeout(() => resolve(json(200, { ok: true })), 30))
+          : json(200, { ok: true });
+      }
+      if (!respectSignal && url === URL_A) {
+        const headers = new Headers(init.headers);
+        if (headers.has("payment-signature")) {
+          h.seen.seller.push({
+            method: (init.method ?? "GET").toUpperCase(),
+            paid: true,
+            paymentSignature: headers.get("payment-signature"),
+          });
+          return slowPaid(h.account);
+        }
+      }
+      if (respectSignal && init.signal?.aborted) {
+        throw init.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+      }
+      return h.fetchImpl(input, init);
+    };
+    const vet402Fetch = createVet402Fetch({ account: h.account, fetch: fetchImpl });
+    const work = vet402Fetch(URL_A, { signal: controller.signal }).catch((err) => err);
+    for (let i = 0; i < 200 && !h.seen.seller.some((c) => c.paid); i += 1) await new Promise((r) => setTimeout(r, 5));
+    assert.ok(h.seen.seller.some((c) => c.paid), label);
+    controller.abort();
+    const err = await Promise.race([
+      work,
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 1500)),
+    ]);
+    assert.equal(err?.name, "AbortError", label);
+    assert.ok(err.vet402PayResult, label);
+    assert.equal(err.vet402PayResult.status, "paid", label);
+    assert.ok(err.vet402PayResult.txHash, label);
+    assert.equal(attests, 1, label);
+  }
+});
+
 test("signed payment then abort exposes signed true on vet402PayResult", async () => {
   const h = harness();
   const controller = new AbortController();
