@@ -39,7 +39,8 @@ export const TOOL_TEXT = {
       "Use it to look up the vet402 purchase record of one URL. For the 402 response as it is now, open diagnose_url. To search for sellers, use find_x402_sellers. For a host you run, use check_my_x402_endpoint. " +
       "evidence_age comes first and states the date and age of the last delivery from a paid test, and an answer can be no better than WARN when that delivery is older than 30 days or there is none, unless the caller passed allow_without_l1. " +
       "reasons holds one English sentence per reason code, its effect on the answer, and references to purchases, transactions or response hashes when the record names them, with evidence_status none when nothing in the record can be pointed to. " +
-      "It changes no data, needs no API key and has no charge. Up to 120 calls per minute per IP.",
+      "It changes no data, needs no API key and has no charge. Up to 120 calls per minute per IP. " +
+      `Verdicts and reason codes are documented at ${SITE}/docs/api#verdicts.`,
   },
   check_my_x402_endpoint: {
     title: "Check my x402 endpoint",
@@ -47,7 +48,8 @@ export const TOOL_TEXT = {
       "For x402 sellers: shows whether vet402 finds the endpoint in the catalogs it reads, what happened when vet402 paid it, and when vet402 can buy again. " +
       "Pass any URL on your host. The answer covers the listings on that host as shown on the public seller page, the failure modes vet402 recorded with links to the fix-first page, and the five most recent purchases with their transactions. " +
       "To look up a URL on a host you do not run, use check_x402_seller. " +
-      "It changes no data, needs no API key and has no charge. Up to 30 calls per minute per IP.",
+      "It changes no data, needs no API key and has no charge. Up to 30 calls per minute per IP. " +
+      `Tool reference: ${SITE}/docs/mcp#tools.`,
   },
   find_x402_sellers: {
     title: "Find x402 sellers with delivered purchases",
