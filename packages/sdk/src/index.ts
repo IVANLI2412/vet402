@@ -61,6 +61,11 @@ export {
 
 // pay(): the standard path. Checks the seller with vet402, then pays through payOrRefuse.
 export { pay, type PayOptions, type PayResult, type PayStatus } from "./pay.js";
+export {
+  createVet402Fetch,
+  Vet402RefusedError,
+  Vet402PayFailedError,
+} from "./vet402-fetch.js";
 
 
 // x402 auth-capture（E4・2026-11-11）。届かなかった hold を期限後に**買い手の財布が**取り戻す関数と、エスクローの状態の読み。

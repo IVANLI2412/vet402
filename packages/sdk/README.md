@@ -142,6 +142,19 @@ For a POST, pass the method, headers and body as the second argument, the same w
 
 `maxUsd` caps one payment and defaults to $1. If vet402 cannot be read, or the seller changes the price or payee after the check, nothing is signed. When `status` is `"failed"`, a payment may exist, so read `receipt` before trying again.
 
+### `createVet402Fetch`
+
+Drop in a fetch replacement that runs `pay()` on every call. Options are the same as `pay()`.
+
+```typescript
+import { createVet402Fetch } from "@vet402/sdk";
+
+const vet402Fetch = createVet402Fetch({ account });
+const response = await vet402Fetch("https://api.example.com/v1/quote");
+```
+
+`refused` and `failed` throw `Vet402RefusedError` and `Vet402PayFailedError`. Each carries the full `PayResult` on `.result`. A returned `Response` means the same thing as `PayResult.response` after `pay()`. A 2xx body does not by itself prove delivery when `pay()` would not either.
+
 ## `payOrRefuse` on Solana (0.7.0)
 
 `payOrRefuse` gates a payment **before** a signature exists: on anything other than `ALLOW` the
