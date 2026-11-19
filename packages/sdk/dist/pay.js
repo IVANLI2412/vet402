@@ -107,11 +107,45 @@ export async function pay(url, init, options) {
     const baseFetch = options.fetch ?? globalThis.fetch;
     const apiBase = (options.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
     let sellerAnswer = null;
+    const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
     // Every request to the seller carries the caller's method, headers and body. A URL with no record
     // can only pass through the payee score, so that read is closed unless the caller allowed it.
-    const attestTimeoutSignal = () => {
+    const timeoutSignal = () => {
         const timeout = AbortSignal.timeout;
-        return typeof timeout === "function" ? timeout(DEFAULT_REQUEST_TIMEOUT_MS) : undefined;
+        return typeof timeout === "function" ? timeout(requestTimeoutMs) : undefined;
+    };
+    const combineAbortSignals = (signals) => {
+        const live = signals.filter((s) => s !== undefined);
+        if (live.length === 0)
+            return undefined;
+        if (live.length === 1)
+            return live[0];
+        const any = AbortSignal.any;
+        if (typeof any === "function")
+            return any(live);
+        const controller = new AbortController();
+        const onAbort = () => {
+            for (const s of live)
+                s.removeEventListener("abort", onAbort);
+            const aborted = live.find((s) => s.aborted);
+            controller.abort(aborted?.reason ?? new DOMException("The operation was aborted", "AbortError"));
+        };
+        for (const s of live) {
+            if (s.aborted) {
+                onAbort();
+                break;
+            }
+            s.addEventListener("abort", onAbort, { once: true });
+        }
+        return controller.signal;
+    };
+    const vet402ReadSignal = (caller) => {
+        const timed = timeoutSignal();
+        if (caller === undefined)
+            return timed;
+        if (timed === undefined)
+            return caller;
+        return combineAbortSignals([caller, timed]);
     };
     const guardedFetch = async (input, callInit) => {
         const target = input instanceof Request ? input.url : String(input);
@@ -123,12 +157,13 @@ export async function pay(url, init, options) {
         }
         if (target !== resource) {
             if (isAttestPost) {
-                const attestSignal = attestTimeoutSignal();
+                const attestSignal = timeoutSignal();
                 return baseFetch(input, { ...callInit, signal: attestSignal });
             }
-            if (signal?.aborted)
-                throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
-            return raceAbort(baseFetch(input, { ...callInit, signal }), signal);
+            const readSignal = vet402ReadSignal(signal);
+            if (readSignal?.aborted)
+                throw readSignal.reason ?? new DOMException("The operation was aborted", "AbortError");
+            return raceAbort(baseFetch(input, { ...callInit, signal: readSignal }), readSignal);
         }
         const headers = new Headers(init?.headers);
         for (const k of PAYMENT_HEADERS)
@@ -139,11 +174,13 @@ export async function pay(url, init, options) {
             if (v !== null)
                 headers.set(k, v);
         }
+        const isPaid = headers.has("payment-signature") || headers.has("x-payment");
         // A redirect could carry the signed payment to a host nobody checked, so it is never followed.
-        if (signal?.aborted)
+        if (!isPaid && signal?.aborted)
             throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
-        const answer = await raceAbort(baseFetch(resource, { ...init, ...callInit, method, headers, body: init?.body, redirect: "error", signal }), signal);
-        if (headers.has("payment-signature") || headers.has("x-payment"))
+        const sellerSignal = isPaid ? timeoutSignal() : signal;
+        const answer = await raceAbort(baseFetch(resource, { ...init, ...callInit, method, headers, body: init?.body, redirect: "error", signal: sellerSignal }), sellerSignal);
+        if (isPaid)
             sellerAnswer = answer.clone();
         return answer;
     };

@@ -24,21 +24,25 @@ function throwIfAborted(signal) {
     if (signal?.aborted)
         throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
 }
-/** Caller signal: init.signal wins over a Request input signal, same as fetch. */
+/** Caller signal: init.signal wins over a Request input signal, same as fetch (including explicit `null`). */
 function resolveCallerSignal(input, init) {
-    return init?.signal ?? (input instanceof Request ? input.signal : undefined);
+    if (init !== undefined && "signal" in init)
+        return init.signal ?? undefined;
+    return input instanceof Request ? input.signal : undefined;
 }
 function bytesToPayBody(buf) {
     return buf;
 }
+function vet402FetchPayResult(result) {
+    if (result.reasonCodes.includes("aborted"))
+        return result;
+    return { ...result, reasonCodes: [...result.reasonCodes, "aborted"] };
+}
 function rejectAbortedWithPayResult(signal, result) {
-    const reason = signal.reason ?? new DOMException("The operation was aborted", "AbortError");
-    if (reason instanceof Error) {
-        Object.defineProperty(reason, "vet402PayResult", { value: result, configurable: true, enumerable: true });
-        throw reason;
-    }
+    const original = signal.reason ?? new DOMException("The operation was aborted", "AbortError");
     const err = new DOMException("The operation was aborted", "AbortError");
-    Object.defineProperty(err, "vet402PayResult", { value: result, configurable: true, enumerable: true });
+    Object.defineProperty(err, "cause", { value: original, configurable: true, enumerable: true });
+    Object.defineProperty(err, "vet402PayResult", { value: vet402FetchPayResult(result), configurable: true, enumerable: true });
     throw err;
 }
 async function readRequestBody(signal, req) {
@@ -127,7 +131,7 @@ export function createVet402Fetch(options) {
         const callerSignal = resolveCallerSignal(input, init);
         const { url, init: payInit } = await toPayArgs(input, init);
         const result = await pay(url, payInit, options);
-        if (callerSignal?.aborted && result.status === "refused")
+        if (callerSignal?.aborted)
             rejectAbortedWithPayResult(callerSignal, result);
         if (result.status === "paid" || result.status === "no_payment_required") {
             if (result.response === null)

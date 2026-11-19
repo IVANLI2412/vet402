@@ -66,6 +66,7 @@ export {
   MAX_REQUEST_BODY_BYTES,
   Vet402RefusedError,
   Vet402PayFailedError,
+  type Vet402AbortError,
 } from "./vet402-fetch.js";
 
 

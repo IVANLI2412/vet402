@@ -40,6 +40,8 @@ export type PayOptions = {
   fetch?: typeof fetch;
   /** JSONL path for decision rows. Nothing is written unless this is set. */
   decisionStore?: string;
+  /** Wall-clock limit for vet402 reads and paid seller round-trips. Default {@link DEFAULT_REQUEST_TIMEOUT_MS}. */
+  requestTimeoutMs?: number;
 };
 
 export type PayStatus = "paid" | "refused" | "failed" | "no_payment_required";
@@ -151,12 +153,42 @@ export async function pay(url: string | URL, init: RequestInit | undefined, opti
   const baseFetch = options.fetch ?? globalThis.fetch;
   const apiBase = (options.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
   let sellerAnswer: Response | null = null;
+  const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
 
   // Every request to the seller carries the caller's method, headers and body. A URL with no record
   // can only pass through the payee score, so that read is closed unless the caller allowed it.
-  const attestTimeoutSignal = (): AbortSignal | undefined => {
+  const timeoutSignal = (): AbortSignal | undefined => {
     const timeout = (AbortSignal as { timeout?: (ms: number) => AbortSignal }).timeout;
-    return typeof timeout === "function" ? timeout(DEFAULT_REQUEST_TIMEOUT_MS) : undefined;
+    return typeof timeout === "function" ? timeout(requestTimeoutMs) : undefined;
+  };
+
+  const combineAbortSignals = (signals: AbortSignal[]): AbortSignal | undefined => {
+    const live = signals.filter((s): s is AbortSignal => s !== undefined);
+    if (live.length === 0) return undefined;
+    if (live.length === 1) return live[0];
+    const any = (AbortSignal as { any?: (signals: AbortSignal[]) => AbortSignal }).any;
+    if (typeof any === "function") return any(live);
+    const controller = new AbortController();
+    const onAbort = (): void => {
+      for (const s of live) s.removeEventListener("abort", onAbort);
+      const aborted = live.find((s) => s.aborted);
+      controller.abort(aborted?.reason ?? new DOMException("The operation was aborted", "AbortError"));
+    };
+    for (const s of live) {
+      if (s.aborted) {
+        onAbort();
+        break;
+      }
+      s.addEventListener("abort", onAbort, { once: true });
+    }
+    return controller.signal;
+  };
+
+  const vet402ReadSignal = (caller: AbortSignal | undefined): AbortSignal | undefined => {
+    const timed = timeoutSignal();
+    if (caller === undefined) return timed;
+    if (timed === undefined) return caller;
+    return combineAbortSignals([caller, timed]);
   };
 
   const guardedFetch: typeof fetch = async (input, callInit) => {
@@ -169,11 +201,12 @@ export async function pay(url: string | URL, init: RequestInit | undefined, opti
     }
     if (target !== resource) {
       if (isAttestPost) {
-        const attestSignal = attestTimeoutSignal();
+        const attestSignal = timeoutSignal();
         return baseFetch(input, { ...callInit, signal: attestSignal });
       }
-      if (signal?.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
-      return raceAbort(baseFetch(input, { ...callInit, signal }), signal);
+      const readSignal = vet402ReadSignal(signal);
+      if (readSignal?.aborted) throw readSignal.reason ?? new DOMException("The operation was aborted", "AbortError");
+      return raceAbort(baseFetch(input, { ...callInit, signal: readSignal }), readSignal);
     }
     const headers = new Headers(init?.headers);
     for (const k of PAYMENT_HEADERS) headers.delete(k);
@@ -182,13 +215,15 @@ export async function pay(url: string | URL, init: RequestInit | undefined, opti
       const v = extra.get(k);
       if (v !== null) headers.set(k, v);
     }
+    const isPaid = headers.has("payment-signature") || headers.has("x-payment");
     // A redirect could carry the signed payment to a host nobody checked, so it is never followed.
-    if (signal?.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    if (!isPaid && signal?.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    const sellerSignal = isPaid ? timeoutSignal() : signal;
     const answer = await raceAbort(
-      baseFetch(resource, { ...init, ...callInit, method, headers, body: init?.body, redirect: "error", signal }),
-      signal,
+      baseFetch(resource, { ...init, ...callInit, method, headers, body: init?.body, redirect: "error", signal: sellerSignal }),
+      sellerSignal,
     );
-    if (headers.has("payment-signature") || headers.has("x-payment")) sellerAnswer = answer.clone();
+    if (isPaid) sellerAnswer = answer.clone();
     return answer;
   };
 

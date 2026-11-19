@@ -26,6 +26,8 @@ export type PayOptions = {
     fetch?: typeof fetch;
     /** JSONL path for decision rows. Nothing is written unless this is set. */
     decisionStore?: string;
+    /** Wall-clock limit for vet402 reads and paid seller round-trips. Default {@link DEFAULT_REQUEST_TIMEOUT_MS}. */
+    requestTimeoutMs?: number;
 };
 export type PayStatus = "paid" | "refused" | "failed" | "no_payment_required";
 export type PayResult = {

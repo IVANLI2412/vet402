@@ -26,27 +26,36 @@ export class Vet402PayFailedError extends Error {
   }
 }
 
+/** Thrown when `createVet402Fetch` rejects after `pay()` because the caller's `AbortSignal` aborted. */
+export type Vet402AbortError = DOMException & {
+  readonly vet402PayResult: PayResult;
+  cause: unknown;
+};
+
 function throwIfAborted(signal: AbortSignal | null | undefined): void {
   if (signal?.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
 }
 
-/** Caller signal: init.signal wins over a Request input signal, same as fetch. */
+/** Caller signal: init.signal wins over a Request input signal, same as fetch (including explicit `null`). */
 function resolveCallerSignal(input: RequestInfo | URL, init?: RequestInit): AbortSignal | undefined {
-  return init?.signal ?? (input instanceof Request ? input.signal : undefined);
+  if (init !== undefined && "signal" in init) return init.signal ?? undefined;
+  return input instanceof Request ? input.signal : undefined;
 }
 
 function bytesToPayBody(buf: Uint8Array): BodyInit {
   return buf as unknown as BodyInit;
 }
 
+function vet402FetchPayResult(result: PayResult): PayResult {
+  if (result.reasonCodes.includes("aborted")) return result;
+  return { ...result, reasonCodes: [...result.reasonCodes, "aborted"] };
+}
+
 function rejectAbortedWithPayResult(signal: AbortSignal, result: PayResult): never {
-  const reason = signal.reason ?? new DOMException("The operation was aborted", "AbortError");
-  if (reason instanceof Error) {
-    Object.defineProperty(reason, "vet402PayResult", { value: result, configurable: true, enumerable: true });
-    throw reason;
-  }
-  const err = new DOMException("The operation was aborted", "AbortError");
-  Object.defineProperty(err, "vet402PayResult", { value: result, configurable: true, enumerable: true });
+  const original = signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+  const err = new DOMException("The operation was aborted", "AbortError") as Vet402AbortError;
+  Object.defineProperty(err, "cause", { value: original, configurable: true, enumerable: true });
+  Object.defineProperty(err, "vet402PayResult", { value: vet402FetchPayResult(result), configurable: true, enumerable: true });
   throw err;
 }
 
@@ -136,7 +145,7 @@ export function createVet402Fetch(options: PayOptions): (input: RequestInfo | UR
     const callerSignal = resolveCallerSignal(input, init);
     const { url, init: payInit } = await toPayArgs(input, init);
     const result = await pay(url, payInit, options);
-    if (callerSignal?.aborted && result.status === "refused") rejectAbortedWithPayResult(callerSignal, result);
+    if (callerSignal?.aborted) rejectAbortedWithPayResult(callerSignal, result);
     if (result.status === "paid" || result.status === "no_payment_required") {
       if (result.response === null) throw new Vet402PayFailedError(result);
       return result.response;

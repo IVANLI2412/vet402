@@ -12,6 +12,11 @@ export declare class Vet402PayFailedError extends Error {
     readonly result: PayResult;
     constructor(result: PayResult);
 }
+/** Thrown when `createVet402Fetch` rejects after `pay()` because the caller's `AbortSignal` aborted. */
+export type Vet402AbortError = DOMException & {
+    readonly vet402PayResult: PayResult;
+    cause: unknown;
+};
 /**
  * Returns a function with the same call shape as fetch. Each call runs pay() for that URL.
  * A 2xx Response means the seller answered after payment or asked for no payment. It does not
