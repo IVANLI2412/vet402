@@ -17,6 +17,8 @@ const PAYMENT_HEADERS = ["payment-signature", "x-payment"];
 /** Reject when `signal` aborts even if the underlying fetch ignores `signal`. */
 function raceAbort(promise, signal) {
     if (signal?.aborted) {
+        // The fetch already started, so its own rejection must not go unhandled (it would crash Node).
+        promise.catch(() => undefined);
         throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
     }
     if (signal == null)

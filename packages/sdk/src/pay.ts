@@ -68,6 +68,8 @@ type Offer = { payTo: string; amountUsd: number };
 /** Reject when `signal` aborts even if the underlying fetch ignores `signal`. */
 function raceAbort<T>(promise: Promise<T>, signal: AbortSignal | null | undefined): Promise<T> {
   if (signal?.aborted) {
+    // The fetch already started, so its own rejection must not go unhandled (it would crash Node).
+    promise.catch(() => undefined);
     throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
   }
   if (signal == null) return promise;
