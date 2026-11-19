@@ -313,7 +313,7 @@ it once. Keep it out of logs that others can read.
 
 ### 0.9.0
 
-- `pay` and `payOrRefuse` no longer return `paid` on the seller's word alone. A `PAYMENT-RESPONSE` that says `success: true` but names no transaction, or comes with a non-2xx status, now returns `failed` with the reason codes `settle_failed` and `settle_unconfirmed`. The signature and nonce are still returned, so read `receipt` before trying again.
+- `pay` and `payOrRefuse` no longer return `paid` on the seller's word alone. A `PAYMENT-RESPONSE` that says `success: true` but names no transaction, or comes with 202 Accepted or a non-2xx status, now returns `failed` with the reason codes `settle_failed` and `settle_unconfirmed`. The signature and nonce are still returned, so read `receipt` before trying again.
 
 ### 0.8.0
 

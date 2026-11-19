@@ -214,9 +214,10 @@ test("決まりを通ったとき、signTypedData がちょうど 1 回で、届
 });
 
 test("202 と空の本文は、払えても delivered ではない", async () => {
+  // 0.9.0: 202 Accepted は決済済みと数えない（paid ではなく failed・settle_unconfirmed）。署名は1回で、隠さない。
   const accepted = harness({ paidStatus: 202, paidBody: { data: "later" } });
   const acceptedResult = await call(accepted);
-  assert.equal(acceptedResult.paid, true);
+  assert.equal(acceptedResult.paid, false);
   assert.equal(acceptedResult.delivered, false);
   assert.deepEqual(accepted.w.signAccesses(), ["signTypedData"]);
 

@@ -318,13 +318,14 @@ export function parseSettlementResponse(headers: unknown): X402Settlement | null
 
 /**
  * 売り手の申告を「決済済み」と数えてよいか。`success: true` だけでは足りない（2026-11-19 第三者点検 MEDIUM）:
- * 取引 id が無い申告と、支払いつき再送への 2xx 以外の応答は、チェーンで確かめられない「未確認」として扱う。
+ * 取引 id が無い申告と、支払いつき再送への 2xx 以外（と 202 Accepted）の応答は、チェーンで確かめられない「未確認」として扱う。
  * 未確認は呼び手には `failed`（＝払ったかもしれない、receipt を読んでから再試行）として返る。
  */
 export function settlementConfirmed(settlement: X402Settlement | null, responseStatus: number | null): boolean {
   if (settlement?.success !== true) return false;
   if (settlement.transaction === null) return false;
-  return typeof responseStatus === "number" && responseStatus >= 200 && responseStatus < 300;
+  // 202 Accepted は「受け付けたが済んでいない」。auth-capture（classifyDelivery）と同じく paid から外す（2026-11-19 執行部）。
+  return typeof responseStatus === "number" && responseStatus >= 200 && responseStatus < 300 && responseStatus !== 202;
 }
 
 /**

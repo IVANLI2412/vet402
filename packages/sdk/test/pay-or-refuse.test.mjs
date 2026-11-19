@@ -565,6 +565,18 @@ test("E18d 支払いつき再送が 5xx なら success:true と取引 id があ�
   assert.equal(r.attested, false, "未確認は台帳へ attest しない");
 });
 
+test("E18f 支払いつき再送が 202 Accepted なら success:true と取引 id があっても paid にしない", async () => {
+  const w = watchedAccount();
+  const s = seller(okAccept, { paidStatus: 202 });
+  const f = allowlistFetch([DECISION, "kronos"], { [DECISION]: decision(), kronos: s.stub });
+  const r = await payOrRefuse({ ...base, account: w.account, fetch: f.fetch, policy: paidPolicy });
+  assert.equal(r.status, "failed");
+  assert.equal(r.signed, true);
+  assert.equal(r.txHash, "0xtx");
+  assert.equal(r.decision.reason_codes.includes("settle_unconfirmed"), true);
+  assert.equal(s.paid.length, 1);
+});
+
 test("E18e 対照: 2xx と取引 id と success:true がそろえば今までどおり paid", async () => {
   const w = watchedAccount();
   const s = seller(okAccept, { paidStatus: 201 });

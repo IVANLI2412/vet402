@@ -30,9 +30,9 @@ export type PayOptions = {
 export type PayStatus = "paid" | "refused" | "failed" | "no_payment_required";
 export type PayResult = {
     /**
-     * "paid": the seller confirmed settlement with a transaction id and a 2xx answer. "refused": nothing was signed.
+     * "paid": the seller confirmed settlement with a transaction id and a 2xx answer other than 202. "refused": nothing was signed.
      * "failed": a payment may exist, so read `receipt` before trying again. This includes a seller that said
-     * success but named no transaction or answered with a non-2xx status (reason code `settle_unconfirmed`).
+     * success but named no transaction, or answered 202 or a non-2xx status (reason code `settle_unconfirmed`).
      * "no_payment_required": the seller answered without asking for payment.
      */
     status: PayStatus;
