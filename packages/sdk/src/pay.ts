@@ -262,7 +262,10 @@ export async function pay(url: string | URL, init: RequestInit | undefined, opti
         const gate = headerCloseGate(undefined, requestTimeoutMs);
         try {
           const attestInit: RequestInit = { ...callInit, signal: gate.fetchSignal };
-          return await raceAbort(baseFetch(input, attestInit), gate.waitSignal);
+          const res = await raceAbort(baseFetch(input, attestInit), gate.waitSignal);
+          // Stop the header timer once the answer is in, or it keeps the process alive for requestTimeoutMs.
+          gate.onHeaders();
+          return res;
         } catch (err) {
           gate.closeTransport();
           throw err;
@@ -324,6 +327,12 @@ export async function pay(url: string | URL, init: RequestInit | undefined, opti
     try {
       const answer = await raceAbort(baseFetch(resource, unpaidFetchInit), gate.waitSignal);
       gate.onHeaders();
+      if (answer.status === 402) {
+        // Only the payment-required header of a 402 is read. Drop its body so a seller that never ends it
+        // cannot hold the connection open.
+        await answer.body?.cancel().catch(() => undefined);
+        return new Response(null, { status: 402, statusText: answer.statusText, headers: answer.headers });
+      }
       return answer;
     } catch (err) {
       gate.closeTransport();
