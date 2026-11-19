@@ -65,6 +65,31 @@ export type PayResult = {
 
 type Offer = { payTo: string; amountUsd: number };
 
+/** Reject when `signal` aborts even if the underlying fetch ignores `signal`. */
+function raceAbort<T>(promise: Promise<T>, signal: AbortSignal | null | undefined): Promise<T> {
+  if (signal?.aborted) {
+    throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+  }
+  if (signal == null) return promise;
+  return new Promise<T>((resolve, reject) => {
+    const onAbort = (): void => {
+      signal.removeEventListener("abort", onAbort);
+      reject(signal.reason ?? new DOMException("The operation was aborted", "AbortError"));
+    };
+    signal.addEventListener("abort", onAbort);
+    promise.then(
+      (value) => {
+        signal.removeEventListener("abort", onAbort);
+        resolve(value);
+      },
+      (reason) => {
+        signal.removeEventListener("abort", onAbort);
+        reject(reason);
+      },
+    );
+  });
+}
+
 function refused(reason: string, recommendation: string | null = null): PayResult {
   return { status: "refused", response: null, recommendation, reasonCodes: [reason], signed: false, txHash: null, receipt: null };
 }
@@ -129,11 +154,13 @@ export async function pay(url: string | URL, init: RequestInit | undefined, opti
   // can only pass through the payee score, so that read is closed unless the caller allowed it.
   const guardedFetch: typeof fetch = async (input, callInit) => {
     const target = input instanceof Request ? input.url : String(input);
+    const signal = callInit?.signal ?? init?.signal ?? undefined;
     if (target.startsWith(`${apiBase}/payees/`) && options.allowUnknown !== true) {
       throw new Error("unknown_seller_not_allowed");
     }
     if (target !== resource) {
-      return baseFetch(input, { ...callInit, signal: callInit?.signal ?? init?.signal ?? undefined });
+      if (signal?.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+      return raceAbort(baseFetch(input, { ...callInit, signal }), signal);
     }
     const headers = new Headers(init?.headers);
     for (const k of PAYMENT_HEADERS) headers.delete(k);
@@ -143,7 +170,11 @@ export async function pay(url: string | URL, init: RequestInit | undefined, opti
       if (v !== null) headers.set(k, v);
     }
     // A redirect could carry the signed payment to a host nobody checked, so it is never followed.
-    const answer = await baseFetch(resource, { ...init, ...callInit, method, headers, body: init?.body, redirect: "error" });
+    if (signal?.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    const answer = await raceAbort(
+      baseFetch(resource, { ...init, ...callInit, method, headers, body: init?.body, redirect: "error", signal }),
+      signal,
+    );
     if (headers.has("payment-signature") || headers.has("x-payment")) sellerAnswer = answer.clone();
     return answer;
   };

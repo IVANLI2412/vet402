@@ -496,6 +496,54 @@ test("already-aborted POST with a body rejects with signal.reason before pay()",
   assert.equal(h.seen.signatures, 0);
 });
 
+test("vet402 /decision that ignores signal aborts within 500ms and never signs", async () => {
+  const h = harness({
+    decision: () => new Promise(() => {}),
+  });
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith(`${API}/resources/`)) return new Promise(() => {});
+    return h.fetchImpl(input, init);
+  };
+  const vet402Fetch = createVet402Fetch({ account: h.account, fetch: fetchImpl });
+  const controller = new AbortController();
+  const started = Date.now();
+  const work = vet402Fetch(URL_A, { signal: controller.signal }).catch((err) => err);
+  setTimeout(() => controller.abort(), 50);
+  const err = await Promise.race([
+    work,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 500)),
+  ]);
+  assert.ok(err instanceof Vet402RefusedError);
+  assert.ok(Date.now() - started < 500);
+  assert.equal(h.seen.signatures, 0);
+});
+
+test("attest POST that ignores signal still returns a paid Response when aborted after payment", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url === `${API}/payments/x402` && init.method === "POST") return new Promise(() => {});
+    return h.fetchImpl(input, init);
+  };
+  const controller = new AbortController();
+  const vet402Fetch = createVet402Fetch({ account: h.account, fetch: fetchImpl });
+  const work = vet402Fetch(URL_A, { signal: controller.signal }).catch((err) => err);
+  for (let i = 0; i < 200 && h.seen.signatures < 1; i += 1) await new Promise((r) => setTimeout(r, 5));
+  assert.equal(h.seen.signatures, 1);
+  controller.abort();
+  const result = await Promise.race([
+    work,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 500)),
+  ]);
+  if (result instanceof Error) throw result;
+  // payOrRefuse records attest failure in catch (attested=false) and still returns paid; vet402Fetch maps that to a 2xx Response.
+  if (result instanceof Vet402RefusedError || result instanceof Vet402PayFailedError) {
+    assert.fail(`expected paid Response, got ${result.name}`);
+  }
+  assert.equal(result.status, 200);
+});
+
 test("signed payment then abort exposes result.signed true on Vet402PayFailedError", async () => {
   const h = harness();
   const fetchImpl = async (input, init = {}) => {
