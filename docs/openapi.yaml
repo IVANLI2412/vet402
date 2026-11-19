@@ -1358,8 +1358,10 @@ paths:
         Key-less JSON feed of active listings with at least one signed purchase attempt in
         the last 30 days. Rows sort by url, method and network ascending. Up to 2,000 rows
         per page; use next_cursor to continue. License CC-BY-4.0 (`x-vet402-license`, `Link`
-        rel=license and rel=describedby). Filters: `network` (chain id vet402 recognizes),
-        `min_delivered` (0 to 100000), `listed_in` (`bazaar`, `circle`, `mpp`) and `cursor`.
+        rel=license and rel=describedby). Filters: `network` (chain id vet402 recognizes;
+        keeps rows whose catalog network matches or vet402 signed a purchase on that chain
+        in the window), `min_delivered` (0 to 100000), `listed_in` (`bazaar`, `circle`, `mpp`)
+        and `cursor`.
         Any other query returns 400. 30 requests per minute per IP. Process cache 300 seconds.
         CDN `Cache-Control`: `public, s-maxage=300, stale-while-revalidate=600`.
       security: []
@@ -1367,7 +1369,10 @@ paths:
         - in: query
           name: network
           schema: { type: string }
-          description: CAIP-2 network id (for example `eip155:5042`).
+          description: >-
+            CAIP-2 chain id vet402 recognizes (for example `eip155:5042`). Keeps rows whose
+            catalog network matches or vet402 signed a purchase on that chain in the window.
+            Row `network` is still the catalog listing network.
         - in: query
           name: min_delivered
           schema: { type: integer, minimum: 0, maximum: 100000 }
@@ -1403,7 +1408,10 @@ paths:
                         endpoint_id: { type: string }
                         url: { type: string, format: uri }
                         method: { type: string }
-                        network: { type: string, nullable: true }
+                        network:
+                          type: string
+                          nullable: true
+                          description: CAIP-2 catalog listing network, not the payment chain vet402 used.
                         price_usd: { type: number, nullable: true }
                         listed_in: { type: string, nullable: true }
                         bazaar_payers_30d: { type: integer, nullable: true }

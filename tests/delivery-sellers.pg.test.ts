@@ -70,14 +70,14 @@ if (!TEST_DB) {
     let txSeq = 0;
     const mkPurchase = async (
       endpointId: string,
-      o: { status: string; http?: number | null; payload?: boolean | null; at: Date; tx?: boolean },
+      o: { status: string; http?: number | null; payload?: boolean | null; at: Date; tx?: boolean; network?: string },
     ) => {
       const tx = o.tx === false ? null : `0x${(++txSeq).toString(16).padStart(64, "0")}`;
       await db.insert(schema.x402L1Purchases).values({
         endpointId,
         attemptedAt: o.at,
         status: o.status,
-        network: "eip155:8453",
+        network: o.network ?? "eip155:8453",
         httpStatusPaid: o.http ?? null,
         payloadNonEmpty: o.payload ?? null,
         authNonce: SECRETS.nonce,
@@ -197,6 +197,32 @@ if (!TEST_DB) {
       body.rows.map((r) => r.url),
       [arcUrl],
     );
+
+    const stellarLaneUrl = "https://feed-stellar-lane.example/api";
+    const stellarLaneId = await mkEp(stellarLaneUrl, { source: CATALOG_SOURCE, network: "eip155:8453" });
+    await mkPurchase(stellarLaneId, {
+      status: "settled",
+      http: 200,
+      payload: true,
+      at: daysAgo(2),
+      network: "stellar:pubnet",
+    });
+    const stellarFiltered = await readDeliverySellersFeed(db, {
+      network: "stellar:pubnet",
+      minDelivered: null,
+      listedIn: null,
+      cursor: null,
+    });
+    assert.ok(stellarFiltered.rows.some((r) => r.url === stellarLaneUrl), "?network=stellar:pubnet matches purchase chain");
+    const stellarRow = stellarFiltered.rows.find((r) => r.url === stellarLaneUrl)!;
+    assert.equal(stellarRow.network, "eip155:8453", "row network stays catalog");
+    const baseFiltered = await readDeliverySellersFeed(db, {
+      network: "eip155:8453",
+      minDelivered: null,
+      listedIn: null,
+      cursor: null,
+    });
+    assert.ok(baseFiltered.rows.some((r) => r.url === stellarLaneUrl), "?network=eip155:8453 matches catalog network");
 
     await db.execute(sql`TRUNCATE x402_endpoints, x402_l1_purchases`);
     const t0 = performance.now();

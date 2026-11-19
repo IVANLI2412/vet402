@@ -57,9 +57,11 @@ export type DeliveryFeedRow = {
   last_attempt_at_30d: string | null;
   last_delivered_at_30d: string | null;
   record_url: string;
+  /** 絞り込み用。公開 JSON には出さない。 */
+  window_purchase_networks: string[];
 };
 
-export type DeliveryFeedPublicRow = Omit<DeliveryFeedRow, "endpoint_id">;
+export type DeliveryFeedPublicRow = Omit<DeliveryFeedRow, "endpoint_id" | "window_purchase_networks">;
 
 export type DeliveryFeedPayload = {
   as_of: string;
@@ -183,6 +185,17 @@ function groupFeedWindowRows(flat: Record<string, unknown>[]): {
   return { byEp, sidesMap };
 }
 
+function windowSignedPurchaseNetworks(pRows: Record<string, unknown>[]): string[] {
+  const nets = new Set<string>();
+  for (const r of pRows) {
+    if (!SIGNED_STATUSES.has(String(r.status))) continue;
+    const raw = str(r.purchase_network);
+    if (raw === null) continue;
+    nets.add(toCaip2(raw) ?? raw);
+  }
+  return [...nets];
+}
+
 /** pg テスト: 窓 SQL 経路の PurchaseInput（sellerView 付き）。 */
 export async function deliveryFeedWindowPurchaseInputs(db: Db): Promise<Map<string, PurchaseInput[]>> {
   const { flat } = await loadFeedWindowRows(db);
@@ -262,6 +275,7 @@ export async function readDeliverySellersFeedSnapshot(db: Db): Promise<DeliveryF
       last_attempt_at_30d: counts.last_attempt_at_in_window,
       last_delivered_at_30d: counts.last_delivered_at,
       record_url: `https://vet402.com/observatory/e/${endpointId}`,
+      window_purchase_networks: windowSignedPurchaseNetworks(pRows),
     });
   }
 
@@ -272,8 +286,10 @@ export async function readDeliverySellersFeedSnapshot(db: Db): Promise<DeliveryF
 function rowMatchesNetwork(row: DeliveryFeedRow, network: string): boolean {
   const ids = networkFilterIds(network);
   if (ids.length === 0) return false;
-  const n = (row.network ?? "").toLowerCase();
-  return ids.some((id) => id.toLowerCase() === n);
+  const lower = ids.map((id) => id.toLowerCase());
+  const catalog = (row.network ?? "").toLowerCase();
+  if (lower.some((id) => id === catalog)) return true;
+  return row.window_purchase_networks.some((p) => lower.includes(p.toLowerCase()));
 }
 
 function filterRows(all: DeliveryFeedRow[], query: DeliverySellersQuery): DeliveryFeedRow[] {
@@ -310,7 +326,7 @@ function feedRowAfterCursor(r: DeliveryFeedRow, cursor: { url: string; method: s
 }
 
 export function deliveryFeedPublicRow(row: DeliveryFeedRow): DeliveryFeedPublicRow {
-  const { endpoint_id: _id, ...rest } = row;
+  const { endpoint_id: _id, window_purchase_networks: _purchaseNets, ...rest } = row;
   return rest;
 }
 

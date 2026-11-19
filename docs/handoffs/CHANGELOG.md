@@ -13,6 +13,11 @@ WORK_ORDERS への発注。読むだけの調査は対象外。`docs/application
 
 ---
 
+## 2026-11-19 delivery feed の `?network=` を購入チェーンでも一致させる
+
+- **何を**: `GET /api/v1/delivery/sellers.json` の `network` クエリを、行の `network` 列（カタログ掲載ネットワーク）に加え、30 日窓内で vet402 が署名した購入の `purchase_network` が一致する listing も残すようにした（`src/lib/delivery/sellers-feed.ts`）。公開 JSON の 12 列と件数の意味は不変。
+- **なぜ**: カタログが Base（`eip155:8453`）で実決済が Stellar（`stellar:pubnet`）の listing が `?network=stellar:pubnet` で 0 件になっていた。観測所の network 絞り込みと同型のギャップ。
+- **影響**: `mcp-page-text.ts` と `docs/openapi.yaml` に列とフィルタの注記を追加。`tests/delivery-sellers.pg.test.ts` にカタログ Base・購入 Stellar のケースを追加。
 ## 2026-11-19 November State of x402 report: ten chains plus Tempo
 
 - **What**: We fixed the chain count in `content/reports/state-of-x402-2026-11.md` preamble from nine chains to ten chains plus Tempo over MPP, matching Robinhood Chain purchases on the production ledger through 2026-11-09. We updated the pinned sha256 in `tests/state-of-x402-report.test.ts`.
