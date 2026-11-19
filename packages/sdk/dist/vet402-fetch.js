@@ -24,10 +24,10 @@ function throwIfAborted(signal) {
     if (signal?.aborted)
         throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
 }
-/** Caller signal: init.signal wins over a Request input signal, same as fetch (including explicit `null`). */
+/** Caller signal: init.signal when set (including explicit `null`); `undefined` means absent, same as fetch. */
 function resolveCallerSignal(input, init) {
-    if (init !== undefined && "signal" in init)
-        return init.signal ?? undefined;
+    if (init !== undefined && init.signal !== undefined)
+        return init.signal;
     return input instanceof Request ? input.signal : undefined;
 }
 function bytesToPayBody(buf) {
@@ -36,7 +36,16 @@ function bytesToPayBody(buf) {
 function vet402FetchPayResult(result) {
     if (result.reasonCodes.includes("aborted"))
         return result;
-    return { ...result, reasonCodes: [...result.reasonCodes, "aborted"] };
+    const reasonCodes = [...result.reasonCodes, "aborted"];
+    const receipt = result.receipt === null
+        ? null
+        : {
+            ...result.receipt,
+            reason_codes: result.receipt.reason_codes.includes("aborted")
+                ? result.receipt.reason_codes
+                : [...result.receipt.reason_codes, "aborted"],
+        };
+    return { ...result, reasonCodes, receipt };
 }
 function rejectAbortedWithPayResult(signal, result) {
     const original = signal.reason ?? new DOMException("The operation was aborted", "AbortError");

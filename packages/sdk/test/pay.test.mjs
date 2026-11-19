@@ -303,6 +303,117 @@ test("attest POST after payment does not use the caller abort signal", async () 
   assert.equal(attestInit[0].signal?.aborted ?? false, false);
 });
 
+test("paid seller body is not cut by requestTimeoutMs", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith(`${API}/`)) return h.fetchImpl(input, init);
+    const headers = new Headers(init.headers);
+    if (headers.has("payment-signature")) {
+      const stream = new ReadableStream({
+        async start(controller) {
+          controller.enqueue(new TextEncoder().encode("part1-"));
+          await new Promise((r) => setTimeout(r, 80));
+          controller.enqueue(new TextEncoder().encode("part2-end"));
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          "payment-response": b64({
+            success: true,
+            transaction: `0x${"cd".repeat(32)}`,
+            network: "eip155:8453",
+            payer: h.account.address,
+          }),
+        },
+      });
+    }
+    return h.fetchImpl(input, init);
+  };
+  const r = await pay(URL_A, undefined, { account: h.account, fetch: fetchImpl, requestTimeoutMs: 30 });
+  assert.equal(r.status, "paid");
+  assert.equal(await r.response.text(), "part1-part2-end");
+});
+
+test("paid seller headers slower than paidResponseTimeoutMs yields failed signed true", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith(`${API}/`)) return h.fetchImpl(input, init);
+    const headers = new Headers(init.headers);
+    if (headers.has("payment-signature")) {
+      return new Promise((resolve) =>
+        setTimeout(
+          () =>
+            resolve(
+              new Response("ok", {
+                status: 200,
+                headers: {
+                  "payment-response": b64({
+                    success: true,
+                    transaction: `0x${"cd".repeat(32)}`,
+                    network: "eip155:8453",
+                    payer: h.account.address,
+                  }),
+                },
+              }),
+            ),
+          200,
+        ),
+      );
+    }
+    return h.fetchImpl(input, init);
+  };
+  const r = await pay(URL_A, undefined, { account: h.account, fetch: fetchImpl, paidResponseTimeoutMs: 50 });
+  assert.equal(r.status, "failed");
+  assert.equal(r.signed, true);
+});
+
+test("vet402 decision body stall stops at requestTimeoutMs without signing", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith(`${API}/resources/`)) {
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("{"));
+        },
+      });
+      return new Response(stream, { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return h.fetchImpl(input, init);
+  };
+  const started = Date.now();
+  const r = await pay(URL_A, undefined, { account: h.account, fetch: fetchImpl, requestTimeoutMs: 50 });
+  assert.equal(r.status, "refused");
+  assert.equal(h.seen.signatures, 0);
+  assert.ok(Date.now() - started < 400);
+});
+
+test("vet402 decision body stall with signal-ignoring fetch stops at requestTimeoutMs", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith(`${API}/resources/`)) {
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("{"));
+        },
+      });
+      return new Response(stream, { status: 200, headers: { "content-type": "application/json" } });
+    }
+    if (init.signal?.aborted) throw init.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    return h.fetchImpl(input, init);
+  };
+  const started = Date.now();
+  const r = await pay(URL_A, undefined, { account: h.account, fetch: fetchImpl, requestTimeoutMs: 50 });
+  assert.equal(r.status, "refused");
+  assert.equal(h.seen.signatures, 0);
+  assert.ok(Date.now() - started < 400);
+});
+
 test("URLSearchParams form Content-Type is kept on the paid seller call", async () => {
   const h = harness();
   const body = new URLSearchParams({ q: "x", y: "z" });

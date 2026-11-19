@@ -11,6 +11,7 @@ import { CHAIN_PROFILES } from "./chain-profile.js";
 import { DEFAULT_API_URL, DEFAULT_REQUEST_TIMEOUT_MS } from "./index.js";
 import { DEFAULT_MAX_PER_TX_USD, payOrRefuse, } from "./pay-or-refuse.js";
 const USDC_UNITS = 1_000_000;
+export const DEFAULT_PAID_RESPONSE_TIMEOUT_MS = 120_000;
 const WALLET_RE = /^0x[a-fA-F0-9]{40}$/;
 const AMOUNT_RE = /^[1-9][0-9]*$/;
 const PAYMENT_HEADERS = ["payment-signature", "x-payment"];
@@ -108,11 +109,12 @@ export async function pay(url, init, options) {
     const apiBase = (options.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
     let sellerAnswer = null;
     const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    const paidResponseTimeoutMs = options.paidResponseTimeoutMs ?? DEFAULT_PAID_RESPONSE_TIMEOUT_MS;
     // Every request to the seller carries the caller's method, headers and body. A URL with no record
     // can only pass through the payee score, so that read is closed unless the caller allowed it.
-    const timeoutSignal = () => {
+    const timeoutSignal = (ms = requestTimeoutMs) => {
         const timeout = AbortSignal.timeout;
-        return typeof timeout === "function" ? timeout(requestTimeoutMs) : undefined;
+        return typeof timeout === "function" ? timeout(ms) : undefined;
     };
     const combineAbortSignals = (signals) => {
         const live = signals.filter((s) => s !== undefined);
@@ -163,7 +165,9 @@ export async function pay(url, init, options) {
             const readSignal = vet402ReadSignal(signal);
             if (readSignal?.aborted)
                 throw readSignal.reason ?? new DOMException("The operation was aborted", "AbortError");
-            return raceAbort(baseFetch(input, { ...callInit, signal: readSignal }), readSignal);
+            const res = await raceAbort(baseFetch(input, { ...callInit, signal: readSignal }), readSignal);
+            const body = await raceAbort(res.arrayBuffer(), readSignal);
+            return new Response(body, { status: res.status, statusText: res.statusText, headers: res.headers });
         }
         const headers = new Headers(init?.headers);
         for (const k of PAYMENT_HEADERS)
@@ -179,10 +183,16 @@ export async function pay(url, init, options) {
         // An abort that lands before the paid request leaves stops it. Once it has left, it is not cut (below).
         if (signal?.aborted)
             throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
-        const sellerSignal = isPaid ? timeoutSignal() : signal;
-        const answer = await raceAbort(baseFetch(resource, { ...init, ...callInit, method, headers, body: init?.body, redirect: "error", signal: sellerSignal }), sellerSignal);
-        if (isPaid)
+        if (isPaid) {
+            const headerTimeout = timeoutSignal(paidResponseTimeoutMs);
+            const paidFetchInit = { ...init, ...callInit, method, headers, body: init?.body, redirect: "error" };
+            delete paidFetchInit.signal;
+            const answer = await raceAbort(baseFetch(resource, paidFetchInit), headerTimeout);
             sellerAnswer = answer.clone();
+            return answer;
+        }
+        const roundSignal = vet402ReadSignal(signal);
+        const answer = await raceAbort(baseFetch(resource, { ...init, ...callInit, method, headers, body: init?.body, redirect: "error", signal: roundSignal }), roundSignal);
         return answer;
     };
     let first;

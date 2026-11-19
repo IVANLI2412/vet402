@@ -36,9 +36,9 @@ function throwIfAborted(signal: AbortSignal | null | undefined): void {
   if (signal?.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
 }
 
-/** Caller signal: init.signal wins over a Request input signal, same as fetch (including explicit `null`). */
-function resolveCallerSignal(input: RequestInfo | URL, init?: RequestInit): AbortSignal | undefined {
-  if (init !== undefined && "signal" in init) return init.signal ?? undefined;
+/** Caller signal: init.signal when set (including explicit `null`); `undefined` means absent, same as fetch. */
+function resolveCallerSignal(input: RequestInfo | URL, init?: RequestInit): AbortSignal | null | undefined {
+  if (init !== undefined && init.signal !== undefined) return init.signal;
   return input instanceof Request ? input.signal : undefined;
 }
 
@@ -48,7 +48,17 @@ function bytesToPayBody(buf: Uint8Array): BodyInit {
 
 function vet402FetchPayResult(result: PayResult): PayResult {
   if (result.reasonCodes.includes("aborted")) return result;
-  return { ...result, reasonCodes: [...result.reasonCodes, "aborted"] };
+  const reasonCodes = [...result.reasonCodes, "aborted"];
+  const receipt =
+    result.receipt === null
+      ? null
+      : {
+          ...result.receipt,
+          reason_codes: result.receipt.reason_codes.includes("aborted")
+            ? result.receipt.reason_codes
+            : [...result.receipt.reason_codes, "aborted"],
+        };
+  return { ...result, reasonCodes, receipt };
 }
 
 function rejectAbortedWithPayResult(signal: AbortSignal, result: PayResult): never {
@@ -59,7 +69,7 @@ function rejectAbortedWithPayResult(signal: AbortSignal, result: PayResult): nev
   throw err;
 }
 
-async function readRequestBody(signal: AbortSignal | undefined, req: Request): Promise<Uint8Array> {
+async function readRequestBody(signal: AbortSignal | null | undefined, req: Request): Promise<Uint8Array> {
   throwIfAborted(signal);
   if (req.body === null) return new Uint8Array(0);
   const reader = req.body.getReader();

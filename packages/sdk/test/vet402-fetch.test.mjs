@@ -858,6 +858,151 @@ test("abort after pay does not mutate signal.reason", async () => {
   assert.equal(Object.prototype.hasOwnProperty.call(customReason, "vet402PayResult"), false);
 });
 
+test("init signal undefined keeps an aborted Request input signal", async () => {
+  const h = harness();
+  const controller = new AbortController();
+  controller.abort(new DOMException("pre-abort", "AbortError"));
+  const req = new Request(URL_A, { signal: controller.signal });
+  await assert.rejects(h.vet402Fetch(req, { signal: undefined }), (err) => err === controller.signal.reason);
+  assert.equal(h.seen.signatures, 0);
+  assert.equal(h.seen.seller.length, 0);
+});
+
+test("paid seller slow body completes despite short requestTimeoutMs", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith(`${API}/`)) return h.fetchImpl(input, init);
+    const headers = new Headers(init.headers);
+    if (headers.has("payment-signature")) {
+      const stream = new ReadableStream({
+        async start(controller) {
+          controller.enqueue(new TextEncoder().encode("part1-"));
+          await new Promise((r) => setTimeout(r, 80));
+          controller.enqueue(new TextEncoder().encode("part2-end"));
+          controller.close();
+        },
+      });
+      return new Response(stream, {
+        status: 200,
+        headers: {
+          "payment-response": b64({
+            success: true,
+            transaction: `0x${"cd".repeat(32)}`,
+            network: "eip155:8453",
+            payer: h.account.address,
+          }),
+        },
+      });
+    }
+    return h.fetchImpl(input, init);
+  };
+  const vet402Fetch = createVet402Fetch({ account: h.account, fetch: fetchImpl, requestTimeoutMs: 30 });
+  const response = await vet402Fetch(URL_A);
+  assert.equal(response.status, 200);
+  assert.equal(await response.text(), "part1-part2-end");
+});
+
+test("vet402 decision body stall with signal-ignoring fetch aborts with caller signal", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith(`${API}/resources/`)) {
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("{"));
+        },
+      });
+      return new Response(stream, { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return h.fetchImpl(input, init);
+  };
+  const controller = new AbortController();
+  const vet402Fetch = createVet402Fetch({ account: h.account, fetch: fetchImpl, requestTimeoutMs: 500 });
+  const work = vet402Fetch(URL_A, { signal: controller.signal }).catch((err) => err);
+  setTimeout(() => controller.abort(), 30);
+  const err = await Promise.race([
+    work,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 800)),
+  ]);
+  assert.equal(err?.name, "AbortError");
+  assert.ok(err.vet402PayResult);
+  assert.equal(h.seen.signatures, 0);
+});
+
+test("vet402 decision body stall with signal-ignoring fetch stops within requestTimeoutMs", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith(`${API}/resources/`)) {
+      const stream = new ReadableStream({
+        start(controller) {
+          controller.enqueue(new TextEncoder().encode("{"));
+        },
+      });
+      return new Response(stream, { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return h.fetchImpl(input, init);
+  };
+  const vet402Fetch = createVet402Fetch({ account: h.account, fetch: fetchImpl, requestTimeoutMs: 50 });
+  const started = Date.now();
+  await assert.rejects(vet402Fetch(URL_A), (err) => err instanceof Vet402RefusedError);
+  assert.ok(Date.now() - started < 400);
+  assert.equal(h.seen.signatures, 0);
+});
+
+test("vet402 read stops within requestTimeoutMs and caller abort without AbortSignal.any", async () => {
+  const savedAny = AbortSignal.any;
+  const h = harness({ decision: () => new Promise(() => {}) });
+  delete AbortSignal.any;
+  try {
+    for (const [label, abortAt] of [
+      ["timeout only", null],
+      ["timeout and caller abort", 30],
+    ]) {
+      const inner = harness({ decision: () => new Promise(() => {}) });
+      const fetchImpl = async (input, init = {}) => {
+        const url = String(input);
+        if (url.startsWith(`${API}/resources/`)) return new Promise(() => {});
+        return inner.fetchImpl(input, init);
+      };
+      const controller = new AbortController();
+      if (abortAt !== null) setTimeout(() => controller.abort(), abortAt);
+      const vet402Fetch = createVet402Fetch({
+        account: inner.account,
+        fetch: fetchImpl,
+        requestTimeoutMs: 80,
+      });
+      const started = Date.now();
+      const err = await vet402Fetch(URL_A, abortAt === null ? undefined : { signal: controller.signal }).catch((e) => e);
+      assert.ok(err?.name === "AbortError" || err instanceof Vet402RefusedError, label);
+      assert.ok(Date.now() - started < 500, label);
+      assert.equal(inner.seen.signatures, 0, label);
+    }
+  } finally {
+    Object.defineProperty(AbortSignal, "any", { value: savedAny, configurable: true, writable: true });
+  }
+  void h;
+});
+
+test("abort vet402PayResult copies aborted into receipt.reason_codes", async () => {
+  const h = harness();
+  const controller = new AbortController();
+  const innerSign = h.account.signTypedData.bind(h.account);
+  h.account.signTypedData = async (...args) => {
+    controller.abort();
+    return innerSign(...args);
+  };
+  const vet402Fetch = createVet402Fetch({ account: h.account, fetch: h.fetchImpl });
+  const err = await vet402Fetch(URL_A, { signal: controller.signal }).catch((e) => e);
+  assert.equal(err?.name, "AbortError");
+  assert.ok(err.vet402PayResult);
+  assert.ok(err.vet402PayResult.reasonCodes.includes("aborted"));
+  if (err.vet402PayResult.receipt !== null) {
+    assert.ok(err.vet402PayResult.receipt.reason_codes.includes("aborted"));
+  }
+});
+
 test("init.signal null ignores an abort on the Request input signal", async () => {
   const h = harness();
   const controller = new AbortController();
