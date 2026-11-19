@@ -30,42 +30,59 @@ function throwIfAborted(signal: AbortSignal | null | undefined): void {
   if (signal?.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
 }
 
-function bytesToPayBody(buf: Uint8Array): BodyInit | undefined {
-  if (buf.byteLength === 0) return undefined;
+/** Caller signal: init.signal wins over a Request input signal, same as fetch. */
+function resolveCallerSignal(input: RequestInfo | URL, init?: RequestInit): AbortSignal | undefined {
+  return init?.signal ?? (input instanceof Request ? input.signal : undefined);
+}
+
+function bytesToPayBody(buf: Uint8Array): BodyInit {
   return buf as unknown as BodyInit;
 }
 
-async function readRequestBody(req: Request): Promise<Uint8Array> {
-  throwIfAborted(req.signal);
+function rejectAbortedWithPayResult(signal: AbortSignal, result: PayResult): never {
+  const reason = signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+  if (reason instanceof Error) {
+    Object.defineProperty(reason, "vet402PayResult", { value: result, configurable: true, enumerable: true });
+    throw reason;
+  }
+  const err = new DOMException("The operation was aborted", "AbortError");
+  Object.defineProperty(err, "vet402PayResult", { value: result, configurable: true, enumerable: true });
+  throw err;
+}
+
+async function readRequestBody(signal: AbortSignal | undefined, req: Request): Promise<Uint8Array> {
+  throwIfAborted(signal);
   if (req.body === null) return new Uint8Array(0);
   const reader = req.body.getReader();
   const chunks: Uint8Array[] = [];
   let total = 0;
   const onAbort = (): void => {
-    void reader.cancel(req.signal!.reason);
+    void reader.cancel(signal!.reason);
   };
-  req.signal?.addEventListener("abort", onAbort, { once: true });
+  signal?.addEventListener("abort", onAbort, { once: true });
   try {
     for (;;) {
-      throwIfAborted(req.signal);
+      throwIfAborted(signal);
       const { done, value } = await reader.read();
       if (done) {
-        throwIfAborted(req.signal);
+        throwIfAborted(signal);
         break;
       }
       if (value !== undefined) {
         total += value.byteLength;
         if (total > MAX_REQUEST_BODY_BYTES) {
-          throw new Error("invalid_body: request body is larger than 10 MiB");
+          const limitErr = new Error("invalid_body: request body is larger than 10 MiB");
+          await reader.cancel(limitErr);
+          throw limitErr;
         }
         chunks.push(value);
       }
     }
   } catch (err) {
-    if (req.signal?.aborted) throw req.signal.reason;
+    if (signal?.aborted) throw signal.reason;
     throw err;
   } finally {
-    req.signal?.removeEventListener("abort", onAbort);
+    signal?.removeEventListener("abort", onAbort);
     reader.releaseLock();
   }
   if (chunks.length === 0) return new Uint8Array(0);
@@ -82,20 +99,21 @@ async function toPayArgs(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Promise<{ url: string; init: RequestInit | undefined }> {
+  const callerSignal = resolveCallerSignal(input, init);
   const req = new Request(input, init);
-  throwIfAborted(req.signal);
+  throwIfAborted(callerSignal);
   const url = req.url;
   const method = req.method;
   const headers = new Headers(req.headers);
   let body: RequestInit["body"] | undefined;
   if (method !== "GET" && method !== "HEAD") {
-    const buf = await readRequestBody(req);
+    const buf = await readRequestBody(callerSignal, req);
     body = bytesToPayBody(buf);
   }
   const payInit: RequestInit = {
     method,
     headers,
-    signal: req.signal,
+    signal: callerSignal,
     credentials: req.credentials,
     cache: req.cache,
     keepalive: req.keepalive,
@@ -115,8 +133,10 @@ async function toPayArgs(
  */
 export function createVet402Fetch(options: PayOptions): (input: RequestInfo | URL, init?: RequestInit) => Promise<Response> {
   return async (input, init) => {
+    const callerSignal = resolveCallerSignal(input, init);
     const { url, init: payInit } = await toPayArgs(input, init);
     const result = await pay(url, payInit, options);
+    if (callerSignal?.aborted && result.status === "refused") rejectAbortedWithPayResult(callerSignal, result);
     if (result.status === "paid" || result.status === "no_payment_required") {
       if (result.response === null) throw new Vet402PayFailedError(result);
       return result.response;

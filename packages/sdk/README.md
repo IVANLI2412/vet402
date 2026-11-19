@@ -156,10 +156,11 @@ const response = await vet402Fetch("https://api.example.com/v1/quote");
 - A seller HTTP 404 or 500 is not a payment request. It throws `Vet402RefusedError` with `no_payment_request`, same as `pay()`.
 - When the vet402 decision cannot be read, the call throws `Vet402RefusedError` with `evidence_unavailable`, same as `pay()`.
 - `refused` and `failed` throw `Vet402RefusedError` and `Vet402PayFailedError`. Each carries the full `PayResult` on `.result`. On `failed`, `result.signed` tells you whether a payment was signed.
-- An `AbortSignal` on the request stops both seller and vet402 calls. If the call is already aborted before `pay()` runs, the rejection is `signal.reason` (often `AbortError`), not `Vet402RefusedError`.
+- An `AbortSignal` on the request stops seller traffic and vet402 judgment reads. The same caller signal is passed through (not a throwaway `Request` signal). If the call is already aborted before body reads or `pay()` runs, the rejection is `signal.reason` (often `AbortError`), not `Vet402RefusedError`. When `pay()` would return `refused` but the caller signal is already aborted, the rejection is still `signal.reason`, with the `PayResult` on `vet402PayResult`.
+- After a payment is signed, the POST to `/payments/x402` is not tied to the caller signal. It runs under a default time limit so ledger writes can finish after the caller aborts.
 - Caller `payment-signature` and `x-payment` headers are removed. Only headers from the signed payment are sent on the paid seller request.
-- If you set no `Accept` header, the unpaid probe and the paid seller request use the same default as `fetch` (not forced `application/json`).
-- `Request` bodies are read up to `MAX_REQUEST_BODY_BYTES` (10 MiB). Larger bodies throw `invalid_body: request body is larger than 10 MiB` before the seller is called. `invalid_url` and `invalid_body` from `pay()` are plain `Error`s.
+- If you set no `Accept` header, the unpaid probe and the paid seller request use the same default as `fetch` (`*/*`). Set `Accept` in `init.headers` when you need a specific type.
+- `Request` bodies are read up to `MAX_REQUEST_BODY_BYTES` (10 MiB). Larger bodies cancel the stream and throw `invalid_body: request body is larger than 10 MiB` before the seller is called. POST, PUT and PATCH with a zero-length body are sent as empty bytes, not dropped. GET and HEAD send no body. `invalid_url` and `invalid_body` from `pay()` are plain `Error`s.
 - A returned `Response` means the same thing as `PayResult.response` after `pay()`. A 2xx body does not by itself prove delivery when `pay()` would not either.
 
 ## `payOrRefuse` on Solana (0.7.0)

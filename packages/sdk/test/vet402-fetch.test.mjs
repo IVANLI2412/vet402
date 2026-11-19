@@ -349,7 +349,7 @@ test("vet402 decision that never answers aborts within 100ms and never signs", a
   const work = vet402Fetch(URL_A, init).catch((err) => err);
   setTimeout(() => controller.abort(), 5);
   const err = await work;
-  assert.ok(err instanceof Vet402RefusedError);
+  assert.ok(err?.name === "AbortError" || err === controller.signal.reason);
   assert.ok(Date.now() - started < 100);
   assert.equal(h.seen.signatures, 0);
 });
@@ -359,11 +359,7 @@ test("aborted attest POST after payment still returns a paid Response", async ()
   const fetchImpl = async (input, init = {}) => {
     const url = String(input);
     if (url === `${API}/payments/x402` && init.method === "POST") {
-      return new Promise((_, reject) => {
-        init.signal?.addEventListener("abort", () => reject(init.signal.reason ?? new DOMException("aborted", "AbortError")), {
-          once: true,
-        });
-      });
+      return new Promise((resolve) => setTimeout(() => resolve(json(200, { ok: true })), 30));
     }
     if (init.signal?.aborted) throw init.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
     return h.fetchImpl(input, init);
@@ -515,7 +511,8 @@ test("vet402 /decision that ignores signal aborts within 500ms and never signs",
     work,
     new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 500)),
   ]);
-  assert.ok(err instanceof Vet402RefusedError);
+  assert.ok(err?.name === "AbortError" || err === controller.signal.reason);
+  if (err?.vet402PayResult) assert.equal(err.vet402PayResult.status, "refused");
   assert.ok(Date.now() - started < 500);
   assert.equal(h.seen.signatures, 0);
 });
@@ -524,7 +521,16 @@ test("attest POST that ignores signal still returns a paid Response when aborted
   const h = harness();
   const fetchImpl = async (input, init = {}) => {
     const url = String(input);
-    if (url === `${API}/payments/x402` && init.method === "POST") return new Promise(() => {});
+    if (url === `${API}/payments/x402` && init.method === "POST") {
+      return new Promise((resolve, reject) => {
+        const t = init.signal;
+        if (t && typeof t.addEventListener === "function") {
+          t.addEventListener("abort", () => reject(t.reason ?? new DOMException("aborted", "AbortError")), { once: true });
+        }
+        setTimeout(() => resolve(json(200, { ok: true })), 80);
+      });
+    }
+    if (init.signal?.aborted) throw init.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
     return h.fetchImpl(input, init);
   };
   const controller = new AbortController();
@@ -535,7 +541,7 @@ test("attest POST that ignores signal still returns a paid Response when aborted
   controller.abort();
   const result = await Promise.race([
     work,
-    new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 500)),
+    new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 1500)),
   ]);
   if (result instanceof Error) throw result;
   // payOrRefuse records attest failure in catch (attested=false) and still returns paid; vet402Fetch maps that to a 2xx Response.
@@ -597,6 +603,66 @@ test("Blob without type and ArrayBuffer match on every seller call", async () =>
       assert.deepEqual([...bytes], [...raw], label);
       assert.equal(call.contentType, null, label);
     }
+  }
+});
+
+test("abort during the first seller round-trip rejects as AbortError, not seller_unreachable", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    if (init.signal?.aborted) throw init.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    const url = String(input);
+    if (url.startsWith(`${API}/`)) return h.fetchImpl(input, init);
+    assert.equal(url, URL_A);
+    return new Promise((_, reject) => {
+      init.signal?.addEventListener(
+        "abort",
+        () => reject(init.signal.reason ?? new DOMException("The operation was aborted", "AbortError")),
+        { once: true },
+      );
+    });
+  };
+  const vet402Fetch = createVet402Fetch({ account: h.account, fetch: fetchImpl });
+  const controller = new AbortController();
+  const work = vet402Fetch(URL_A, { signal: controller.signal }).catch((err) => err);
+  setTimeout(() => controller.abort(), 10);
+  const err = await work;
+  assert.ok(err?.name === "AbortError" || err === controller.signal.reason);
+  assert.equal(h.seen.signatures, 0);
+  if (err?.vet402PayResult) assert.equal(err.vet402PayResult.reasonCodes[0], "seller_unreachable");
+});
+
+test("POST with an empty body sends an empty byte sequence to the seller", async () => {
+  const h = harness();
+  await h.vet402Fetch(URL_A, { method: "POST", body: "" });
+  for (const call of h.seen.seller) {
+    assert.equal(call.method, "POST");
+    assert.ok(call.body instanceof Uint8Array);
+    assert.equal(call.body.byteLength, 0);
+  }
+});
+
+test("abort during a slow vet402 decision and GC before pay never signs (four entry points)", async () => {
+  const slowDecision = () => new Promise((resolve) => setTimeout(() => resolve(json(200, verdict("ALLOW"))), 200));
+  const entries = [
+    ["string", (vf, signal) => vf(URL_A, { signal })],
+    ["url", (vf, signal) => vf(new URL(URL_A), { signal })],
+    ["request", (vf, signal) => vf(new Request(URL_A, { signal }))],
+    ["request+init", (vf, signal) => vf(new Request(URL_A), { signal })],
+  ];
+  for (const [label, run] of entries) {
+    const h = harness({ decision: slowDecision });
+    const controller = new AbortController();
+    const vet402Fetch = createVet402Fetch({ account: h.account, fetch: h.fetchImpl });
+    const work = run(vet402Fetch, controller.signal).catch((err) => err);
+    await new Promise((r) => setTimeout(r, 60));
+    for (let i = 0; i < 8; i += 1) {
+      globalThis.gc?.();
+    }
+    controller.abort();
+    const err = await work;
+    assert.ok(err?.name === "AbortError" || err === controller.signal.reason, label);
+    assert.equal(h.seen.signatures, 0, label);
+    assert.equal(h.seen.seller.filter((c) => c.paid).length, 0, label);
   }
 });
 

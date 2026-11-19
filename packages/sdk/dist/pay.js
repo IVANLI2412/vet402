@@ -8,7 +8,7 @@
  * Default: only ALLOW pays. WARN needs allowWarn. A URL vet402 has no record of needs allowUnknown.
  */
 import { CHAIN_PROFILES } from "./chain-profile.js";
-import { DEFAULT_API_URL } from "./index.js";
+import { DEFAULT_API_URL, DEFAULT_REQUEST_TIMEOUT_MS } from "./index.js";
 import { DEFAULT_MAX_PER_TX_USD, payOrRefuse, } from "./pay-or-refuse.js";
 const USDC_UNITS = 1_000_000;
 const WALLET_RE = /^0x[a-fA-F0-9]{40}$/;
@@ -109,13 +109,23 @@ export async function pay(url, init, options) {
     let sellerAnswer = null;
     // Every request to the seller carries the caller's method, headers and body. A URL with no record
     // can only pass through the payee score, so that read is closed unless the caller allowed it.
+    const attestTimeoutSignal = () => {
+        const timeout = AbortSignal.timeout;
+        return typeof timeout === "function" ? timeout(DEFAULT_REQUEST_TIMEOUT_MS) : undefined;
+    };
     const guardedFetch = async (input, callInit) => {
         const target = input instanceof Request ? input.url : String(input);
         const signal = callInit?.signal ?? init?.signal ?? undefined;
+        const callMethod = (callInit?.method ?? "GET").toUpperCase();
+        const isAttestPost = target === `${apiBase}/payments/x402` && callMethod === "POST";
         if (target.startsWith(`${apiBase}/payees/`) && options.allowUnknown !== true) {
             throw new Error("unknown_seller_not_allowed");
         }
         if (target !== resource) {
+            if (isAttestPost) {
+                const attestSignal = attestTimeoutSignal();
+                return baseFetch(input, { ...callInit, signal: attestSignal });
+            }
             if (signal?.aborted)
                 throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
             return raceAbort(baseFetch(input, { ...callInit, signal }), signal);

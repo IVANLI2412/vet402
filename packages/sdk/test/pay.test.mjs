@@ -280,6 +280,29 @@ test("caller errors throw before any request", async () => {
   await assert.rejects(pay(URL_A, { method: "POST", body: new ReadableStream() }, { account, fetch: fetchImpl }), /invalid_body/);
 });
 
+test("attest POST after payment does not use the caller abort signal", async () => {
+  const h = harness();
+  const attestInit = [];
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url === `${API}/payments/x402` && init.method === "POST") {
+      attestInit.push(init);
+      return json(200, { ok: true });
+    }
+    if (init.signal?.aborted) throw init.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    return h.fetchImpl(input, init);
+  };
+  const controller = new AbortController();
+  const work = pay(URL_A, { signal: controller.signal }, { account: h.account, fetch: fetchImpl });
+  for (let i = 0; i < 200 && h.seen.signatures < 1; i += 1) await new Promise((r) => setTimeout(r, 5));
+  controller.abort();
+  const r = await work;
+  assert.equal(r.status, "paid");
+  assert.equal(attestInit.length, 1);
+  assert.notEqual(attestInit[0].signal, controller.signal);
+  assert.equal(attestInit[0].signal?.aborted ?? false, false);
+});
+
 test("URLSearchParams form Content-Type is kept on the paid seller call", async () => {
   const h = harness();
   const body = new URLSearchParams({ q: "x", y: "z" });
