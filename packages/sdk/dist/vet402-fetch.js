@@ -19,21 +19,46 @@ export class Vet402PayFailedError extends Error {
         this.result = result;
     }
 }
+function assertReplayableBody(body) {
+    const ok = body === undefined ||
+        body === null ||
+        typeof body === "string" ||
+        body instanceof URLSearchParams ||
+        body instanceof ArrayBuffer ||
+        ArrayBuffer.isView(body);
+    if (!ok)
+        throw new Error("invalid_body: pass a string, URLSearchParams or bytes, because the request is sent more than once");
+}
 async function toPayArgs(input, init) {
     if (typeof input === "string" || input instanceof URL) {
         return { url: String(input), init };
     }
+    assertReplayableBody(init?.body);
     const req = new Request(input, init);
     const url = req.url;
     const method = req.method;
     const headers = new Headers(req.headers);
     let body;
     if (method !== "GET" && method !== "HEAD") {
-        const text = await req.text();
-        if (text.length > 0)
-            body = text;
+        // A built Request always exposes body as a stream; materializing bytes is how pay() replays (unlike FormData in init to pay(), which assertReplayableBody rejects above).
+        const buf = await req.arrayBuffer();
+        if (buf.byteLength > 0)
+            body = new Uint8Array(buf);
     }
-    return { url, init: { method, headers, ...(body === undefined ? {} : { body }) } };
+    const payInit = {
+        method,
+        headers,
+        signal: req.signal,
+        credentials: req.credentials,
+        cache: req.cache,
+        keepalive: req.keepalive,
+        referrer: req.referrer,
+        referrerPolicy: req.referrerPolicy,
+        integrity: req.integrity,
+        mode: req.mode,
+        ...(body === undefined ? {} : { body }),
+    };
+    return { url, init: payInit };
 }
 /**
  * Returns a function with the same call shape as fetch. Each call runs pay() for that URL.
@@ -46,7 +71,7 @@ export function createVet402Fetch(options) {
         const result = await pay(url, payInit, options);
         if (result.status === "paid" || result.status === "no_payment_required") {
             if (result.response === null)
-                throw new Error("vet402_fetch: pay returned no response for a success status");
+                throw new Vet402PayFailedError(result);
             return result.response;
         }
         if (result.status === "refused")

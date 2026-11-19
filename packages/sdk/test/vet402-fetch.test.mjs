@@ -54,6 +54,7 @@ function harness({ decision = () => json(200, verdict("ALLOW")), offers = () => 
     },
   };
   const fetchImpl = async (input, init = {}) => {
+    if (init.signal?.aborted) throw init.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
     const url = String(input);
     if (url.startsWith(`${API}/resources/`)) {
       seen.decisions.push(url);
@@ -160,9 +161,45 @@ test("POST via Request delivers the body on every seller call", async () => {
   await h.vet402Fetch(req);
   for (const call of h.seen.seller) {
     assert.equal(call.method, "POST");
-    assert.equal(call.body, '{"q":"x"}');
+    const bodyText = typeof call.body === "string" ? call.body : new TextDecoder().decode(call.body);
+    assert.equal(bodyText, '{"q":"x"}');
     assert.equal(call.auth, "Bearer seller");
   }
+});
+
+test("POST via Request delivers binary body bytes on every seller call", async () => {
+  const h = harness();
+  const bytes = new Uint8Array([0xff, 0xfe, 0x00, 0x80, 0x41]);
+  const req = new Request(URL_A, { method: "POST", headers: { authorization: "Bearer seller" }, body: bytes });
+  await h.vet402Fetch(req);
+  const expected = [0xff, 0xfe, 0x00, 0x80, 0x41];
+  for (const call of h.seen.seller) {
+    assert.equal(call.method, "POST");
+    assert.ok(call.body instanceof Uint8Array);
+    assert.deepEqual([...call.body], expected);
+    assert.equal(call.auth, "Bearer seller");
+  }
+});
+
+test("an aborted signal on init matches pay() and touches neither seller nor signature", async () => {
+  const h = harness();
+  const controller = new AbortController();
+  controller.abort();
+  const init = { signal: controller.signal };
+  await assertSameAsPay(h.payOptions, URL_A, init, h.vet402Fetch, URL_A, init);
+  assert.equal(h.seen.signatures, 0);
+  assert.equal(h.seen.seller.length, 0);
+});
+
+test("an aborted signal on Request matches pay() and touches neither seller nor signature", async () => {
+  const h = harness();
+  const controller = new AbortController();
+  controller.abort();
+  const req = new Request(URL_A, { signal: controller.signal });
+  const init = { signal: controller.signal };
+  await assertSameAsPay(h.payOptions, URL_A, init, h.vet402Fetch, req);
+  assert.equal(h.seen.signatures, 0);
+  assert.equal(h.seen.seller.length, 0);
 });
 
 test("BLOCK refuses with no signature and carries PayResult on the error", async () => {
