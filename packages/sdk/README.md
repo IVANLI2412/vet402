@@ -332,6 +332,13 @@ it once. Keep it out of logs that others can read.
 
 ## Changes
 
+### 0.10.0
+
+- Adds `createVet402Fetch`, a fetch-shaped wrapper that calls `pay()` for you.
+- Adds `Vet402RefusedError`, `Vet402PayFailedError`, and `Vet402AbortError` for failures from that wrapper.
+- Adds `MAX_REQUEST_BODY_BYTES` as the size cap when the wrapper reads a request body.
+- `pay()` keeps the caller `Content-Type` and `Accept` on the paid resend, drops payment headers the caller sent, applies `signal` to vet402 reads, does not cut off after the payment is sent until settlement finishes, and applies a default time limit to vet402 reads.
+
 ### 0.9.0
 
 - `pay` and `payOrRefuse` no longer return `paid` on the seller's word alone. A `PAYMENT-RESPONSE` that says `success: true` but names no transaction, or comes with 202 Accepted or a non-2xx status, now returns `failed` with the reason codes `settle_failed` and `settle_unconfirmed`. The signature and nonce are still returned, so read `receipt` before trying again.
