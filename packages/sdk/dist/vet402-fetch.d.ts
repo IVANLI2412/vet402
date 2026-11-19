@@ -3,6 +3,7 @@
  * No vet402 judgment or signing lives here. pay() owns all of that.
  */
 import { type PayOptions, type PayResult } from "./pay.js";
+export declare const MAX_REQUEST_BODY_BYTES: number;
 export declare class Vet402RefusedError extends Error {
     readonly result: PayResult;
     constructor(result: PayResult);

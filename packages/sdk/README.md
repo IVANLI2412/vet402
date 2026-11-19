@@ -144,16 +144,22 @@ For a POST, pass the method, headers and body as the second argument, the same w
 
 ### `createVet402Fetch`
 
-Drop in a fetch replacement that runs `pay()` on every call. Options are the same as `pay()`.
+A function with the same call shape as `fetch`. Each call runs `pay()` for that URL. Options are the same as `pay()`.
 
 ```typescript
-import { createVet402Fetch } from "@vet402/sdk";
+import { createVet402Fetch, MAX_REQUEST_BODY_BYTES } from "@vet402/sdk";
 
 const vet402Fetch = createVet402Fetch({ account });
 const response = await vet402Fetch("https://api.example.com/v1/quote");
 ```
 
-`refused` and `failed` throw `Vet402RefusedError` and `Vet402PayFailedError`. Each carries the full `PayResult` on `.result`. A returned `Response` means the same thing as `PayResult.response` after `pay()`. A 2xx body does not by itself prove delivery when `pay()` would not either.
+- Vet402 errors that are not payment requests (for example vet402 404 or 500 on the decision read) throw `Vet402RefusedError` with the same `reasonCodes` as `pay()`.
+- `refused` and `failed` throw `Vet402RefusedError` and `Vet402PayFailedError`. Each carries the full `PayResult` on `.result`. On `failed`, `result.signed` tells you whether a payment was signed.
+- An `AbortSignal` on the request stops both seller and vet402 calls. If the call is already aborted before `pay()` runs, the rejection is `signal.reason` (often `AbortError`), not `Vet402RefusedError`.
+- Caller `payment-signature` and `x-payment` headers are removed. Only headers from the signed payment are sent on the paid seller request.
+- If you set no `Accept` header, the unpaid probe and the paid seller request use the same default as `fetch` (not forced `application/json`).
+- `Request` bodies are read up to `MAX_REQUEST_BODY_BYTES` (10 MiB). Larger bodies throw `invalid_body: request body is larger than 10 MiB` before the seller is called. `invalid_url` and `invalid_body` from `pay()` are plain `Error`s.
+- A returned `Response` means the same thing as `PayResult.response` after `pay()`. A 2xx body does not by itself prove delivery when `pay()` would not either.
 
 ## `payOrRefuse` on Solana (0.7.0)
 

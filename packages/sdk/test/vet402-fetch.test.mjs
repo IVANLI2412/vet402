@@ -72,6 +72,10 @@ function harness({ decision = () => json(200, verdict("ALLOW")), offers = () => 
       body: init.body,
       auth: headers.get("authorization"),
       paid: headers.has("payment-signature"),
+      contentType: headers.get("content-type"),
+      accept: headers.get("accept"),
+      xPayment: headers.get("x-payment"),
+      paymentSignature: headers.get("payment-signature"),
     });
     if (headers.has("payment-signature")) {
       return new Response('{"answer":42}', {
@@ -270,4 +274,251 @@ test("failed status throws Vet402PayFailedError and never returns the response",
     assert.equal(err.result.signed, true);
     return true;
   });
+});
+
+async function sellerBodyBytes(body) {
+  if (body === undefined || body === null) return new Uint8Array(0);
+  if (typeof body === "string") return new TextEncoder().encode(body);
+  if (body instanceof URLSearchParams) return new TextEncoder().encode(body.toString());
+  if (body instanceof Uint8Array) return body;
+  if (body instanceof ArrayBuffer) return new Uint8Array(body);
+  if (ArrayBuffer.isView(body)) return new Uint8Array(body.buffer, body.byteOffset, body.byteLength);
+  if (body instanceof Blob) return new Uint8Array(await body.arrayBuffer());
+  assert.fail(`unexpected body type ${body?.constructor?.name}`);
+}
+
+const contentTypeCases = [
+  ["FormData", () => {
+    const fd = new FormData();
+    fd.append("q", "x");
+    fd.append("f", new Blob(["bin"], { type: "application/octet-stream" }));
+    return { body: fd, expectCt: /multipart\/form-data/ };
+  }],
+  ["URLSearchParams", () => ({ body: new URLSearchParams({ q: "x" }), expectCt: "application/x-www-form-urlencoded;charset=UTF-8" })],
+  ["Blob", () => {
+    const body = new Blob(['{"q":"x"}'], { type: "text/csv" });
+    return { body, expectCt: "text/csv" };
+  }],
+  ["text/csv string", () => ({ body: "a,b\n1,2", headers: { "content-type": "text/csv" }, expectCt: "text/csv" })],
+];
+
+for (const [name, make] of contentTypeCases) {
+  test(`paid seller call keeps caller Content-Type for ${name}`, async () => {
+    const { body, headers = {}, expectCt } = make();
+    const h = harness();
+    const init = { method: "POST", headers, body };
+    await h.vet402Fetch(URL_A, init);
+    const unpaid = h.seen.seller.find((c) => !c.paid);
+    const paid = h.seen.seller.find((c) => c.paid);
+    assert.ok(unpaid);
+    assert.ok(paid);
+    if (typeof expectCt === "string") {
+      assert.equal(unpaid.contentType, expectCt);
+      assert.equal(paid.contentType, expectCt);
+    } else {
+      assert.match(unpaid.contentType, expectCt);
+      assert.match(paid.contentType, expectCt);
+    }
+    assert.equal(unpaid.accept, paid.accept);
+  });
+}
+
+test("vet402 decision that never answers aborts within 100ms and never signs", async () => {
+  const h = harness({
+    decision: () => new Promise(() => {}),
+  });
+  const fetchImpl = async (input, init = {}) => {
+    if (init.signal?.aborted) throw init.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    const url = String(input);
+    if (url.startsWith(`${API}/resources/`)) {
+      return new Promise((_, reject) => {
+        init.signal?.addEventListener(
+          "abort",
+          () => reject(init.signal.reason ?? new DOMException("The operation was aborted", "AbortError")),
+          { once: true },
+        );
+      });
+    }
+    return h.fetchImpl(input, init);
+  };
+  const vet402Fetch = createVet402Fetch({ account: h.account, fetch: fetchImpl });
+  const controller = new AbortController();
+  const init = { signal: controller.signal };
+  const started = Date.now();
+  const work = vet402Fetch(URL_A, init).catch((err) => err);
+  setTimeout(() => controller.abort(), 5);
+  const err = await work;
+  assert.ok(err instanceof Vet402RefusedError);
+  assert.ok(Date.now() - started < 100);
+  assert.equal(h.seen.signatures, 0);
+});
+
+test("aborted attest POST after payment still returns a paid Response", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url === `${API}/payments/x402` && init.method === "POST") {
+      return new Promise((_, reject) => {
+        init.signal?.addEventListener("abort", () => reject(init.signal.reason ?? new DOMException("aborted", "AbortError")), {
+          once: true,
+        });
+      });
+    }
+    if (init.signal?.aborted) throw init.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+    return h.fetchImpl(input, init);
+  };
+  const controller = new AbortController();
+  const vet402Fetch = createVet402Fetch({ account: h.account, fetch: fetchImpl });
+  const work = vet402Fetch(URL_A, { signal: controller.signal }).catch((err) => err);
+  for (let i = 0; i < 200 && h.seen.signatures < 1; i += 1) await new Promise((r) => setTimeout(r, 5));
+  assert.equal(h.seen.signatures, 1);
+  controller.abort();
+  const result = await Promise.race([
+    work,
+    new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 500)),
+  ]);
+  if (result instanceof Error) throw result;
+  if (result instanceof Vet402RefusedError || result instanceof Vet402PayFailedError) {
+    assert.fail(`unexpected error ${result.name}`);
+  }
+  assert.equal(result.status, 200);
+});
+
+test("a never-ending Request body stream aborts before seller or signer", async () => {
+  const account = { address: PAY_TO, signTypedData: async () => assert.fail("must not sign") };
+  let sellerCalls = 0;
+  const fetchImpl = async () => {
+    sellerCalls += 1;
+    assert.fail("must not reach seller");
+  };
+  const vet402Fetch = createVet402Fetch({ account, fetch: fetchImpl });
+  const controller = new AbortController();
+  const stream = new ReadableStream({
+    pull() {
+      return new Promise(() => {});
+    },
+  });
+  const work = vet402Fetch(URL_A, {
+    method: "POST",
+    body: stream,
+    signal: controller.signal,
+    duplex: "half",
+  }).catch((err) => err);
+  setTimeout(() => controller.abort(), 5);
+  const err = await work;
+  assert.equal(sellerCalls, 0);
+  assert.ok(err?.name === "AbortError" || err === controller.signal.reason);
+});
+
+test("request body larger than 10 MiB throws invalid_body before the seller", async () => {
+  const h = harness();
+  const vet402Fetch = createVet402Fetch({ account: h.account, fetch: h.fetchImpl });
+  const big = new Uint8Array(10 * 1024 * 1024 + 1);
+  await assert.rejects(vet402Fetch(URL_A, { method: "POST", body: big }), /invalid_body: request body is larger than 10 MiB/);
+  assert.equal(h.seen.seller.length, 0);
+});
+
+test("caller x-payment is not sent to a BLOCK seller", async () => {
+  const h = harness({ decision: () => json(200, verdict("BLOCK")) });
+  await assert.rejects(
+    h.vet402Fetch(URL_A, { headers: { "x-payment": "forged" } }),
+    (err) => err instanceof Vet402RefusedError,
+  );
+  for (const call of h.seen.seller) assert.equal(call.xPayment, null);
+  assert.equal(h.seen.signatures, 0);
+});
+
+test("init headers and body override Request values on every seller call", async () => {
+  const h = harness();
+  const req = new Request(URL_A, { method: "POST", headers: { authorization: "from-request" }, body: "from-request" });
+  const init = { method: "POST", headers: { authorization: "from-init" }, body: "from-init" };
+  await h.vet402Fetch(req, init);
+  for (const call of h.seen.seller) {
+    assert.equal(call.auth, "from-init");
+    const expected = typeof call.body === "string" ? call.body : new TextDecoder().decode(call.body);
+    assert.equal(expected, "from-init");
+  }
+});
+
+test("four fetch entry points deliver the same FormData bytes", async () => {
+  const fd = new FormData();
+  fd.append("q", "same");
+  fd.append("f", new Blob(["xy"], { type: "application/octet-stream" }));
+  const seed = new Request(URL_A, { method: "POST", body: fd });
+  const golden = new Uint8Array(await seed.arrayBuffer());
+  const goldenHeaders = { "content-type": seed.headers.get("content-type") };
+  const entries = [
+    ["string", (h) => h.vet402Fetch(URL_A, { method: "POST", headers: goldenHeaders, body: golden })],
+    ["url", (h) => h.vet402Fetch(new URL(URL_A), { method: "POST", headers: goldenHeaders, body: golden })],
+    ["request", (h) => h.vet402Fetch(new Request(URL_A, { method: "POST", headers: goldenHeaders, body: golden }))],
+    [
+      "request+init",
+      (h) =>
+        h.vet402Fetch(new Request(URL_A, { method: "POST", body: "ignored" }), {
+          method: "POST",
+          headers: goldenHeaders,
+          body: golden,
+        }),
+    ],
+  ];
+  for (const [label, run] of entries) {
+    const h = harness();
+    await run(h);
+    for (const call of h.seen.seller) {
+      const bytes = await sellerBodyBytes(call.body);
+      assert.deepEqual([...bytes], [...golden], label);
+    }
+  }
+});
+
+for (const [name, decision, reason] of [
+  ["WARN by default", () => json(200, verdict("WARN")), /payee_recommendation_not_allow/],
+  ["an unknown verdict word", () => json(200, verdict("MAYBE")), /not_allow|evidence_unavailable/],
+]) {
+  test(`vet402Fetch ${name} matches pay()`, async () => {
+    const h = harness({ decision });
+    await assertSameAsPay(h.payOptions, URL_A, undefined, h.vet402Fetch, URL_A);
+    assert.equal(h.seen.signatures, 0);
+    const direct = await pay(URL_A, undefined, h.payOptions);
+    assert.match(direct.reasonCodes.join(","), reason);
+  });
+}
+
+test("already-aborted POST with a body rejects with signal.reason before pay()", async () => {
+  const h = harness();
+  const controller = new AbortController();
+  controller.abort(new DOMException("pre-abort", "AbortError"));
+  await assert.rejects(
+    h.vet402Fetch(URL_A, { method: "POST", body: "payload", signal: controller.signal }),
+    (err) => err === controller.signal.reason,
+  );
+  assert.equal(h.seen.seller.length, 0);
+  assert.equal(h.seen.signatures, 0);
+});
+
+test("signed payment then abort exposes result.signed true on Vet402PayFailedError", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith(`${API}/`)) return h.fetchImpl(input, init);
+    const headers = new Headers(init.headers);
+    if (headers.has("payment-signature")) {
+      if (init.signal?.aborted) throw init.signal.reason ?? new DOMException("The operation was aborted", "AbortError");
+      return new Response("{}", {
+        status: 202,
+        headers: {
+          "payment-response": b64({ success: true, transaction: `0x${"cd".repeat(32)}`, network: "eip155:8453", payer: h.account.address }),
+        },
+      });
+    }
+    return challenge([offer()]);
+  };
+  const controller = new AbortController();
+  const vet402Fetch = createVet402Fetch({ account: h.account, fetch: fetchImpl });
+  const work = vet402Fetch(URL_A, { signal: controller.signal }).catch((err) => err);
+  for (let i = 0; i < 200 && h.seen.signatures < 1; i += 1) await new Promise((r) => setTimeout(r, 5));
+  controller.abort();
+  const err = await work;
+  assert.ok(err instanceof Vet402PayFailedError);
+  assert.equal(err.result.signed, true);
 });

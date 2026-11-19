@@ -39,7 +39,13 @@ function harness({ decision = () => json(200, verdict("ALLOW")), offers = () => 
     if (url.startsWith(`${API}/`)) return json(200, {});
     assert.equal(url, URL_A);
     const headers = new Headers(init.headers);
-    seen.seller.push({ method: init.method, body: init.body, auth: headers.get("authorization"), paid: headers.has("payment-signature") });
+    seen.seller.push({
+      method: init.method,
+      body: init.body,
+      auth: headers.get("authorization"),
+      paid: headers.has("payment-signature"),
+      contentType: headers.get("content-type"),
+    });
     if (headers.has("payment-signature")) {
       return new Response('{"answer":42}', {
         status: 200,
@@ -272,4 +278,18 @@ test("caller errors throw before any request", async () => {
   }
   await assert.rejects(pay(URL_A, undefined, { account, fetch: fetchImpl, network: "constructor" }), /invalid_network/);
   await assert.rejects(pay(URL_A, { method: "POST", body: new ReadableStream() }, { account, fetch: fetchImpl }), /invalid_body/);
+});
+
+test("URLSearchParams form Content-Type is kept on the paid seller call", async () => {
+  const h = harness();
+  const body = new URLSearchParams({ q: "x", y: "z" });
+  const r = await pay(URL_A, { method: "POST", body }, { account: h.account, fetch: h.fetchImpl });
+  assert.equal(r.status, "paid");
+  const unpaid = h.seen.seller.find((c) => !c.paid);
+  const paid = h.seen.seller.find((c) => c.paid);
+  assert.notEqual(paid.contentType, "application/json");
+  assert.equal(paid.contentType, unpaid.contentType);
+  const wireCt = new Request(URL_A, { method: "POST", body }).headers.get("content-type");
+  if (unpaid.contentType !== null) assert.equal(unpaid.contentType, wireCt);
+  if (paid.contentType !== null) assert.equal(paid.contentType, wireCt);
 });

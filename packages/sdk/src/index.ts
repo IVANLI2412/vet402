@@ -63,6 +63,7 @@ export {
 export { pay, type PayOptions, type PayResult, type PayStatus } from "./pay.js";
 export {
   createVet402Fetch,
+  MAX_REQUEST_BODY_BYTES,
   Vet402RefusedError,
   Vet402PayFailedError,
 } from "./vet402-fetch.js";

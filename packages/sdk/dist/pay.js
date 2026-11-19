@@ -13,6 +13,7 @@ import { DEFAULT_MAX_PER_TX_USD, payOrRefuse, } from "./pay-or-refuse.js";
 const USDC_UNITS = 1_000_000;
 const WALLET_RE = /^0x[a-fA-F0-9]{40}$/;
 const AMOUNT_RE = /^[1-9][0-9]*$/;
+const PAYMENT_HEADERS = ["payment-signature", "x-payment"];
 function refused(reason, recommendation = null) {
     return { status: "refused", response: null, recommendation, reasonCodes: [reason], signed: false, txHash: null, receipt: null };
 }
@@ -89,10 +90,18 @@ export async function pay(url, init, options) {
         if (target.startsWith(`${apiBase}/payees/`) && options.allowUnknown !== true) {
             throw new Error("unknown_seller_not_allowed");
         }
-        if (target !== resource)
-            return baseFetch(input, callInit);
+        if (target !== resource) {
+            return baseFetch(input, { ...callInit, signal: callInit?.signal ?? init?.signal ?? undefined });
+        }
         const headers = new Headers(init?.headers);
-        new Headers(callInit?.headers).forEach((value, key) => headers.set(key, value));
+        for (const k of PAYMENT_HEADERS)
+            headers.delete(k);
+        const extra = new Headers(callInit?.headers);
+        for (const k of PAYMENT_HEADERS) {
+            const v = extra.get(k);
+            if (v !== null)
+                headers.set(k, v);
+        }
         // A redirect could carry the signed payment to a host nobody checked, so it is never followed.
         const answer = await baseFetch(resource, { ...init, ...callInit, method, headers, body: init?.body, redirect: "error" });
         if (headers.has("payment-signature") || headers.has("x-payment"))

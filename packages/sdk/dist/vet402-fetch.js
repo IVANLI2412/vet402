@@ -3,6 +3,7 @@
  * No vet402 judgment or signing lives here. pay() owns all of that.
  */
 import { pay } from "./pay.js";
+export const MAX_REQUEST_BODY_BYTES = 10 * 1024 * 1024;
 export class Vet402RefusedError extends Error {
     result;
     constructor(result) {
@@ -19,31 +20,81 @@ export class Vet402PayFailedError extends Error {
         this.result = result;
     }
 }
-function assertReplayableBody(body) {
-    const ok = body === undefined ||
-        body === null ||
-        typeof body === "string" ||
-        body instanceof URLSearchParams ||
-        body instanceof ArrayBuffer ||
-        ArrayBuffer.isView(body);
-    if (!ok)
-        throw new Error("invalid_body: pass a string, URLSearchParams or bytes, because the request is sent more than once");
+function throwIfAborted(signal) {
+    if (signal?.aborted)
+        throw signal.reason;
+}
+function bytesToPayBody(buf, contentType) {
+    if (buf.byteLength === 0)
+        return undefined;
+    if (buf.includes(0))
+        return buf;
+    const text = new TextDecoder().decode(buf);
+    if (contentType?.startsWith("text/") ||
+        contentType?.includes("json") ||
+        contentType?.includes("xml") ||
+        contentType?.startsWith("application/x-www-form-urlencoded") ||
+        contentType === null) {
+        return text;
+    }
+    return buf;
+}
+async function readRequestBody(req) {
+    throwIfAborted(req.signal);
+    if (req.body === null)
+        return new Uint8Array(0);
+    const reader = req.body.getReader();
+    const chunks = [];
+    let total = 0;
+    const onAbort = () => {
+        void reader.cancel(req.signal.reason);
+    };
+    req.signal?.addEventListener("abort", onAbort, { once: true });
+    try {
+        for (;;) {
+            throwIfAborted(req.signal);
+            const { done, value } = await reader.read();
+            if (done) {
+                throwIfAborted(req.signal);
+                break;
+            }
+            if (value !== undefined) {
+                total += value.byteLength;
+                if (total > MAX_REQUEST_BODY_BYTES) {
+                    throw new Error("invalid_body: request body is larger than 10 MiB");
+                }
+                chunks.push(value);
+            }
+        }
+    }
+    catch (err) {
+        if (req.signal?.aborted)
+            throw req.signal.reason;
+        throw err;
+    }
+    finally {
+        req.signal?.removeEventListener("abort", onAbort);
+        reader.releaseLock();
+    }
+    if (chunks.length === 0)
+        return new Uint8Array(0);
+    const out = new Uint8Array(total);
+    let offset = 0;
+    for (const chunk of chunks) {
+        out.set(chunk, offset);
+        offset += chunk.byteLength;
+    }
+    return out;
 }
 async function toPayArgs(input, init) {
-    if (typeof input === "string" || input instanceof URL) {
-        return { url: String(input), init };
-    }
-    assertReplayableBody(init?.body);
     const req = new Request(input, init);
     const url = req.url;
     const method = req.method;
     const headers = new Headers(req.headers);
     let body;
     if (method !== "GET" && method !== "HEAD") {
-        // A built Request always exposes body as a stream; materializing bytes is how pay() replays (unlike FormData in init to pay(), which assertReplayableBody rejects above).
-        const buf = await req.arrayBuffer();
-        if (buf.byteLength > 0)
-            body = new Uint8Array(buf);
+        const buf = await readRequestBody(req);
+        body = bytesToPayBody(buf, headers.get("content-type"));
     }
     const payInit = {
         method,
