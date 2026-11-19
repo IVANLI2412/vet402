@@ -41,7 +41,7 @@
 import type * as Web3 from "@solana/web3.js";
 import type { PayRefuseReason, SvmPayerAccount, SvmTransactionLike } from "./pay-or-refuse.js";
 import { createSplTokenLite, type SolanaWeb3 } from "./spl-token-lite.js";
-import { parseSettlementResponse, type X402Accept, type X402Settlement } from "./x402-pay.js";
+import { parseSettlementResponse, settlementConfirmed, type X402Accept, type X402Settlement } from "./x402-pay.js";
 
 /** USDC on Solana has 6 decimals — the same base units as Base USDC. */
 const USDC_DECIMALS = 6;
@@ -296,7 +296,7 @@ export async function executeSvmPayment(args: {
     refused: null,
     signed: true,
     sent: true,
-    settled: settlement?.success === true,
+    settled: settlementConfirmed(settlement, typeof response.status === "number" ? response.status : null),
     txHash: settlement?.transaction ?? null,
     memo,
     transactionB64,

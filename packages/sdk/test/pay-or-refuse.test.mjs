@@ -539,6 +539,41 @@ test("E18 署名後に決済されなかった → failed を返し、隠さな�
   assert.equal(s.paid.length, 1, "署名を付けて1回だけ再送している");
 });
 
+test("E18c 売り手が success:true でも取引 id が無い → paid にしない（failed・settle_unconfirmed）", async () => {
+  // 2026-11-19 第三者点検 MEDIUM: success だけで paid にしていた。チェーンで確かめる手掛かりが無い申告は未確認。
+  const w = watchedAccount();
+  const s = seller(okAccept, { settlement: { success: true, transaction: null } });
+  const f = allowlistFetch([DECISION, "kronos"], { [DECISION]: decision(), kronos: s.stub });
+  const r = await payOrRefuse({ ...base, account: w.account, fetch: f.fetch, policy: paidPolicy });
+  assert.equal(r.status, "failed");
+  assert.equal(r.signed, true);
+  assert.equal(r.txHash, null);
+  assert.equal(r.decision.reason_codes.includes("settle_unconfirmed"), true);
+  assert.equal(r.decision.reason_codes.includes("settle_failed"), true, "互換: settle_failed も残す");
+  assert.match(String(r.nonce), /^0x[0-9a-f]{64}$/, "何に署名したかは残る");
+  assert.equal(s.paid.length, 1);
+});
+
+test("E18d 支払いつき再送が 5xx なら success:true と取引 id があっても paid にしない", async () => {
+  const w = watchedAccount();
+  const s = seller(okAccept, { paidStatus: 500 });
+  const f = allowlistFetch([DECISION, "kronos"], { [DECISION]: decision(), kronos: s.stub });
+  const r = await payOrRefuse({ ...base, account: w.account, fetch: f.fetch, policy: paidPolicy });
+  assert.equal(r.status, "failed");
+  assert.equal(r.txHash, "0xtx", "売り手が名指した取引は隠さず返す（後から照合できる）");
+  assert.equal(r.decision.reason_codes.includes("settle_unconfirmed"), true);
+  assert.equal(r.attested, false, "未確認は台帳へ attest しない");
+});
+
+test("E18e 対照: 2xx と取引 id と success:true がそろえば今までどおり paid", async () => {
+  const w = watchedAccount();
+  const s = seller(okAccept, { paidStatus: 201 });
+  const f = allowlistFetch([DECISION, "kronos"], { [DECISION]: decision(), kronos: s.stub });
+  const r = await payOrRefuse({ ...base, account: w.account, fetch: f.fetch, policy: paidPolicy });
+  assert.equal(r.status, "paid");
+  assert.equal(r.decision.reason_codes.includes("settle_unconfirmed"), false);
+});
+
 test("E18b 署名の後で再送の応答を読めず例外になっても throw しない——failed・signed:true・署名した nonce を返す", async () => {
   // 2026-09-06 の変異 M27（onSigned で nonce を控えない）が生き残った。ソースの
   // 「ここから先で落ちても『何に署名したか』は残る」は成り立っていなかった:

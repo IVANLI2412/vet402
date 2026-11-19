@@ -1,5 +1,5 @@
 import { createSplTokenLite } from "./spl-token-lite.js";
-import { parseSettlementResponse } from "./x402-pay.js";
+import { parseSettlementResponse, settlementConfirmed } from "./x402-pay.js";
 /** USDC on Solana has 6 decimals — the same base units as Base USDC. */
 const USDC_DECIMALS = 6;
 export const MEMO_PROGRAM_ADDRESS = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
@@ -207,7 +207,7 @@ export async function executeSvmPayment(args) {
         refused: null,
         signed: true,
         sent: true,
-        settled: settlement?.success === true,
+        settled: settlementConfirmed(settlement, typeof response.status === "number" ? response.status : null),
         txHash: settlement?.transaction ?? null,
         memo,
         transactionB64,

@@ -317,6 +317,17 @@ export function parseSettlementResponse(headers: unknown): X402Settlement | null
 }
 
 /**
+ * 売り手の申告を「決済済み」と数えてよいか。`success: true` だけでは足りない（2026-11-19 第三者点検 MEDIUM）:
+ * 取引 id が無い申告と、支払いつき再送への 2xx 以外の応答は、チェーンで確かめられない「未確認」として扱う。
+ * 未確認は呼び手には `failed`（＝払ったかもしれない、receipt を読んでから再試行）として返る。
+ */
+export function settlementConfirmed(settlement: X402Settlement | null, responseStatus: number | null): boolean {
+  if (settlement?.success !== true) return false;
+  if (settlement.transaction === null) return false;
+  return typeof responseStatus === "number" && responseStatus >= 200 && responseStatus < 300;
+}
+
+/**
  * 署名して、元のリクエストを支払いヘッダ付きで**売り手へ再送する**。判定は一切しない
  * ——ここへ来た時点で通っている、というのが `payOrRefuse` との契約。金額・チェーン・
  * asset・payTo の検査を呼び出し側に残すのは、この関数を単体で「安全な支払い」として
@@ -389,13 +400,14 @@ export async function executeX402Payment(args: {
   }
 
   const settlement = parseSettlementResponse(response.headers);
+  const responseStatus = typeof response.status === "number" ? response.status : null;
   return {
     signed: true,
-    settled: settlement?.success === true,
+    settled: settlementConfirmed(settlement, responseStatus),
     txHash: settlement?.transaction ?? null,
     nonce: authorization.nonce,
     authorization,
     settlement,
-    responseStatus: typeof response.status === "number" ? response.status : null,
+    responseStatus,
   };
 }

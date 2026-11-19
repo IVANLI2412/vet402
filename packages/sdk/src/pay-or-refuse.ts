@@ -543,6 +543,15 @@ export type PayDecisionRecord = {
   ens?: PayEnsEvidence[];
 };
 
+/**
+ * 署名した後に `paid` と数えなかったときの理由。売り手が `success: true` と申告したのに取引 id が無い、
+ * または支払いつき再送が 2xx 以外だったときは、決済の失敗ではなく「確かめられない」なので
+ * `settle_unconfirmed` を足す（2026-11-19 第三者点検 MEDIUM）。`settle_failed` は互換のため残す。
+ */
+function unsettledReasons(settlement: X402Settlement | null): string[] {
+  return settlement?.success === true ? ["settle_failed", "settle_unconfirmed"] : ["settle_failed"];
+}
+
 export type PayOrRefuseResult = {
   /** "refused" は署名前に止まったこと。"failed" は署名後に settle が失敗したこと。 */
   status: "paid" | "refused" | "failed";
@@ -1549,7 +1558,7 @@ async function decideAndPay(input: DecideInput, facts: ReceiptFacts): Promise<Pa
     facts.responseStatus = svmPaid?.responseStatus ?? null;
     return {
       status: svmSettled ? "paid" : "failed",
-      decision: record("ALLOW", svmSettled ? allowReasons : [...allowReasons, "settle_failed"], verdictSource, decision, payeeScore, policyOverride),
+      decision: record("ALLOW", svmSettled ? allowReasons : [...allowReasons, ...unsettledReasons(svmPaid?.settlement ?? null)], verdictSource, decision, payeeScore, policyOverride),
       // 署名者が値を返した以上 true。送らなかった（message 不一致）ときも隠さない（E18）。
       signed: true,
       attested: false,
@@ -1676,7 +1685,7 @@ async function decideAndPay(input: DecideInput, facts: ReceiptFacts): Promise<Pa
     // 生きた金で、後から遅れて決済され得る。何に署名したかが残らないと照合できない。
     return {
       status: "failed",
-      decision: record("ALLOW", [...allowReasons, "settle_failed"], verdictSource, decision, payeeScore, policyOverride),
+      decision: record("ALLOW", [...allowReasons, ...unsettledReasons(paid.settlement)], verdictSource, decision, payeeScore, policyOverride),
       signed: paid.signed,
       attested: false,
       txHash: paid.txHash,

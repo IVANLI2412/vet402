@@ -193,6 +193,14 @@ export const DEFAULT_CHAIN_LOOKBACK_BLOCKS = 10000n;
 export const CHAIN_LOGS_SPAN = 1000n;
 /** 1回の評価で読む上限。これを超える範囲は読まずに `chain_evidence_unavailable`。 */
 export const MAX_CHAIN_SCAN_BLOCKS = 100000n;
+/**
+ * 署名した後に `paid` と数えなかったときの理由。売り手が `success: true` と申告したのに取引 id が無い、
+ * または支払いつき再送が 2xx 以外だったときは、決済の失敗ではなく「確かめられない」なので
+ * `settle_unconfirmed` を足す（2026-11-19 第三者点検 MEDIUM）。`settle_failed` は互換のため残す。
+ */
+function unsettledReasons(settlement) {
+    return settlement?.success === true ? ["settle_failed", "settle_unconfirmed"] : ["settle_failed"];
+}
 const WALLET_RE = /^0x[a-fA-F0-9]{40}$/;
 /** Solana の base58 アドレス（32〜44 文字・0 O I l を含まない）。 */
 const SOLANA_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
@@ -1009,7 +1017,7 @@ async function decideAndPay(input, facts) {
         facts.responseStatus = svmPaid?.responseStatus ?? null;
         return {
             status: svmSettled ? "paid" : "failed",
-            decision: record("ALLOW", svmSettled ? allowReasons : [...allowReasons, "settle_failed"], verdictSource, decision, payeeScore, policyOverride),
+            decision: record("ALLOW", svmSettled ? allowReasons : [...allowReasons, ...unsettledReasons(svmPaid?.settlement ?? null)], verdictSource, decision, payeeScore, policyOverride),
             // 署名者が値を返した以上 true。送らなかった（message 不一致）ときも隠さない（E18）。
             signed: true,
             attested: false,
@@ -1134,7 +1142,7 @@ async function decideAndPay(input, facts) {
         // 生きた金で、後から遅れて決済され得る。何に署名したかが残らないと照合できない。
         return {
             status: "failed",
-            decision: record("ALLOW", [...allowReasons, "settle_failed"], verdictSource, decision, payeeScore, policyOverride),
+            decision: record("ALLOW", [...allowReasons, ...unsettledReasons(paid.settlement)], verdictSource, decision, payeeScore, policyOverride),
             signed: paid.signed,
             attested: false,
             txHash: paid.txHash,
