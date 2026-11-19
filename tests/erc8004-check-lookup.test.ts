@@ -167,3 +167,54 @@ test("resolveClientForIndex の締切 → ambiguous_feedback_index", async () =>
   );
   assert.deepEqual(result, { error: "ambiguous_feedback_index" });
 });
+function sliceWithUri(feedbackURI: string): FeedbackLogSlice {
+  return {
+    clientAddress: CLIENT_A,
+    feedbackIndex: INDEX,
+    value: 100n,
+    valueDecimals: 0,
+    tag1: "tag-a",
+    tag2: "",
+    endpoint: "",
+    feedbackURI,
+    feedbackHash: ZERO_HASH,
+    blockNumber: 1n,
+    txHash: ZERO_HASH,
+  };
+}
+
+test("feedbackURI が空 → no_proof・no_feedback_uri（unreadable にしない）", async () => {
+  let fetched = 0;
+  const result = await runErc8004Check(
+    { agentId: "1", client: CLIENT_A, feedbackIndex: "1" },
+    {
+      readers: metaReader([CLIENT_A]),
+      findFeedbackLog: async () => sliceWithUri(""),
+      fetchFeedbackUri: async () => {
+        fetched += 1;
+        return { body: "{}", contentType: "application/json" };
+      },
+    },
+  );
+  assert.ok(!("error" in result));
+  assert.equal(result.verdict, "no_proof");
+  assert.equal(result.no_proof_reason, "no_feedback_uri");
+  assert.equal(result.unreadable_reason, undefined);
+  assert.equal(fetched, 0);
+});
+
+test("feedbackURI が読めない → unreadable・feedback_uri_unreadable", async () => {
+  const result = await runErc8004Check(
+    { agentId: "1", client: CLIENT_A, feedbackIndex: "1" },
+    {
+      readers: metaReader([CLIENT_A]),
+      findFeedbackLog: async () => sliceWithUri("https://example.invalid/feedback.json"),
+      fetchFeedbackUri: async () => {
+        throw new Error("fetch failed");
+      },
+    },
+  );
+  assert.ok(!("error" in result));
+  assert.equal(result.verdict, "unreadable");
+  assert.equal(result.unreadable_reason, "feedback_uri_unreadable");
+});

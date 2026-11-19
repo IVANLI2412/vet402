@@ -176,6 +176,24 @@ export async function runErc8004Check(
     });
   }
 
+  // A feedback written with an empty feedbackURI carries no payment proof to check.
+  if (!log.feedbackURI || log.feedbackURI.trim() === "") {
+    return baseResult({
+      verdict: "no_proof",
+      no_proof_reason: "no_feedback_uri",
+      chain,
+      agentId,
+      client,
+      feedbackIndex,
+      log,
+      meta,
+      proof: null,
+      checks: { ...EMPTY_CHECKS },
+      sources,
+      deps,
+    });
+  }
+
   const reader = deps?.fetchFeedbackUri;
   let body: string;
   try {
@@ -185,6 +203,7 @@ export async function runErc8004Check(
   } catch {
     return baseResult({
       verdict: "unreadable",
+      unreadable_reason: "feedback_uri_unreadable",
       chain,
       agentId,
       client,
@@ -255,6 +274,7 @@ export async function runErc8004Check(
   if (!proof?.txHash) {
     return baseResult({
       verdict: "no_proof",
+      no_proof_reason: "no_proof_in_feedback",
       chain,
       agentId,
       client,
@@ -495,6 +515,7 @@ function baseResult(args: {
   verdict: Erc8004CheckVerdict;
   reasons?: import("./types").Erc8004CheckMismatchReason[];
   unreadable_reason?: import("./types").Erc8004CheckUnreadableReason;
+  no_proof_reason?: import("./types").Erc8004CheckNoProofReason;
   chain: { caip: string };
   agentId: bigint;
   client: string;
@@ -510,6 +531,7 @@ function baseResult(args: {
     verdict: args.verdict,
     ...(args.reasons?.length ? { reasons: args.reasons } : {}),
     ...(args.unreadable_reason ? { unreadable_reason: args.unreadable_reason } : {}),
+    ...(args.no_proof_reason ? { no_proof_reason: args.no_proof_reason } : {}),
     chain: args.chain.caip,
     agentId: args.agentId.toString(),
     clientAddress: args.client,

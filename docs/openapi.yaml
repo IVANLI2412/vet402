@@ -2256,10 +2256,17 @@ paths:
                           found (rollup_transactions path only).
                   unreadable_reason:
                     type: string
-                    enum: [proof_tx_not_found_on_known_chains, feedback_log_not_found_in_time]
+                    enum: [proof_tx_not_found_on_known_chains, feedback_log_not_found_in_time, feedback_uri_unreadable]
                     description: |
                       Present when verdict is unreadable: rollup probe could not find the tx,
-                      or the NewFeedback log scan timed out before locating the issuance event.
+                      the NewFeedback log scan timed out before locating the issuance event,
+                      or the feedbackURI could not be fetched.
+                  no_proof_reason:
+                    type: string
+                    enum: [no_feedback_uri, no_proof_in_feedback]
+                    description: |
+                      Present when verdict is no_proof: the feedback was written with an empty
+                      feedbackURI, or its feedback file names no payment transaction.
                   sources:
                     type: array
                     items:

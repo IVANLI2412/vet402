@@ -18,7 +18,11 @@ export type Erc8004CheckProofSource = "proofOfPayment" | "rollup_transactions";
 
 export type Erc8004CheckUnreadableReason =
   | "proof_tx_not_found_on_known_chains"
-  | "feedback_log_not_found_in_time";
+  | "feedback_log_not_found_in_time"
+  | "feedback_uri_unreadable";
+
+/** Why a feedback has no payment proof to check. */
+export type Erc8004CheckNoProofReason = "no_feedback_uri" | "no_proof_in_feedback";
 
 export type Erc8004CheckChecks = {
   tx_exists: Erc8004CheckTriState;
@@ -63,6 +67,8 @@ export type Erc8004CheckResult = {
   reasons?: Erc8004CheckMismatchReason[];
   /** Present when verdict is unreadable for a named rollup probe outcome. */
   unreadable_reason?: Erc8004CheckUnreadableReason;
+  /** Present when verdict is no_proof. */
+  no_proof_reason?: Erc8004CheckNoProofReason;
   chain: string;
   agentId: string;
   clientAddress: string;
