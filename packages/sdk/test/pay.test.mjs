@@ -337,7 +337,7 @@ test("paid seller body is not cut by requestTimeoutMs", async () => {
   assert.equal(await r.response.text(), "part1-part2-end");
 });
 
-test("paid seller headers slower than paidResponseTimeoutMs yields failed signed true", async () => {
+test("paid seller slow headers still returns paid with body and txHash", async () => {
   const h = harness();
   const fetchImpl = async (input, init = {}) => {
     const url = String(input);
@@ -348,7 +348,7 @@ test("paid seller headers slower than paidResponseTimeoutMs yields failed signed
         setTimeout(
           () =>
             resolve(
-              new Response("ok", {
+              new Response("late-body", {
                 status: 200,
                 headers: {
                   "payment-response": b64({
@@ -366,9 +366,59 @@ test("paid seller headers slower than paidResponseTimeoutMs yields failed signed
     }
     return h.fetchImpl(input, init);
   };
-  const r = await pay(URL_A, undefined, { account: h.account, fetch: fetchImpl, paidResponseTimeoutMs: 50 });
-  assert.equal(r.status, "failed");
+  const r = await pay(URL_A, undefined, { account: h.account, fetch: fetchImpl, requestTimeoutMs: 50 });
+  assert.equal(r.status, "paid");
   assert.equal(r.signed, true);
+  assert.ok(r.txHash);
+  assert.equal(await r.response.text(), "late-body");
+});
+
+test("no_payment_required slow body completes despite short requestTimeoutMs", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url.startsWith(`${API}/`)) return h.fetchImpl(input, init);
+    const stream = new ReadableStream({
+      async start(controller) {
+        controller.enqueue(new TextEncoder().encode("free-"));
+        await new Promise((r) => setTimeout(r, 80));
+        controller.enqueue(new TextEncoder().encode("body"));
+        controller.close();
+      },
+    });
+    return new Response(stream, { status: 200, headers: { "content-type": "text/plain" } });
+  };
+  const r = await pay(URL_A, undefined, { account: h.account, fetch: fetchImpl, requestTimeoutMs: 30 });
+  assert.equal(r.status, "no_payment_required");
+  assert.equal(await r.response.text(), "free-body");
+  assert.equal(h.seen.signatures, 0);
+});
+
+test("attest stall with signal-ignoring fetch returns paid within requestTimeoutMs", async () => {
+  const h = harness();
+  const fetchImpl = async (input, init = {}) => {
+    const url = String(input);
+    if (url === `${API}/payments/x402` && (init.method ?? "GET").toUpperCase() === "POST") {
+      return new Promise(() => {});
+    }
+    const { signal: _drop, ...rest } = init;
+    return h.fetchImpl(input, rest);
+  };
+  const started = Date.now();
+  const r = await pay(URL_A, undefined, { account: h.account, fetch: fetchImpl, requestTimeoutMs: 80 });
+  assert.equal(r.status, "paid");
+  assert.equal(r.signed, true);
+  assert.ok(r.txHash);
+  assert.ok(Date.now() - started < 2000);
+});
+
+test("invalid requestTimeoutMs throws before the seller is called", async () => {
+  const h = harness();
+  for (const v of [-1, NaN, Infinity, "50"]) {
+    await assert.rejects(pay(URL_A, undefined, { account: h.account, fetch: h.fetchImpl, requestTimeoutMs: v }), /invalid_request_timeout_ms/);
+  }
+  assert.equal(h.seen.seller.length, 0);
+  assert.equal(h.seen.signatures, 0);
 });
 
 test("vet402 decision body stall stops at requestTimeoutMs without signing", async () => {

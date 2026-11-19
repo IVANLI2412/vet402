@@ -9,7 +9,6 @@
  */
 import { type ChainProfileName } from "./chain-profile.js";
 import { type PayReceipt, type PayerAccount } from "./pay-or-refuse.js";
-export declare const DEFAULT_PAID_RESPONSE_TIMEOUT_MS = 120000;
 export type PayOptions = {
     /** EIP-3009 signer. vet402 never holds it. */
     account: PayerAccount;
@@ -29,11 +28,6 @@ export type PayOptions = {
     decisionStore?: string;
     /** Wall-clock limit for vet402 reads and unpaid seller probes. Default {@link DEFAULT_REQUEST_TIMEOUT_MS}. */
     requestTimeoutMs?: number;
-    /**
-     * Wall-clock limit waiting for paid seller response headers after payment is sent.
-     * Default {@link DEFAULT_PAID_RESPONSE_TIMEOUT_MS}. Does not pass an abort signal into fetch or truncate the body.
-     */
-    paidResponseTimeoutMs?: number;
 };
 export type PayStatus = "paid" | "refused" | "failed" | "no_payment_required";
 export type PayResult = {

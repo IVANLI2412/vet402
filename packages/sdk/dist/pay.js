@@ -11,7 +11,6 @@ import { CHAIN_PROFILES } from "./chain-profile.js";
 import { DEFAULT_API_URL, DEFAULT_REQUEST_TIMEOUT_MS } from "./index.js";
 import { DEFAULT_MAX_PER_TX_USD, payOrRefuse, } from "./pay-or-refuse.js";
 const USDC_UNITS = 1_000_000;
-export const DEFAULT_PAID_RESPONSE_TIMEOUT_MS = 120_000;
 const WALLET_RE = /^0x[a-fA-F0-9]{40}$/;
 const AMOUNT_RE = /^[1-9][0-9]*$/;
 const PAYMENT_HEADERS = ["payment-signature", "x-payment"];
@@ -100,6 +99,10 @@ export async function pay(url, init, options) {
     const maxUsd = options.maxUsd ?? DEFAULT_MAX_PER_TX_USD;
     if (typeof maxUsd !== "number" || !Number.isFinite(maxUsd) || maxUsd <= 0)
         throw new Error("invalid_max_usd: pass a positive number");
+    const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
+    if (typeof requestTimeoutMs !== "number" || !Number.isFinite(requestTimeoutMs) || requestTimeoutMs <= 0) {
+        throw new Error("invalid_request_timeout_ms: pass a positive number");
+    }
     const network = options.network ?? "base";
     if (!Object.hasOwn(CHAIN_PROFILES, network))
         throw new Error("invalid_network");
@@ -108,8 +111,6 @@ export async function pay(url, init, options) {
     const baseFetch = options.fetch ?? globalThis.fetch;
     const apiBase = (options.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
     let sellerAnswer = null;
-    const requestTimeoutMs = options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS;
-    const paidResponseTimeoutMs = options.paidResponseTimeoutMs ?? DEFAULT_PAID_RESPONSE_TIMEOUT_MS;
     // Every request to the seller carries the caller's method, headers and body. A URL with no record
     // can only pass through the payee score, so that read is closed unless the caller allowed it.
     const timeoutSignal = (ms = requestTimeoutMs) => {
@@ -159,8 +160,10 @@ export async function pay(url, init, options) {
         }
         if (target !== resource) {
             if (isAttestPost) {
-                const attestSignal = timeoutSignal();
-                return baseFetch(input, { ...callInit, signal: attestSignal });
+                const attestTimeout = timeoutSignal();
+                const attestInit = { ...callInit };
+                delete attestInit.signal;
+                return raceAbort(baseFetch(input, attestInit), attestTimeout);
             }
             const readSignal = vet402ReadSignal(signal);
             if (readSignal?.aborted)
@@ -184,15 +187,17 @@ export async function pay(url, init, options) {
         if (signal?.aborted)
             throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
         if (isPaid) {
-            const headerTimeout = timeoutSignal(paidResponseTimeoutMs);
             const paidFetchInit = { ...init, ...callInit, method, headers, body: init?.body, redirect: "error" };
             delete paidFetchInit.signal;
-            const answer = await raceAbort(baseFetch(resource, paidFetchInit), headerTimeout);
+            const answer = await baseFetch(resource, paidFetchInit);
             sellerAnswer = answer.clone();
             return answer;
         }
         const roundSignal = vet402ReadSignal(signal);
-        const answer = await raceAbort(baseFetch(resource, { ...init, ...callInit, method, headers, body: init?.body, redirect: "error", signal: roundSignal }), roundSignal);
+        if (roundSignal?.aborted)
+            throw roundSignal.reason ?? new DOMException("The operation was aborted", "AbortError");
+        const unpaidFetchInit = { ...init, ...callInit, method, headers, body: init?.body, redirect: "error", signal };
+        const answer = await raceAbort(baseFetch(resource, unpaidFetchInit), roundSignal);
         return answer;
     };
     let first;
