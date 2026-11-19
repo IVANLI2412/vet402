@@ -153,7 +153,8 @@ const vet402Fetch = createVet402Fetch({ account });
 const response = await vet402Fetch("https://api.example.com/v1/quote");
 ```
 
-- Vet402 errors that are not payment requests (for example vet402 404 or 500 on the decision read) throw `Vet402RefusedError` with the same `reasonCodes` as `pay()`.
+- A seller HTTP 404 or 500 is not a payment request. It throws `Vet402RefusedError` with `no_payment_request`, same as `pay()`.
+- When the vet402 decision cannot be read, the call throws `Vet402RefusedError` with `evidence_unavailable`, same as `pay()`.
 - `refused` and `failed` throw `Vet402RefusedError` and `Vet402PayFailedError`. Each carries the full `PayResult` on `.result`. On `failed`, `result.signed` tells you whether a payment was signed.
 - An `AbortSignal` on the request stops both seller and vet402 calls. If the call is already aborted before `pay()` runs, the rejection is `signal.reason` (often `AbortError`), not `Vet402RefusedError`.
 - Caller `payment-signature` and `x-payment` headers are removed. Only headers from the signed payment are sent on the paid seller request.

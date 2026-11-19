@@ -22,21 +22,11 @@ export class Vet402PayFailedError extends Error {
 }
 function throwIfAborted(signal) {
     if (signal?.aborted)
-        throw signal.reason;
+        throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
 }
-function bytesToPayBody(buf, contentType) {
+function bytesToPayBody(buf) {
     if (buf.byteLength === 0)
         return undefined;
-    if (buf.includes(0))
-        return buf;
-    const text = new TextDecoder().decode(buf);
-    if (contentType?.startsWith("text/") ||
-        contentType?.includes("json") ||
-        contentType?.includes("xml") ||
-        contentType?.startsWith("application/x-www-form-urlencoded") ||
-        contentType === null) {
-        return text;
-    }
     return buf;
 }
 async function readRequestBody(req) {
@@ -88,13 +78,14 @@ async function readRequestBody(req) {
 }
 async function toPayArgs(input, init) {
     const req = new Request(input, init);
+    throwIfAborted(req.signal);
     const url = req.url;
     const method = req.method;
     const headers = new Headers(req.headers);
     let body;
     if (method !== "GET" && method !== "HEAD") {
         const buf = await readRequestBody(req);
-        body = bytesToPayBody(buf, headers.get("content-type"));
+        body = bytesToPayBody(buf);
     }
     const payInit = {
         method,

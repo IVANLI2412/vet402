@@ -154,7 +154,8 @@ test("POST via init.method delivers the body on every seller call", async () => 
   assert.ok(h.seen.seller.length >= 3);
   for (const call of h.seen.seller) {
     assert.equal(call.method, "POST");
-    assert.equal(call.body, '{"q":"x"}');
+    const bytes = await sellerBodyBytes(call.body);
+    assert.deepEqual([...bytes], [...new TextEncoder().encode('{"q":"x"}')]);
     assert.equal(call.auth, "Bearer seller");
   }
 });
@@ -185,25 +186,25 @@ test("POST via Request delivers binary body bytes on every seller call", async (
   }
 });
 
-test("an aborted signal on init matches pay() and touches neither seller nor signature", async () => {
+test("an already-aborted GET on init rejects with signal.reason before pay()", async () => {
   const h = harness();
   const controller = new AbortController();
-  controller.abort();
-  const init = { signal: controller.signal };
-  await assertSameAsPay(h.payOptions, URL_A, init, h.vet402Fetch, URL_A, init);
+  controller.abort(new DOMException("pre-abort", "AbortError"));
+  await assert.rejects(h.vet402Fetch(URL_A, { signal: controller.signal }), (err) => err === controller.signal.reason);
   assert.equal(h.seen.signatures, 0);
   assert.equal(h.seen.seller.length, 0);
+  assert.equal(h.seen.decisions.length, 0);
 });
 
-test("an aborted signal on Request matches pay() and touches neither seller nor signature", async () => {
+test("an already-aborted GET on Request rejects with signal.reason before pay()", async () => {
   const h = harness();
   const controller = new AbortController();
-  controller.abort();
+  controller.abort(new DOMException("pre-abort", "AbortError"));
   const req = new Request(URL_A, { signal: controller.signal });
-  const init = { signal: controller.signal };
-  await assertSameAsPay(h.payOptions, URL_A, init, h.vet402Fetch, req);
+  await assert.rejects(h.vet402Fetch(req), (err) => err === controller.signal.reason);
   assert.equal(h.seen.signatures, 0);
   assert.equal(h.seen.seller.length, 0);
+  assert.equal(h.seen.decisions.length, 0);
 });
 
 test("BLOCK refuses with no signature and carries PayResult on the error", async () => {
@@ -542,6 +543,61 @@ test("attest POST that ignores signal still returns a paid Response when aborted
     assert.fail(`expected paid Response, got ${result.name}`);
   }
   assert.equal(result.status, 200);
+});
+
+test("four entry points deliver invalid UTF-8 bytes with no Content-Type on every seller call", async () => {
+  const golden = new Uint8Array([0xff, 0x41]);
+  const entries = [
+    ["string", (h) => h.vet402Fetch(URL_A, { method: "POST", body: golden })],
+    ["url", (h) => h.vet402Fetch(new URL(URL_A), { method: "POST", body: golden })],
+    ["request", (h) => h.vet402Fetch(new Request(URL_A, { method: "POST", body: golden }))],
+    [
+      "request+init",
+      (h) =>
+        h.vet402Fetch(new Request(URL_A, { method: "POST", body: new Uint8Array([0x00]) }), {
+          method: "POST",
+          body: golden,
+        }),
+    ],
+  ];
+  for (const [label, run] of entries) {
+    const h = harness();
+    await run(h);
+    assert.ok(h.seen.seller.length >= 2, label);
+    for (const call of h.seen.seller) {
+      const bytes = await sellerBodyBytes(call.body);
+      assert.deepEqual([...bytes], [...golden], label);
+      assert.equal(call.contentType, null, label);
+    }
+  }
+});
+
+test("BOM-prefixed JSON bytes and application/json reach the seller unchanged", async () => {
+  const golden = new Uint8Array([0xef, 0xbb, 0xbf, 0x7b, 0x7d]);
+  const headers = { "content-type": "application/json" };
+  const h = harness();
+  await h.vet402Fetch(URL_A, { method: "POST", headers, body: golden });
+  for (const call of h.seen.seller) {
+    const bytes = await sellerBodyBytes(call.body);
+    assert.deepEqual([...bytes], [...golden]);
+    assert.equal(call.contentType, "application/json");
+  }
+});
+
+test("Blob without type and ArrayBuffer match on every seller call", async () => {
+  const raw = new Uint8Array([0xff, 0x41]);
+  for (const [label, body] of [
+    ["Blob", new Blob([raw])],
+    ["ArrayBuffer", raw.buffer.slice(raw.byteOffset, raw.byteOffset + raw.byteLength)],
+  ]) {
+    const h = harness();
+    await h.vet402Fetch(URL_A, { method: "POST", body });
+    for (const call of h.seen.seller) {
+      const bytes = await sellerBodyBytes(call.body);
+      assert.deepEqual([...bytes], [...raw], label);
+      assert.equal(call.contentType, null, label);
+    }
+  }
 });
 
 test("signed payment then abort exposes result.signed true on Vet402PayFailedError", async () => {

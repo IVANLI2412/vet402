@@ -27,22 +27,11 @@ export class Vet402PayFailedError extends Error {
 }
 
 function throwIfAborted(signal: AbortSignal | null | undefined): void {
-  if (signal?.aborted) throw signal.reason;
+  if (signal?.aborted) throw signal.reason ?? new DOMException("The operation was aborted", "AbortError");
 }
 
-function bytesToPayBody(buf: Uint8Array, contentType: string | null): BodyInit | undefined {
+function bytesToPayBody(buf: Uint8Array): BodyInit | undefined {
   if (buf.byteLength === 0) return undefined;
-  if (buf.includes(0)) return buf as unknown as BodyInit;
-  const text = new TextDecoder().decode(buf);
-  if (
-    contentType?.startsWith("text/") ||
-    contentType?.includes("json") ||
-    contentType?.includes("xml") ||
-    contentType?.startsWith("application/x-www-form-urlencoded") ||
-    contentType === null
-  ) {
-    return text;
-  }
   return buf as unknown as BodyInit;
 }
 
@@ -94,13 +83,14 @@ async function toPayArgs(
   init?: RequestInit,
 ): Promise<{ url: string; init: RequestInit | undefined }> {
   const req = new Request(input, init);
+  throwIfAborted(req.signal);
   const url = req.url;
   const method = req.method;
   const headers = new Headers(req.headers);
   let body: RequestInit["body"] | undefined;
   if (method !== "GET" && method !== "HEAD") {
     const buf = await readRequestBody(req);
-    body = bytesToPayBody(buf, headers.get("content-type"));
+    body = bytesToPayBody(buf);
   }
   const payInit: RequestInit = {
     method,
