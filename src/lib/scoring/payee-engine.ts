@@ -546,7 +546,7 @@ function determineDataDepth(stats: PayeeStats): DataDepth {
   if (stats.paymentCount >= 10 && stats.uniqueDays >= 7 && independentPayers >= 3) {
     return "rich";
   }
-  if (stats.paymentCount >= 3 && independentPayers >= 2) {
+  if (stats.paymentCount >= 3 && independentPayers >= 2 && stats.uniqueDays >= 2) {
     return "moderate";
   }
   return "thin";

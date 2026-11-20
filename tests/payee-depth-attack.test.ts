@@ -36,7 +36,7 @@ test("深さ判定は independentPayers（＝判明した資金源）を見て�
   );
   assert.match(
     src,
-    /paymentCount >= 3 && independentPayers >= 2/,
+    /paymentCount >= 3 && independentPayers >= 2 && stats\.uniqueDays >= 2/,
     "moderate の条件が independentPayers を見ていること",
   );
 });
@@ -44,10 +44,10 @@ test("深さ判定は independentPayers（＝判明した資金源）を見て�
 test("攻撃条件: 未索引ウォレット2つでは independentPayers が2にならない", () => {
   // getPayeeStats は distinctFunders に「判明した資金源」だけを入れる
   // （未索引は payersWithUnknownFunder へ）。よって攻撃者の値は:
-  const attacker = { distinctPayers: 2, distinctFunders: 0, paymentCount: 3 };
+  const attacker = { distinctPayers: 2, distinctFunders: 0, paymentCount: 3, uniqueDays: 1 };
   const independentPayers = Math.min(attacker.distinctPayers, attacker.distinctFunders);
   assert.equal(independentPayers, 0, "未索引は独立と数えない");
-  const isModerate = attacker.paymentCount >= 3 && independentPayers >= 2;
+  const isModerate = attacker.paymentCount >= 3 && independentPayers >= 2 && attacker.uniqueDays >= 2;
   assert.equal(isModerate, false, "moderate に上がらない＝thin天井が効いたまま");
 });
 
