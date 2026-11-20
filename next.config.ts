@@ -67,6 +67,9 @@ const nextConfig: NextConfig = {
         source: "/.well-known/mcp-registry-auth",
         headers: [{ key: "Content-Type", value: "text/plain; charset=utf-8" }],
       },
+      // API キー本体を返す経路と dashboard API は共有キャッシュに載せない（監査 R3 whitehat-06）。
+      { source: "/api/signup", headers: [{ key: "Cache-Control", value: "no-store" }] },
+      { source: "/api/dashboard/:path*", headers: [{ key: "Cache-Control", value: "no-store" }] },
     ];
   },
   async rewrites() {
