@@ -27,7 +27,7 @@ test("decisionSource decision は resourceId（sha256）が必須", () => {
 });
 
 test("役割は payee 固定で /decision を叩く。role=payer は送らない", async () => {
-  const { calls, fetchFn } = capture({ recommendation: "ALLOW", facts: { settled_count_30d: 5 }, ...fresh() });
+  const { calls, fetchFn } = capture({ recommendation: "ALLOW", facts: { settled_count_30d: 5 }, degraded: false, signalsUnavailable: [], ...fresh() });
   const gate = createTrustGate({ ...CFG, fetch: fetchFn, idempotencyKey: (a) => `order-${a.slice(-4)}` });
   const d = await gate.evaluate(ADDR);
   assert.equal(d.action, "allow");

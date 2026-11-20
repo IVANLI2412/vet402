@@ -187,6 +187,27 @@ const fresh = () => ({
   cacheExpiresAt: new Date(Date.now() + 300000).toISOString(),
 });
 
+test("H-4: degraded string true and malformed signalsUnavailable block on score path", async () => {
+  const gateTrue = createTrustGate({ ...CFG, fetch: scoreFetch({ score: 80, recommendation: "ALLOW", degraded: "true", ...fresh() }) });
+  assert.equal((await gateTrue.evaluate(ADDR)).reason, "score_degraded");
+  const gateSignals = createTrustGate({ ...CFG, fetch: scoreFetch({ score: 80, recommendation: "ALLOW", signalsUnavailable: { native_drain: true }, ...fresh() }) });
+  assert.equal((await gateSignals.evaluate(ADDR)).reason, "score_degraded");
+});
+
+test("decision path blocks partial signalsUnavailable under allow-only", async () => {
+  const rid = "b".repeat(64);
+  const body = { recommendation: "ALLOW", score: { trustScore: 80 }, degraded: false, signalsUnavailable: ["native_drain"], facts: { l0: { status: "pass" } }, scoredAt: new Date().toISOString(), cacheExpiresAt: new Date(Date.now() + 60_000).toISOString() };
+  const gate = createTrustGate({
+    ...CFG,
+    decisionSource: "decision",
+    resourceId: rid,
+    fetch: scoreFetch(body),
+  });
+  const d = await gate.evaluate(ADDR);
+  assert.equal(d.action, "block");
+  assert.equal(d.reason, "partial_measurement");
+});
+
 test("H-4: a degraded read blocks even with an ALLOW recommendation", async () => {
   const gate = createTrustGate({
     ...CFG,

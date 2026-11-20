@@ -20,6 +20,24 @@
 //   - zero runtime dependencies: the adapters type their frameworks
 //     structurally so this package never pulls in express/hono/next.
 // ============================================================
+/** Same predicate as `@vet402/sdk` `scoreQualityDefect` — keep in sync. */
+function scoreQualityDefect(score) {
+    if (score === null || typeof score !== "object")
+        return "degraded";
+    if (typeof score.degraded !== "boolean" || score.degraded === true)
+        return "degraded";
+    const signals = score.signalsUnavailable;
+    if (signals === undefined)
+        return null;
+    if (!Array.isArray(signals))
+        return "unreadable";
+    return signals.length > 0 ? "partial" : null;
+}
+/** Score bodies may omit `degraded`; decision bodies must not lie about measurement quality. */
+function gateQualityDefect(body, mode) {
+    const degraded = mode === "score" && body.degraded === undefined ? false : body.degraded;
+    return scoreQualityDefect({ degraded, signalsUnavailable: body.signalsUnavailable });
+}
 const WALLET_RE = /^0x[a-fA-F0-9]{40}$/;
 const TX_HASH_RE = /^0x[a-fA-F0-9]{64}$/;
 /** Raised for programming errors (bad address/config) — never for a BLOCK. */
@@ -240,17 +258,14 @@ export function createTrustGate(config) {
         // block (not via failMode: it is a successful response that says "do not
         // trust this", not an outage). A stale read is likewise not current.
         if (policy !== "custom") {
-            if (body.degraded === true) {
-                return { action: "block", recommendation, score, address, reason: "score_degraded", degraded: true };
-            }
             if (isScoreStale(body, Date.now(), maxScoreAgeMs)) {
                 return { action: "block", recommendation, score, address, reason: "score_stale", degraded: true };
             }
-            // A partial measurement (some inputs unmeasured) is a real but incomplete
-            // read: allow-only blocks it, block-only tolerates it — mirroring
-            // SpendGuard's payee_partial_measurement handling exactly.
-            if ((policy === "allow-only" || policy === "evidence") &&
-                (body.signalsUnavailable?.length ?? 0) > 0) {
+            const defect = gateQualityDefect(body, "score");
+            if (defect === "degraded" || defect === "unreadable") {
+                return { action: "block", recommendation, score, address, reason: "score_degraded", degraded: true };
+            }
+            if (defect === "partial" && (policy === "allow-only" || policy === "evidence")) {
                 return { action: "block", recommendation, score, address, reason: "partial_measurement", degraded: false };
             }
         }
@@ -323,11 +338,15 @@ export function createTrustGate(config) {
             return { action: "block", recommendation, score, address, reason: "facts_missing", degraded: true };
         }
         if (policy !== "custom") {
-            if (body.degraded === true) {
-                return { action: "block", recommendation, score, address, reason: "decision_degraded", degraded: true };
-            }
             if (isScoreStale(body, Date.now(), maxScoreAgeMs)) {
                 return { action: "block", recommendation, score, address, reason: "decision_stale", degraded: true };
+            }
+            const defect = gateQualityDefect(body, "decision");
+            if (defect === "degraded" || defect === "unreadable") {
+                return { action: "block", recommendation, score, address, reason: "decision_degraded", degraded: true };
+            }
+            if (defect === "partial" && (policy === "allow-only" || policy === "evidence")) {
+                return { action: "block", recommendation, score, address, reason: "partial_measurement", degraded: false };
             }
         }
         if (blockOn.includes(recommendation)) {
