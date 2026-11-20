@@ -2195,7 +2195,10 @@ paths:
         transaction from proofOfPayment or, for vet402 weekly rollups through
         2026-W46 without that field, the earliest delivered transactions[] row,
         and matches the recipient to
-        vet402 state.erc8004 payTo and the agent owner or agentWallet.
+        vet402 state.erc8004 payTo and the agent owner or agentWallet only.
+        Payees named only inside feedback JSON (for example seller.payTo) are
+        never pass evidence. When the same tx appears in more than one indexed
+        feedback event, sources may note the count without affecting verdict.
         verdict is verified (payer matches the feedback writer),
         verified_payment_unlinked_client (on-chain payment aligns but the
         payer cannot be tied to the writer, e.g. another chain or wallet—not

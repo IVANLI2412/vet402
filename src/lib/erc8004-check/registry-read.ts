@@ -148,6 +148,18 @@ export async function readOnChainFeedbackMeta(
   return { value, valueDecimals: Number(valueDecimals), tag1, tag2, isRevoked };
 }
 
+/** 同じ tx が索引済みフィードバックに何回出るか（数えるだけ・照合の pass には使わない）。 */
+export async function countIndexedFeedbackEventsForTx(chainId: number, txHash: string): Promise<number> {
+  const db = getDb();
+  if (!db) return 0;
+  const normalized = txHash.trim().toLowerCase();
+  const rows = await db
+    .select({ id: feedbackEvents.id })
+    .from(feedbackEvents)
+    .where(and(eq(feedbackEvents.chainId, chainId), eq(feedbackEvents.txHash, normalized)));
+  return rows.length;
+}
+
 async function defaultLoadTxHashes(chainId: number, agentId: bigint, client: Address): Promise<readonly Hex[]> {
   const db = getDb();
   if (!db) return [];

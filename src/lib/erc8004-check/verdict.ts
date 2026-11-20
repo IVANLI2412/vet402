@@ -37,11 +37,8 @@ export function evaluateRecipientCheck(
   proofTo: string | null,
   paymentKind: PaymentNetworkKind,
   inPayTargets: (to: string | null) => boolean,
-  declaredPayees: string[] = [],
 ): Erc8004CheckTriState {
   if (inPayTargets(movementTo) || inPayTargets(proofTo)) return "pass";
-  if (movementTo && declaredPayees.some((payee) => addressesEqual(payee, movementTo))) return "pass";
-  if (proofTo && declaredPayees.some((payee) => addressesEqual(payee, proofTo))) return "pass";
   if (!movementTo) return "unknown";
   if (paymentKind !== "evm" && paymentKind !== "tempo") {
     if (proofTo && addressesEqual(movementTo, proofTo)) return "unknown";
