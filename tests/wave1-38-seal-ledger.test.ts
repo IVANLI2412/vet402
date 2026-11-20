@@ -9,6 +9,7 @@
 // [fix] はこの枝の変更が無いと落ちる行。[guard] は main で既に満たしていて、退行を止める行。
 // 公開の入口が無いときは import の例外ではなく、その名前を出して落とす。
 // ============================================================
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -137,7 +138,7 @@ test("[fix] 3.8 money: a new anchor send stops before it is signed or sent", asy
 
 test("[fix] 3.8b: the public docs for the traceable route follow the public English rules", () => {
   const forbidden = /\b(we|our|us)\b|—|–|;|Key-less|in-house|Append-only|third-party/i;
-  const docs = readFileSync("src/app/docs/api/page.tsx", "utf8");
+  const docs = apiDocsPageText();
   const i = docs.indexOf('path: "/api/v1/observatory/traceable-by-chain"');
   assert.ok(i > 0, "docs page lists the route");
   assert.doesNotMatch(/note: "([^"]*)"/.exec(docs.slice(i))![1], forbidden);

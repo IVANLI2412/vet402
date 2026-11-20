@@ -1,5 +1,6 @@
 // B2: 未掲載 URL の払う前の診断。鍵なし・無料・財布なし。
 // 直す前のコードではこのファイルの import が落ちる。
+import { apiDocsPageText } from "./lib/api-docs-source";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
@@ -573,7 +574,7 @@ test("diagnose source does not call payment or signing functions", () => {
   assert.ok(route.includes("publicRateLimit"));
   assert.ok(route.includes("diagnose"));
   assert.ok(readFileSync("public/llms.txt", "utf8").includes("/api/v1/diagnose"));
-  assert.ok(readFileSync("src/app/docs/api/page.tsx", "utf8").includes("/api/v1/diagnose"));
+  assert.ok(apiDocsPageText().includes("/api/v1/diagnose"));
   assert.ok(readFileSync("docs/openapi.yaml", "utf8").includes("/api/v1/diagnose"));
   const llms = readFileSync("public/llms.txt", "utf8");
   const line = llms.split("\n").find((row) => row.includes("/api/v1/diagnose"));

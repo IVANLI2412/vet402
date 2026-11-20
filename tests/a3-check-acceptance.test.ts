@@ -3,6 +3,7 @@
 // GET /api/v1/check?url= は MCP の check_x402_seller と同じ関数（checkSeller）の答えを、
 // 鍵なしで、エッジに置ける形で返す。新しい主張は作らない。
 // ============================================================
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
@@ -78,7 +79,7 @@ test("A3: the route uses the handler with the MCP readers, and the docs name it"
   assert.ok(src.includes("rest:check"));
   assert.ok(readFileSync("public/llms.txt", "utf8").includes("/api/v1/check"));
   assert.ok(readFileSync("docs/openapi.yaml", "utf8").includes("/api/v1/check"));
-  assert.ok(readFileSync("src/app/docs/api/page.tsx", "utf8").includes("/api/v1/check"));
+  assert.ok(apiDocsPageText().includes("/api/v1/check"));
 });
 
 test("A3: a reader failure answers 503 and is not cached", async () => {

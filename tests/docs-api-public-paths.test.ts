@@ -1,12 +1,13 @@
 // 2026-10-24: docs/openapi.yaml の paths にある公開窓口は、全部 /docs/api のカード path に出る。
 // admin / cron / billing / dashboard / signup は paths に無い（openapi 先頭のコメント）。
 // /api/v1/guarantee/quote も paths に無い。休眠中なのでカードにも載せない。
+import { apiDocsPageText } from "./lib/api-docs-source";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 
 const yaml = readFileSync("docs/openapi.yaml", "utf8");
-const page = readFileSync("src/app/docs/api/page.tsx", "utf8");
+const page = apiDocsPageText();
 
 function publicOpenApiPaths(source: string): string[] {
   const start = source.indexOf("\npaths:\n");

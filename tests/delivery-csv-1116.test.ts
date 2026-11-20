@@ -5,6 +5,7 @@
 //   3. x-vet402-as-of と x-vet402-generated-at
 // 既定の export.csv（凍結）には何も足さない。
 // ============================================================
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -104,7 +105,7 @@ test("誰の購入か・ヘッダの意味は 1 か所の定数で、methodology
   }
   assertPublicEnglish(DELIVERY_CSV_COLUMN_NOTES, "column notes");
   const page = read("src/app/observatory/methodology/page.tsx");
-  const docs = read("src/app/docs/api/page.tsx");
+  const docs = apiDocsPageText();
   for (const src of [page, docs]) {
     assert.ok(src.includes("DELIVERY_CSV_WHOSE_PURCHASES"));
     assert.ok(src.includes("DELIVERY_CSV_HEADER_NOTES"));
@@ -119,7 +120,7 @@ test("body_bytes の意味は 1 か所の定数で、上限の扱いまで書く
   assert.match(DELIVERY_CSV_BODY_BYTES_NOTE, /262144-byte read cap shows 262144, the read cap, not the full size/);
   assertPublicEnglish(DELIVERY_CSV_BODY_BYTES_NOTE, "body_bytes note");
   assert.ok(DELIVERY_CSV_COLUMN_NOTES.includes(DELIVERY_CSV_BODY_BYTES_NOTE));
-  for (const p of ["src/app/observatory/methodology/page.tsx", "src/app/docs/api/page.tsx"]) {
+  for (const p of ["src/app/observatory/methodology/page.tsx", "src/lib/docs/api-endpoints-data.tsx"]) {
     assert.ok(read(p).includes("DELIVERY_CSV_BODY_BYTES_NOTE"), p);
   }
   const changelog = read("docs/handoffs/CHANGELOG.md");

@@ -9,6 +9,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { endpointReceiptBadge, settleExcludingVet402Side } from "@/lib/badge/receipt-badge";
 import { FRESHNESS_LEAD } from "@/lib/observatory/freshness";
 
@@ -57,6 +58,12 @@ test("purchases API とバッジは同じ分母: vet402 の側を外した率を
 });
 
 test("export の 1 行の説明: 依頼の記録を含むと面で同じに言う", () => {
-  for (const p of ["src/lib/sellers/export.ts", "src/app/docs/api/page.tsx", "public/llms.txt"]) assert.match(read(p), /records opened for a seller's re-test request included/, p);
+  for (const [p, body] of [
+    ["src/lib/sellers/export.ts", read("src/lib/sellers/export.ts")],
+    ["src/app/docs/api", apiDocsPageText()],
+    ["public/llms.txt", read("public/llms.txt")],
+  ] as const) {
+    assert.match(body, /records opened for a seller's re-test request included/, p);
+  }
   assert.match(read("docs/openapi.yaml").replace(/\s+/g, " "), /records opened for a seller's re-test request included/);
 });

@@ -1,4 +1,5 @@
 // 2026-10-26 SEO 点検の直しを、戻すと赤になる形で固定する。
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
@@ -126,7 +127,7 @@ test("history の days は DB を読む前に正規化し、無指定は 30 の�
 test("公開の meta description は 160 字以内で、トップは USDC だけとは読まない", () => {
   const api = `Decision API for x402 agent payments. ${keylessRatesSentence()}`;
   assert.match(
-    read("src/app/docs/api/page.tsx"),
+    apiDocsPageText(),
     /const API_BLURB = `Decision API for x402 agent payments\. \$\{keylessRatesSentence\(\)\}`;/,
   );
   const siteDescription = read("src/app/layout.tsx").match(/const SITE_DESCRIPTION =\s*"([^"]*)"/);

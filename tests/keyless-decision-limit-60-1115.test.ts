@@ -1,4 +1,5 @@
 // Key-less /decision limit 60/min (2026-11-15).
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -18,7 +19,7 @@ test("DECISION_KEYLESS_LIMIT and helpers read 60 per minute", () => {
 });
 
 test("docs and static copy use 60 for /decision key-less, not hard-coded 10", () => {
-  const page = readFileSync("src/app/docs/api/page.tsx", "utf8");
+  const page = apiDocsPageText();
   assert.match(page, /keylessDecisionPerMinute\(\)/);
   const decisionChunks = page.split("/decision");
   for (let i = 1; i < decisionChunks.length; i++) {
@@ -66,7 +67,7 @@ test("rendered public copy says 60 for key-less /decision, not 10", async () => 
   assert.match(snippets, /\$\{KEYLESS_DECISION\} requests a minute/);
   assert.doesNotMatch(snippets, /10 requests a minute/);
 
-  const page = readFileSync("src/app/docs/api/page.tsx", "utf8");
+  const page = apiDocsPageText();
   assert.match(page, /answers \{keylessDecisionPerMinute\(\)\} requests per minute per IP/);
   const rateSection = page.slice(page.indexOf('id="rate-limits"'), page.indexOf('id="rate-limits"') + 2500);
   assert.match(rateSection, /\{keylessDecisionPerMinute\(\)\}\/min per IP/);
@@ -91,7 +92,7 @@ test("static docs: the key-less /decision number and its since date follow keyle
   const openapi = readFileSync("docs/openapi.yaml", "utf8");
   const block = openapi.slice(openapi.indexOf("  /api/v1/resources/{resourceId}/decision:"));
   assert.ok(block.includes(`per-IP window of ${n}/min\n        (since ${DECISION_KEYLESS_LIMIT_SINCE}, 10/min before)`));
-  const page = readFileSync("src/app/docs/api/page.tsx", "utf8");
+  const page = apiDocsPageText();
   assert.ok(page.includes("since 2026-09-07, at ${keylessDecisionPerMinute()}/min per IP since ${DECISION_KEYLESS_LIMIT_SINCE};"));
   assert.doesNotMatch(page, /\/min per IP with the same body \(since 2026-09-07/);
 });

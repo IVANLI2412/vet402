@@ -12,6 +12,7 @@
 //   - Organization sameAs is X-only (GitHub / npm are the other identities)
 //   - security.txt still names a personal inbox the rest of the site left
 // ============================================================
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
@@ -170,7 +171,7 @@ test("payee lookup carries HowTo JSON-LD for answer engines", () => {
 
 test("methodology and API docs carry TechArticle JSON-LD", () => {
   const method = read("src/app/observatory/methodology/page.tsx");
-  const docs = read("src/app/docs/api/page.tsx");
+  const docs = apiDocsPageText();
   assert.ok(method.includes("TechArticle"));
   assert.ok(docs.includes("TechArticle"));
 });

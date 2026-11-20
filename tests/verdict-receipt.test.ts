@@ -1,6 +1,7 @@
 // 判定ごとの EIP-191 レシート（課題 B3）。
 // 鍵が無い応答は今の本文のまま。改ざんした receipt は POST /api/v1/receipts/verify で落ちる。
 // 署名鍵は試験の中だけで置く。よく知られた Anvil の開発用鍵であり、本番の鍵ではない。
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { describe, test, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
@@ -239,7 +240,7 @@ test("レシートの節は検証の方法を書き、we とセミコロンと�
   assert.equal(doc.includes(";"), false);
   assert.equal(/[—–]/.test(doc), false);
 
-  const page = readFileSync("src/app/docs/api/page.tsx", "utf8");
+  const page = apiDocsPageText();
   assert.ok(page.includes('path: "/api/v1/receipts/verify"'));
   const openapi = readFileSync("docs/openapi.yaml", "utf8");
   assert.ok(openapi.includes("/api/v1/receipts/verify:"));

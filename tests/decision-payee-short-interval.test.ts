@@ -3,6 +3,7 @@
 // 同じ resource への短い間隔の支払いは、毎分同じ API を使う普通の買い手と区別できない。
 // 測れないものを理由に role=payee を BLOCK にしない。数値は facts に事実として残す。
 // ============================================================
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -85,7 +86,7 @@ test("openapi: 新しい名前を説明し、古い名前は同じ値の depreca
 
 test("公開の説明: /docs/api と llms.txt は新しい名前を説明し、/corrections は版と読み取りの時刻を書く", () => {
   const read = (p: string) => readFileSync(join(process.cwd(), p), "utf8");
-  const docs = read("src/app/docs/api/page.tsx");
+  const docs = apiDocsPageText();
   assert.match(docs, /facts\.short_interval_payment_rate/);
   assert.match(docs, /does not\s+change the verdict/);
   const llms = read("public/llms.txt");

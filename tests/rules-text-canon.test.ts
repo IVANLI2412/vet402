@@ -3,6 +3,7 @@
 // （2026-09-29 監査 7 周目・オーナーの確認）。静的な面は scripts/gen-rules-text.ts が書き出し、ここで一致しないと落ちる。
 // 直し方: `npx tsx scripts/gen-rules-text.ts` を打って、書き出された差分を commit する。
 // ============================================================
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -25,7 +26,7 @@ test("静的な面（llms.txt・openapi.yaml・MCP の生成物）は正典か�
 });
 
 test("動的な面（/docs/api・llms-full.txt・MCP の説明）は正典を import して埋め込む", () => {
-  const docs = read("src/app/docs/api/page.tsx");
+  const docs = apiDocsPageText();
   assert.match(docs, /DECISION_RULES_TEXT/);
   assert.match(docs, /VERDICT_DOCS\[v\]/);
   assert.match(docs, /Reason codes \(rules \{DECISION_RULES_VERSION\}\)/);

@@ -13,6 +13,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { apiDocsPageText } from "./lib/api-docs-source";
 import {
   decodeCorrectionCursor,
   encodeCorrectionCursor,
@@ -271,15 +272,23 @@ test("CSV のセル: カンマ・引用符・改行を引用する", () => {
 // 面
 // ------------------------------------------------------------------
 test("面: 新しい export と訂正ログの頁送りが openapi・llms.txt・docs/api・llms-full に出ている", () => {
-  const surfaces = ["docs/openapi.yaml", "public/llms.txt", "src/app/docs/api/page.tsx", "src/app/llms-full.txt/route.ts"];
-  for (const f of surfaces) {
-    const body = read(f);
+  const surfaces: [string, string][] = [
+    ["docs/openapi.yaml", read("docs/openapi.yaml")],
+    ["public/llms.txt", read("public/llms.txt")],
+    ["src/app/docs/api", apiDocsPageText()],
+    ["src/app/llms-full.txt/route.ts", read("src/app/llms-full.txt/route.ts")],
+  ];
+  for (const [f, body] of surfaces) {
     for (const needle of ["/api/v1/observatory/l0/export.csv", "/api/v1/sellers/export.csv", "cursor"]) {
       assert.ok(body.includes(needle), `${f} に ${needle} が無い`);
     }
   }
-  for (const f of ["docs/openapi.yaml", "public/llms.txt", "src/app/docs/api/page.tsx"]) {
-    assert.ok(read(f).includes("seller_named_tx_promoted"), `${f} に seller_named_tx_promoted が無い`);
+  for (const [f, body] of [
+    ["docs/openapi.yaml", read("docs/openapi.yaml")],
+    ["public/llms.txt", read("public/llms.txt")],
+    ["src/app/docs/api", apiDocsPageText()],
+  ] as const) {
+    assert.ok(body.includes("seller_named_tx_promoted"), `${f} に seller_named_tx_promoted が無い`);
   }
   // llms.txt は「通常 1 日以内に settled」と言い切らない（照合待ちが 17 日の行があった）
   const llms = read("public/llms.txt");

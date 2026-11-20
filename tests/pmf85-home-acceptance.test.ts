@@ -1,3 +1,4 @@
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
@@ -72,7 +73,7 @@ test("A-1: monthly quota copy uses score lookups, not seller checks", () => {
   assert.match(read("src/app/signup/layout.tsx"), SCORE_LOOKUPS);
   assert.match(read("src/components/site/faq-data.ts"), SCORE_LOOKUPS);
   assert.match(read("src/app/page.tsx"), SCORE_LOOKUPS);
-  assert.match(read("src/app/docs/api/page.tsx"), SCORE_LOOKUPS);
+  assert.match(apiDocsPageText(), SCORE_LOOKUPS);
   assert.match(read("src/app/signup/page.tsx"), /1,000 score lookups/);
 });
 

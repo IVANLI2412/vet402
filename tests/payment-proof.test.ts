@@ -1,6 +1,7 @@
 // POST /api/v1/payment-proof と MCP check_payment_proof。
 // ネットワークへ出さない。EVM の読み手は偽物の RPC（getChainId / getTransactionReceipt）に差し替える。
 // 鍵なしの回数制限は既存の publicRateLimit（メモリ、DATABASE_URL 無し）。
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -85,7 +86,7 @@ async function post(body: unknown, ip: string, deps?: unknown) {
 
 test("llms.txt と /docs/api に payment-proof の節がある", () => {
   const llms = readFileSync("public/llms.txt", "utf8");
-  const docs = readFileSync("src/app/docs/api/page.tsx", "utf8");
+  const docs = apiDocsPageText();
   const openapi = readFileSync("docs/openapi.yaml", "utf8");
   const line = llms.split("\n").find((l) => l.includes("/api/v1/payment-proof"));
   assert.ok(line, "llms.txt に payment-proof が無い");

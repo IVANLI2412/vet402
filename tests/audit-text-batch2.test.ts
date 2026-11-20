@@ -2,6 +2,7 @@
 // 2026-10-21 監査 A-06 / A-07 / A-13 / A-14 の公開文を、戻すと赤になる形で固定する。
 // DB も本番も叩かない。列挙の改名、枠の最新値、測定数のハードコードはしない。
 // ============================================================
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -35,7 +36,7 @@ test("A-06 keeps the decision enum and states when conform, mismatch, not_checke
   assert.equal(method.includes("every API returns"), false);
   assert.equal(method.includes("rows that were never checked"), false);
   assert.equal(method.includes("undeclared is no_declaration"), false);
-  const docs = read("src/app/docs/api/page.tsx");
+  const docs = apiDocsPageText();
   const quick = docs.slice(
     docs.indexOf("Resolve a URL, then read the decision"),
     docs.indexOf("What happened when vet402 actually paid"),
@@ -72,7 +73,7 @@ test("A-06 keeps the decision enum and states when conform, mismatch, not_checke
 });
 
 test("A-07 gates a payment on getDecision and does not pay from the wallet score alone", () => {
-  const docs = read("src/app/docs/api/page.tsx");
+  const docs = apiDocsPageText();
   const gate = docs.slice(docs.indexOf("SDK: gate a payment"), docs.indexOf("Middleware: gate an x402 endpoint"));
   assert.ok(gate.length > 100);
   assert.match(gate, /getDecision/);
@@ -101,7 +102,7 @@ test("A-07 gates a payment on getDecision and does not pay from the wallet score
 });
 
 test("A-13 labels the census frame as a shape and attributes the two published totals", () => {
-  const docs = read("src/app/docs/api/page.tsx");
+  const docs = apiDocsPageText();
   const census = docs.slice(docs.indexOf('path: "/api/v1/census/summary'), docs.indexOf('path: "/api/v1/observatory/corrections'));
   assert.ok(census.length > 100);
   assert.match(census, /Example of the shape only/);

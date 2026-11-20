@@ -1,4 +1,5 @@
 // PMF85 r6: reputation evidence age, pricing wording, signup lead, docs quickstart check-first, observatory pass probe age.
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -94,7 +95,7 @@ test("signup H1 leads with benefit and links methodology", () => {
 });
 
 test("docs/api quickstart leads with GET /api/v1/check and keeps KEYLESS_READ_STOP after it", () => {
-  const docs = read("src/app/docs/api/page.tsx");
+  const docs = apiDocsPageText();
   const qs = docs.indexOf('id="quickstart"');
   const resolve = docs.indexOf("/api/v1/resolve?q=https://api.exa.ai/search", qs);
   const check = docs.indexOf("/api/v1/check?url=", qs);

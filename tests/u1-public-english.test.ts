@@ -1,3 +1,4 @@
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -40,7 +41,7 @@ test("openapi find description and docs find card", () => {
   const findBlock = openapi.match(/\/api\/v1\/find:[\s\S]*?(?=\n  \/)/);
   assert.ok(findBlock, "find path in openapi");
   assertPublicEnglish("openapi find", findBlock![0]!, true);
-  const docs = readFileSync("src/app/docs/api/page.tsx", "utf8");
+  const docs = apiDocsPageText();
   const card = docs.match(/path: "\/api\/v1\/find[\s\S]*?response: `[^`]+`/);
   assert.ok(card, "find card in docs api");
   assertPublicEnglish("docs find card", card![0]!, true);

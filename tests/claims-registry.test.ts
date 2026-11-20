@@ -493,6 +493,8 @@ function publicSurfaces(): string[] {
   out.push(relative(ROOT, join(ROOT, "src/lib/sellers/fix-modes.ts")));
   // 2026-09-29.3: 判定の理由コードの表。/docs/api#reason-codes にそのまま出す。
   out.push(relative(ROOT, join(ROOT, "src/lib/decision/reason-codes.ts")));
+  // 2026-11-21: /docs/api の endpoint カード本文（初回 HTML を軽くするため page から分離）。
+  out.push(relative(ROOT, join(ROOT, "src/lib/docs/api-endpoints-data.tsx")));
   // 2026-10-21: public/llms.txt は静的ファイルで、page.tsx の走査に入らない。
   // 機械が引用する正典なので、同じ関門に名指しで足す。
   out.push(relative(ROOT, join(ROOT, "public/llms.txt")));
@@ -562,7 +564,8 @@ const DETECTION_FLOOR: Record<string, number> = {
   // 2026-11-02: 資産の列挙を表から差し込み、説明文が 3 片に分かれて検出が 6 になった。文言監査 M1。
   "src/app/api/v1/observatory/state/route.ts": 6,
   "src/app/corrections/page.tsx": 21,
-  "src/app/docs/api/page.tsx": 56,
+  "src/app/docs/api/page.tsx": 37,
+  "src/lib/docs/api-endpoints-data.tsx": 24,
   "src/app/impact/page.tsx": 8, // 2026-09-29: 「Rewriting any past row breaks every later root」を実装に合わせて外した
   "src/app/leaderboard/page.tsx": 5,
   // 2026-10-26: 床は 8 のまま。月次表の文（持ち主の人数、締まった月の固定、未分類は件数を出さない、鍵なしはチェーンごとに数えない）に断定語は無い。

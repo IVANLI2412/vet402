@@ -9,6 +9,7 @@
 //   3. 理由コードの表（src/lib/decision/reason-codes.ts）＝ /docs/api#reason-codes ＝ openapi の DecisionReasonCode。
 //      rules.ts が出しうる語は表に全部ある。
 // ============================================================
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -275,7 +276,7 @@ test("openapi の DecisionReasonCode は表と同じ語（enum）とパターン
 });
 
 test("/docs/api は表をそのまま描く（#verdicts と #reason-codes・旧スコア帯は #score-bands）", () => {
-  const src = readFileSync("src/app/docs/api/page.tsx", "utf8");
+  const src = apiDocsPageText();
   assert.match(src, /from "@\/lib\/decision\/reason-codes"/);
   assert.match(src, /REASON_CODES\.map\(/);
   assert.match(src, /<section id="verdicts"/);

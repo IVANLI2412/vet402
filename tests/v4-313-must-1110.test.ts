@@ -1,4 +1,5 @@
 // 3.13 Must（11/10 S1-2 物差し、11/13 F4 判定初版）— specs_rest.md 準拠（2026-11-10）。
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -637,7 +638,7 @@ test("3.13: buildGate2Report の形は維持する", async () => {
 
 test("3.13-S1-2: 新規公開英語に hit-rate 複合語を置かない", () => {
   const openapi = read("docs/openapi.yaml");
-  const apiPage = read("src/app/docs/api/page.tsx");
+  const apiPage = apiDocsPageText();
   const doc = loadDeliveryHitRateYardstick();
   const yardstickSlice = openapi.slice(
     openapi.indexOf("summary: Pre-registered delivery hit"),

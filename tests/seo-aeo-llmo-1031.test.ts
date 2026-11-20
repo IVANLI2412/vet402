@@ -10,6 +10,7 @@
 //   5. /docs/api explained the vouch_ key prefix as "vet402's former name (Vouch)", which the outward-name scan
 //      flags. The fact stays; the wording now matches the allowed "was called Vouch until August 2026" form.
 //   6. /docs/api opened with a table of contents and no sentence saying what vet402 is or how to check a seller.
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -154,7 +155,7 @@ test("the home page names no past month as a month-and-year (judge-face past_mon
 });
 
 test("/docs/api explains the vouch_ prefix with the allowed history wording", () => {
-  const src = read("src/app/docs/api/page.tsx");
+  const src = apiDocsPageText();
   assert.equal(src.includes("former\n            name (Vouch)"), false);
   assert.equal(/former name \(Vouch\)/.test(src.replace(/\s+/g, " ")), false);
   assert.match(src.replace(/\s+/g, " "), /the product was called Vouch until August 2026\), so existing keys and configs still work\./);
@@ -170,7 +171,7 @@ test("/docs/api opens with a plain answer: what vet402 is and how to check a sel
   assert.match(API_DOCS_ANSWER, /ALLOW, WARN or BLOCK/);
   assert.equal(API_DOCS_ANSWER.includes(EM_DASH), false, "no em dash");
   assert.equal(/\bwe\b/i.test(API_DOCS_ANSWER), false, "no we");
-  const src = read("src/app/docs/api/page.tsx");
+  const src = apiDocsPageText();
   const answerAt = src.indexOf("{API_DOCS_ANSWER}");
   assert.ok(answerAt > 0, "API_DOCS_ANSWER is not rendered");
   assert.ok(answerAt < src.indexOf('id="quickstart"'), "the answer must come before Quickstart");

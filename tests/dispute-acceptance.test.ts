@@ -3,6 +3,7 @@
 // ============================================================
 process.env.PROXY_HEADER_SOURCE = "generic";
 
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -428,7 +429,7 @@ test("[p2d] T9 public surfaces omit fault vocabulary outside claims", async () =
 
   const connectStrings = quotedStringsFromSource(readFileSync("src/app/connect/trade-dispute/page.tsx", "utf8"));
   const panelStrings = quotedStringsFromSource(readFileSync("src/components/connect/TradeDisputePanel.tsx", "utf8"));
-  const docsApi = readFileSync("src/app/docs/api/page.tsx", "utf8")
+  const docsApi = apiDocsPageText()
     .split("\n")
     .filter((l) => l.includes("observatory/disputes"))
     .join("\n");
@@ -1526,7 +1527,7 @@ test("[p2d] parseAuthCapturePaymentInfo digit bounds", () => {
 });
 
 test("[p2d] docs P2 routes start with Draft and page path matches route", () => {
-  const docs = readFileSync("src/app/docs/api/page.tsx", "utf8");
+  const docs = apiDocsPageText();
   const matches = [...docs.matchAll(/path: "\/api\/v1\/observatory\/disputes[^"]*"[\s\S]*?note: "(Draft\.[^"]+)"/g)];
   assert.equal(matches.length, 3);
   assert.equal(P2_DISPUTE_PAGE_PATH, "/connect/trade-dispute");

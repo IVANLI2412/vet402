@@ -1,4 +1,5 @@
 // GET /api/v1/erc8004/check — Reputation Registry の proofOfPayment 再読。RPC・IPFS は差し替え。
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -536,7 +537,7 @@ test("verified_payment_unlinked_client — Stellar tx と EVM client（払い手
 test("llms.txt・docs・openapi に erc8004/check がある", () => {
   const llms = readFileSync(new URL("../public/llms.txt", import.meta.url), "utf8");
   assert.ok(llms.includes("GET /api/v1/erc8004/check"));
-  const docs = readFileSync(new URL("../src/app/docs/api/page.tsx", import.meta.url), "utf8");
+  const docs = apiDocsPageText();
   assert.ok(docs.includes('path: "/api/v1/erc8004/check"'));
   const openapi = readFileSync(new URL("../docs/openapi.yaml", import.meta.url), "utf8");
   assert.ok(openapi.includes("/api/v1/erc8004/check:"));

@@ -15,6 +15,7 @@ const VOICE_PATHS = [
   "src/app/status/page.tsx",
   "src/app/faq/page.tsx",
   "src/app/docs/api/page.tsx",
+  "src/lib/docs/api-endpoints-data.tsx",
   "src/components/site/faq-data.ts",
 ];
 

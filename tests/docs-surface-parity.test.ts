@@ -8,6 +8,7 @@
 // コードが読む変数が 30 個以上無い。どれも人が読み比べないと気付かない。
 // ここでは実装側（AST / grep）を正典に取り、文書がそれを含むことを検査する。
 // ============================================================
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync, statSync } from "node:fs";
@@ -123,7 +124,7 @@ function routePattern(route: string): RegExp {
 
 for (const doc of ["src/app/docs/api/page.tsx", "public/llms.txt", "src/app/llms-full.txt/route.ts", "README.md"]) {
   test(`${doc} に §7.3 / §9.1 の新規 9 ルートが全部ある`, () => {
-    const body = read(doc);
+    const body = doc === "src/app/docs/api/page.tsx" ? apiDocsPageText() : read(doc);
     const missing = NEW_ROUTES.filter((r) => !routePattern(r).test(body));
     assert.deepEqual(missing, [], `${doc} に無いルート`);
   });
@@ -134,7 +135,7 @@ test("公開面が evidence[].source を説明している（源の名前を機�
   // 「どの台帳が答えたか」は判定そのものではないが、§3 の核（同じウォレットについて
   // 我々のエンジンと The Graph の subgraph が違うことを言う）を読者が確かめる入口なので、
   // 仕様書だけでなく人間が読む面にも出す。
-  const page = read("src/app/docs/api/page.tsx");
+  const page = apiDocsPageText();
   assert.ok(/evidence\[\]\.source|evidence\[\].*source/.test(page), "docs/api に evidence[].source の説明が無い");
   for (const word of ["vet402", "subgraph"]) {
     assert.ok(page.includes(word), `docs/api に源の名前 ${word} が無い`);
@@ -143,7 +144,7 @@ test("公開面が evidence[].source を説明している（源の名前を機�
 });
 
 test("docs/api の Quickstart は例の番号を正しく指し、npm スコープの正典を @vet402 と書く", () => {
-  const page = read("src/app/docs/api/page.tsx");
+  const page = apiDocsPageText();
   assert.ok(!page.includes("(example 3)"), "payee-score の例は 4 番目（example 3 は署名メッセージ）");
   assert.ok(/@vouchscore[^.]*(old|former|previous|legacy)/i.test(page), "@vouchscore が旧名であることを書いていない");
   assert.ok(!/@vouchscore<\/code> scope is the only one/.test(page), "@vouchscore が唯一のスコープ、は npm i @vet402/sdk と矛盾する");
@@ -210,7 +211,7 @@ test("openapi の /decision は policy のクエリ 4 つと CallerPolicy スキ
 
 for (const doc of ["src/app/docs/api/page.tsx", "public/llms.txt", "src/app/llms-full.txt/route.ts", "SKILL.md"]) {
   test(`${doc} が /decision の policy クエリと caller_policy と price_above_ceiling を説明している`, () => {
-    const body = read(doc);
+    const body = doc === "src/app/docs/api/page.tsx" ? apiDocsPageText() : read(doc);
     assert.ok(body.includes("caller_policy"), `${doc} に caller_policy が無い`);
     assert.ok(body.includes("price_above_ceiling"), `${doc} に price_above_ceiling が無い`);
     for (const q of POLICY_QUERIES) assert.ok(body.includes(q), `${doc} に ${q} が無い`);

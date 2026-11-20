@@ -312,49 +312,49 @@ claims:
     why_unverifiable: "この文が述べているのは編集方針・設計上の性質であって、公開 GET が数値で返す種類の主張ではない"
     verified_at: 2026-09-04
   - id: api_my_agent_pay_this_wallet
-    surface: src/app/docs/api/page.tsx
+    surface: src/lib/docs/api-endpoints-data.tsx
     quote: "my agent pay this wallet? Never 404s for an unfamiliar wallet — a wallet with no"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_at_registration_and_at_every
-    surface: src/app/docs/api/page.tsx
+    surface: src/lib/docs/api-endpoints-data.tsx
     quote: "at registration AND at every delivery). GET /api/v1/webhooks lists your"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_proves_wallet_control_only_scores
-    surface: src/app/docs/api/page.tsx
+    surface: src/lib/docs/api-endpoints-data.tsx
     quote: "proves wallet control only; scores stay independent."
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_resource_identifiers_only_never_a
-    surface: src/app/docs/api/page.tsx
+    surface: src/lib/docs/api-endpoints-data.tsx
     quote: "resource. Identifiers only — never a recommendation. A q the classifier cannot"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_facts_and_recommendation_always_arrive
-    surface: src/app/docs/api/page.tsx
+    surface: src/lib/docs/api-endpoints-data.tsx
     quote: "facts and recommendation always arrive in the same document; the transitional"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_payees_no_key_120_min
-    surface: src/app/docs/api/page.tsx
+    surface: src/lib/docs/api-endpoints-data.tsx
     quote: "payees[] — no key, 120/min. Every payee_id (chain:address) declared by resources"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_as_json_no_key_60
-    surface: src/app/docs/api/page.tsx
+    surface: src/lib/docs/api-endpoints-data.tsx
     quote: "as JSON — no key, 60/min. Every published verdict that later changed:"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check:
@@ -362,7 +362,7 @@ claims:
       assert: "corrections.0.reason != null"
     verified_at: 2026-09-04
   - id: api_census_example_is_shape_only
-    surface: src/app/docs/api/page.tsx
+    surface: src/lib/docs/api-endpoints-data.tsx
     quote: "Example of the shape only"
     means: "census の枠は応答の形の見本で、枠の数は実測ではない。実測は同じ URL を取り、応答の retrievedAt を引用する。枠の 980 を最新値に書き換えない"
     check: null
@@ -468,7 +468,7 @@ claims:
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: census_indexed_since_reports_how_far_back
-    surface: src/app/docs/api/page.tsx
+    surface: src/lib/docs/api-endpoints-data.tsx
     quote: "indexed_since reports how far back the index actually reaches, overall and per chain"
     means: "センサスの応答だけで索引の期間（全体・チェーン別）が読める。indexed_since が消えたらこの主張は偽になる"
     check:
@@ -476,7 +476,7 @@ claims:
       assert: "indexed_since.window_requested_days == 30"
     verified_at: 2026-09-05
   - id: census_window_covered_never_exceeds_requested
-    surface: src/app/docs/api/page.tsx
+    surface: src/lib/docs/api-endpoints-data.tsx
     quote: "window_covered_days is never more than window_requested_days"
     means: "索引が実際に持っている日数は、要求した窓の日数を超えて名乗らない。超えていたら分母の期間を偽っている。既定の窓は 30d なので、この面では 30 が上限（式の右辺に別のパスは書けないので数値で固定する）"
     check:
@@ -1561,7 +1561,7 @@ claims:
   # 覆うが、後半（never rewrites / never lifts / read only with your own key / always）は別ノードになり
   # 孤児になったので、後半に quote を持つ登録を足す。文面は変えていない。
   - id: api_decision_caller_policy_never_rewrites
-    surface: src/app/docs/api/page.tsx
+    surface: src/lib/docs/api-endpoints-data.tsx
     quote: "It sits beside recommendation and never rewrites it; a floor or a waiver never lifts BLOCK or degraded"
     means: "API リファレンスが述べる契約仕様（caller_policy は recommendation を書き換えず、BLOCK / degraded を持ち上げない）"
     check: null
@@ -2280,7 +2280,7 @@ claims:
     why_unverifiable: "CDN とプロセスキャッシュの方針は公開 GET の 1 式では検査しきれない。tests/judgments-cdn-1115.test.ts が route の Cache-Control・ヘッダ・シャード先読み・本文の score 欠落を固定する。"
     verified_at: 2026-11-15
   - id: api_daily_judgments_card
-    surface: src/app/docs/api/page.tsx
+    surface: src/lib/docs/api-endpoints-data.tsx
     quote: "Daily judgments: one JSON per active listing, built once per UTC day from the same payer decision as key-less /decision (no score, no caller_policy). Key-less, no IP cap, CDN cache until the next UTC day. Files: index.json, index-{00..ff}.json, {resource_id}.json. CC-BY-4.0. See #judgments."
     means: "API リファレンスが述べる日次 judgments の契約（active 行ごとに UTC 日次で 1 JSON・鍵なし /decision と同じ payer 記録・score と caller_policy なし・IP 枠なし・次の UTC 日まで CDN キャッシュ）"
     check: null

@@ -11,6 +11,7 @@
 //     緑が正しい。値を変える変更で落ちることを、変異を当てて確かめた（CHANGELOG に記録）
 // DB を使う検証（anchors の GET と day ファイル、訂正の DB 保存）は *.pg.test.ts にある。
 // ============================================================
+import { apiDocsPageText } from "./lib/api-docs-source";
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -588,7 +589,7 @@ test("[fix] 公平-3 3.9-4: Python README は公開の英語の決まりに従�
 });
 
 test("[fix] 公開の英語: この波で足した文に we / our / us、ダッシュ、セミコロン、Key-less などが無い", () => {
-  const docs = read("src/app/docs/api/page.tsx");
+  const docs = apiDocsPageText();
   for (const path of ["/api/v1/observatory/ledger-corrections", "/api/v1/observatory/anchors/day"]) {
     const i = docs.indexOf(`path: "${path}"`);
     assert.ok(i > 0, path);
