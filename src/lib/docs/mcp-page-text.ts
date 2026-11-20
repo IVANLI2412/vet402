@@ -74,7 +74,7 @@ export function allMcpDocsFixedText(): string[] {
     MCP_DOCS_FEED_FILTERS,
     MCP_DOCS_TRY_IN_CHAT_INTRO,
     MCP_DOCS_TOOL_APPROVAL,
-    ...MCP_TRY_IN_CHAT.flatMap((e) => [e.prompt, e.publicPageLabel]),
+    ...MCP_TRY_IN_CHAT.flatMap((e) => [e.prompt, ...(e.publicPageLabel ? [e.publicPageLabel] : [])]),
     ...MCP_DOCS_FEED_FIELDS.map((f) => f.meaning),
     "Public observatory record for this listing.",
   ];

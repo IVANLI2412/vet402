@@ -33,6 +33,7 @@ import {
 } from "@/lib/mcp/public-limits";
 import { TOOL_TEXT } from "@/lib/mcp/text";
 import { MCP_DOCS_TOOL_APPROVAL } from "@/lib/docs/mcp-try-in-chat";
+import { MCP_CONNECT_STEPS, MCP_READ_ONLY_LINE, MCP_REFUSED_SECTION } from "@/lib/docs/mcp-first-prompts";
 import { TryInChat } from "@/components/docs/TryInChat";
 import { pageMetadata, breadcrumbJsonLd, webApiJsonLd } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/util/json-ld";
@@ -132,7 +133,18 @@ export default async function McpDocsPage() {
           <p className="text-[0.84375rem] text-brand">
             Any MCP client that speaks Streamable HTTP can use the same URL.
           </p>
+          <p className="text-[0.84375rem] text-brand">{MCP_READ_ONLY_LINE}</p>
+          <ol className="list-decimal space-y-1 pl-5 text-[0.84375rem] text-brand">
+            {MCP_CONNECT_STEPS.map((step) => (
+              <li key={step}>{step}</li>
+            ))}
+          </ol>
           <p className="text-[0.84375rem] text-brand">{MCP_DOCS_TOOL_APPROVAL}</p>
+        </section>
+
+        <section id="tool-refusal" className="scroll-mt-32 space-y-3">
+          <h2 className="sec-head">If the client refuses the tool</h2>
+          <p className="text-[0.84375rem] text-brand">{MCP_REFUSED_SECTION}</p>
         </section>
 
         <TryInChat />

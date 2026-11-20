@@ -75,6 +75,21 @@ export default function ConnectPage() {
 
         <TryInChatConnect />
 
+        <section className={styles.stack} aria-labelledby="connect-key-heading">
+          <h2 id="connect-key-heading" className={styles.stackHeading}>
+            When you need a key
+          </h2>
+          <p className={styles.intro}>
+            Score lookups above the keyless limit, dashboard tools, and seller gates need a free API key. Seller checks
+            with GET /api/v1/check or the home paste field need no key.
+          </p>
+          <p className={styles.intro}>
+            <Link href={CONNECT_SIGNUP_HREF} className={styles.link}>
+              Get a free API key
+            </Link>
+          </p>
+        </section>
+
         <ConnectChooser choices={CONNECT_CHOICES} signupHref={CONNECT_SIGNUP_HREF} />
 
         <p className={styles.foot}>

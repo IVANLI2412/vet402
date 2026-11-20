@@ -9,11 +9,13 @@ export function TryInChat() {
         {MCP_TRY_IN_CHAT.map((ex) => (
           <li key={ex.prompt} className="space-y-1">
             <p className="text-brand-deep">&ldquo;{ex.prompt}&rdquo;</p>
-            <p>
-              <a href={ex.publicPageUrl} className="doc-link">
-                {ex.publicPageLabel}
-              </a>
-            </p>
+            {ex.publicPageUrl && ex.publicPageLabel ? (
+              <p>
+                <a href={ex.publicPageUrl} className="doc-link">
+                  {ex.publicPageLabel}
+                </a>
+              </p>
+            ) : null}
           </li>
         ))}
       </ol>
