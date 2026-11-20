@@ -1,5 +1,5 @@
 import { createSplTokenLite } from "./spl-token-lite.js";
-import { parseSettlementResponse, settlementConfirmed } from "./x402-pay.js";
+import { assertHttpsSellerResource, parseSettlementResponse, settlementConfirmed, } from "./x402-pay.js";
 /** USDC on Solana has 6 decimals — the same base units as Base USDC. */
 const USDC_DECIMALS = 6;
 export const MEMO_PROGRAM_ADDRESS = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr";
@@ -148,6 +148,7 @@ export async function fetchLatestBlockhash(fetchFn, rpcUrl) {
  * 呼び手は送った取引を失わない。
  */
 export async function executeSvmPayment(args) {
+    assertHttpsSellerResource(args.resource);
     const { account, accept } = args;
     const web3 = await loadSolanaWeb3();
     const payerAddress = account.address;
@@ -191,6 +192,7 @@ export async function executeSvmPayment(args) {
     try {
         response = await args.fetch(args.resource, {
             method: args.method,
+            redirect: "error",
             headers: {
                 accept: "application/json",
                 [header.headerName]: header.headerValue,

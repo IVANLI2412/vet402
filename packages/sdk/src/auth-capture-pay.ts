@@ -37,6 +37,7 @@ import {
   type AuthCaptureStateReader,
 } from "./auth-capture.js";
 import {
+  assertHttpsSellerResource,
   MAX_AUTHORIZATION_WINDOW_SECONDS,
   parseSettlementResponse,
   type PayerAccount,
@@ -176,6 +177,7 @@ export async function executeAuthCapturePayment(args: {
   stateReader?: AuthCaptureStateReader;
   onSigned?: (info: { nonce: string; authorization: AuthCaptureAuthorization; payer: string }) => void;
 }): Promise<AuthCapturePayResult> {
+  assertHttpsSellerResource(args.resource);
   const { accept, profile } = args;
   const nowSec = Math.floor(Date.now() / 1000);
   // 呼び手のゲートを素通りした場合の保険。この関数は金に署名する。
@@ -258,6 +260,7 @@ export async function executeAuthCapturePayment(args: {
   try {
     const response = await args.fetch(args.resource, {
       method: args.method,
+      redirect: "error",
       headers: {
         accept: "application/json",
         "PAYMENT-SIGNATURE": header,

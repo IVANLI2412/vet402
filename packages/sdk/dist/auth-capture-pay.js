@@ -22,7 +22,7 @@
 import { AuthCaptureEvmScheme } from "@x402/evm/auth-capture/client";
 import { encodeAbiParameters, keccak256, zeroAddress } from "viem";
 import { AUTH_CAPTURE_EIP3009_COLLECTOR_V1_1, AUTH_CAPTURE_ESCROW_V1_1, DEFAULT_DELIVERY_TIMEOUT_MS, classifyDelivery, isAuthCaptureEligible, outcomeFromState, readAuthCaptureState, recoveryFor, } from "./auth-capture.js";
-import { MAX_AUTHORIZATION_WINDOW_SECONDS, parseSettlementResponse, } from "./x402-pay.js";
+import { assertHttpsSellerResource, MAX_AUTHORIZATION_WINDOW_SECONDS, parseSettlementResponse, } from "./x402-pay.js";
 const PAYMENT_INFO_TYPEHASH = keccak256(new TextEncoder().encode("PaymentInfo(address operator,address payer,address receiver,address token,uint120 maxAmount,uint48 preApprovalExpiry,uint48 authorizationExpiry,uint48 refundExpiry,uint16 minFeeBps,uint16 maxFeeBps,address feeReceiver,uint256 salt)"));
 /** `AuthCaptureEscrow.getHash` と同じ計算。`payer` を 0 にすると、署名の nonce（payer に依らない hash）になる。 */
 export function hashPaymentInfo(chainId, info, payer, escrow) {
@@ -100,6 +100,7 @@ function bodyReader(response) {
  * （ここへ来た時点で金銭ゲートと payee 照合は通っている、が `payOrRefuse` との契約）。払い直さない。
  */
 export async function executeAuthCapturePayment(args) {
+    assertHttpsSellerResource(args.resource);
     const { accept, profile } = args;
     const nowSec = Math.floor(Date.now() / 1000);
     // 呼び手のゲートを素通りした場合の保険。この関数は金に署名する。
@@ -172,6 +173,7 @@ export async function executeAuthCapturePayment(args) {
     try {
         const response = await args.fetch(args.resource, {
             method: args.method,
+            redirect: "error",
             headers: {
                 accept: "application/json",
                 "PAYMENT-SIGNATURE": header,

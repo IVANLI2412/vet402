@@ -216,6 +216,18 @@ export function parseSettlementResponse(headers) {
  * 取引 id が無い申告と、支払いつき再送への 2xx 以外（と 202 Accepted）の応答は、チェーンで確かめられない「未確認」として扱う。
  * 未確認は呼び手には `failed`（＝払ったかもしれない、receipt を読んでから再試行）として返る。
  */
+/** Same rule as `pay()`: payment retries must target https sellers only. */
+export function assertHttpsSellerResource(resource) {
+    let protocol;
+    try {
+        protocol = new URL(resource).protocol;
+    }
+    catch {
+        throw new Error("invalid_url: the seller URL must use https");
+    }
+    if (protocol !== "https:")
+        throw new Error("invalid_url: the seller URL must use https");
+}
 export function settlementConfirmed(settlement, responseStatus) {
     if (settlement?.success !== true)
         return false;
@@ -235,6 +247,7 @@ export function settlementConfirmed(settlement, responseStatus) {
  * （本番は同じ位置で購入行に authNonce を UPDATE している）。
  */
 export async function executeX402Payment(args) {
+    assertHttpsSellerResource(args.resource);
     const { accept } = args;
     const authorization = buildAuthorization({
         from: args.account.address,
@@ -271,6 +284,7 @@ export async function executeX402Payment(args) {
     try {
         response = await args.fetch(args.resource, {
             method: args.method,
+            redirect: "error",
             headers: {
                 accept: "application/json",
                 [header.headerName]: header.headerValue,

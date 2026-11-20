@@ -194,6 +194,8 @@ export declare function parseSettlementResponse(headers: unknown): X402Settlemen
  * 取引 id が無い申告と、支払いつき再送への 2xx 以外（と 202 Accepted）の応答は、チェーンで確かめられない「未確認」として扱う。
  * 未確認は呼び手には `failed`（＝払ったかもしれない、receipt を読んでから再試行）として返る。
  */
+/** Same rule as `pay()`: payment retries must target https sellers only. */
+export declare function assertHttpsSellerResource(resource: string): void;
 export declare function settlementConfirmed(settlement: X402Settlement | null, responseStatus: number | null): boolean;
 /**
  * 署名して、元のリクエストを支払いヘッダ付きで**売り手へ再送する**。判定は一切しない
