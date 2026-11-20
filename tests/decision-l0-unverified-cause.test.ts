@@ -108,9 +108,18 @@ test("SDK payOrRefuse は新しい理由コードを文字列のまま透過す�
     policy: "allow_only",
     rules_version: "test",
   } as unknown as DecisionResult;
+  const now = Date.now();
+  const freshBody = {
+    ...body,
+    scoredAt: new Date(now).toISOString(),
+    cacheExpiresAt: new Date(now + 300_000).toISOString(),
+  };
   const fetchFn = (async (url: unknown) => {
     const u = String(url);
-    if (u.includes("/decision")) return { ok: true, status: 200, json: async () => body, headers: new Map() };
+    if (u.includes("/resolve?q=")) {
+      return { ok: true, status: 200, json: async () => ({ resource: { resource_id: RID } }), headers: new Map() };
+    }
+    if (u.includes("/decision")) return { ok: true, status: 200, json: async () => freshBody, headers: new Map() };
     throw new Error(`a BLOCK must refuse before touching the seller: ${u}`);
   }) as unknown as typeof fetch;
   const account = new Proxy(

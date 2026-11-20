@@ -38,7 +38,24 @@ import {
 const RID = "a".repeat(64);
 const PAYEE = "0x36038e1d712c5e39f35952164ec58ec2b96caee7";
 const RESOURCE = "https://kronossignals.com/api/v1/price/btc";
+const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const b64 = (o: unknown) => btoa(JSON.stringify(o));
+
+function decisionFreshness() {
+  const now = Date.now();
+  return {
+    scoredAt: new Date(now).toISOString(),
+    cacheExpiresAt: new Date(now + 300_000).toISOString(),
+  };
+}
+
+function resolveBody() {
+  return { resource: { resource_id: RID } };
+}
+
+function withFreshDecision(body: DecisionResult): DecisionResult {
+  return { ...body, ...decisionFreshness() } as DecisionResult;
+}
 
 /** 両実装に渡す同じ判定。facts.l1.n_delivered = 3 が床の比較対象。 */
 function decision(over: Record<string, unknown> = {}): DecisionResult {
@@ -72,7 +89,8 @@ async function sdkFirstPolicyReason(
   const accept = { scheme: "exact", network: "eip155:8453", amount: "20000", asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", payTo: someoneElse };
   const fetchFn = (async (url: unknown) => {
     const u = String(url);
-    if (u.includes("/decision")) return { ok: true, status: 200, json: async () => body, headers: new Map() };
+    if (u.includes("/resolve?q=")) return { ok: true, status: 200, json: async () => resolveBody(), headers: new Map() };
+    if (u.includes("/decision")) return { ok: true, status: 200, json: async () => withFreshDecision(body), headers: new Map() };
     if (u.startsWith(RESOURCE)) {
       return { ok: false, status: 402, json: async () => ({}), headers: new Map([["payment-required", b64({ x402Version: 2, accepts: [accept] })]]) };
     }
@@ -187,11 +205,22 @@ test("V1b price_above_declared は SDK だけの語——サーバは 402 を見
   assert.ok(PAY_REFUSE_REASONS.includes("price_above_declared"));
   assert.equal((CALLER_POLICY_REASONS as readonly string[]).includes("price_above_declared"), false);
   const acceptAmount = "20001"; // 名乗り $0.02 より 1 単位高い
+  const allowBody = withFreshDecision({
+    ...decision(),
+    verified_terms: {
+      pay_to: PAYEE,
+      asset: BASE_USDC,
+      amount: "20000",
+      network: "eip155:8453",
+      scheme: "exact",
+    },
+  } as DecisionResult);
   const fetchFn = (async (url: unknown) => {
     const u = String(url);
-    if (u.includes("/decision")) return { ok: true, status: 200, json: async () => decision(), headers: new Map() };
+    if (u.includes("/resolve?q=")) return { ok: true, status: 200, json: async () => resolveBody(), headers: new Map() };
+    if (u.includes("/decision")) return { ok: true, status: 200, json: async () => allowBody, headers: new Map() };
     if (u.startsWith(RESOURCE)) {
-      const accept = { scheme: "exact", network: "eip155:8453", amount: acceptAmount, asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913", payTo: PAYEE };
+      const accept = { scheme: "exact", network: "eip155:8453", amount: acceptAmount, asset: BASE_USDC, payTo: PAYEE };
       return { ok: false, status: 402, json: async () => ({}), headers: new Map([["payment-required", b64({ x402Version: 2, accepts: [accept] })]]) };
     }
     throw new Error(`unexpected fetch: ${u}`);
