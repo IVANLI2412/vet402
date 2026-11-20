@@ -129,6 +129,39 @@ test("A4 402 の payTo が payee と違う → payee_mismatch・署名前に停�
   assert.deepEqual(w.signAccesses(), []);
 });
 
+test("A4b 呼び手 payee と 402 payTo だけが違う（verified_terms は 402 と一致）→ payee_mismatch・署名前に停止", async () => {
+  const w = watchedAccount();
+  const sellerPayTo = "0x000000000000000000000000000000000000dead";
+  const f = allowlistFetch([DECISION, "kronossignals"], {
+    [DECISION]: decision({ verified_terms: defaultVerifiedTerms(sellerPayTo) }),
+    kronossignals: {
+      status: 402,
+      body: {},
+      headers: {
+        "payment-required": btoa(
+          JSON.stringify({
+            x402Version: 2,
+            accepts: [
+              {
+                scheme: "exact",
+                network: "eip155:8453",
+                amount: "20000",
+                asset: "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913",
+                payTo: sellerPayTo,
+                extra: { assetTransferMethod: "eip3009" },
+              },
+            ],
+          }),
+        ),
+      },
+    },
+  });
+  const r = await payOrRefuse({ ...base, account: w.account, fetch: f.fetch });
+  assert.equal(r.status, "refused");
+  assert.equal(r.decision.reason_codes.includes("payee_mismatch"), true);
+  assert.deepEqual(w.signAccesses(), []);
+});
+
 // ---------- B. 金銭ゲート（本番に4チェーン提示の402が実在する） ----------
 
 const b64 = (o) => btoa(JSON.stringify(o));
