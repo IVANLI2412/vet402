@@ -63,9 +63,9 @@ export async function readBadgeFetches(days: number): Promise<{
   days: number;
   rows: { day: string; referer_host: string; badge_kind: string; fetches: number }[];
 }> {
-  const db = getDb();
-  if (!db) return { days, rows: [] };
   const clamped = Math.min(365, Math.max(1, days));
+  const db = getDb();
+  if (!db) return { days: clamped, rows: [] };
   try {
     const rows = rowsOf<{
       day: string;

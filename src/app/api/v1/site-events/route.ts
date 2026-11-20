@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getClientIp } from "@/lib/api/client-ip";
+import { consumeIpRateLimit, ipRateLimitHeaders } from "@/lib/api/ip-rate-limit";
 import {
   homeResultStateSource,
   pathGroup,
@@ -8,10 +10,18 @@ import {
 } from "@/lib/site-events";
 
 const MAX_BODY = 512;
+const RL_LIMIT = 60;
+const RL_WINDOW_MS = 60_000;
 
 export const dynamic = "force-dynamic";
 
 export async function POST(request: NextRequest) {
+  const ip = getClientIp(request) ?? "unknown";
+  const limited = await consumeIpRateLimit(`site-events:${ip}`, RL_LIMIT, RL_WINDOW_MS);
+  if (!limited.allowed) {
+    return new NextResponse(null, { status: 429, headers: { ...ipRateLimitHeaders(limited), "cache-control": "no-store" } });
+  }
+
   if (!shouldCount(request.headers)) {
     return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
   }
