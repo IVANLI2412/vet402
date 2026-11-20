@@ -1,5 +1,6 @@
 import { EIP3009_CHAINS_TEXT, PINNED_ASSETS_WITH_ISSUER_TEXT } from "@/lib/observatory/settlement-assets";
 import { NextRequest, NextResponse } from "next/server";
+import { rejectUnknownQuery } from "@/lib/api/export-guard";
 import { getClientIp } from "@/lib/api/client-ip";
 import {
   consumeIpRateLimit,
@@ -58,6 +59,9 @@ export async function GET(request: NextRequest) {
   if (!limited.allowed) {
     return NextResponse.json({ error: "rate_limited" }, { status: 429, headers: perCaller });
   }
+
+  const badQuery = rejectUnknownQuery(request.nextUrl.searchParams, [], perCaller);
+  if (badQuery) return badQuery;
 
   try {
     // 2026-11-08: the same shared data cache the HTML pages read (state-reads.ts).
