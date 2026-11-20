@@ -23,6 +23,11 @@ import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import {
+  allowlistFetch,
+  decisionFreshness,
+  defaultVerifiedTerms,
+} from "./_pay-or-refuse-harness.mjs";
 
 // 会期中に実装する。Day 0 では存在しないので、**各テストが個別に赤くなる**ようスタブへ落とす
 // （import で1本落ちるだけだと「22本を書いた」記録が git に残らない）。
@@ -52,31 +57,6 @@ function watchedAccount() {
   return { account, accessed, signAccesses: () => accessed.filter((k) => k.startsWith("sign")) };
 }
 
-/**
- * 第2層: 許可リスト外の fetch は throw。拒否経路で許すのは /decision と 402 を取る GET だけ。
- *
- * 2026-09-05: 応答は素のオブジェクトでも `(url, init) => 応答` でもよい。売り手は
- * 同じ URL に対して「支払いヘッダ無し → 402」「有り → 200 + レシート」と**2回**答えるので、
- * URL だけで引く固定応答では x402 の実際の往復を写せない。
- */
-function allowlistFetch(allowed, responses = {}) {
-  const calls = [];
-  return {
-    calls,
-    fetch: async (url, init) => {
-      const u = String(url);
-      calls.push(u);
-      if (!allowed.some((a) => u.includes(a))) {
-        throw new Error(`forbidden call in refuse path: ${u}`);
-      }
-      let r = responses[Object.keys(responses).find((k) => u.includes(k))];
-      if (typeof r === "function") r = r(u, init);
-      if (!r) throw new Error(`no stub for ${u}`);
-      return { ok: r.status < 400, status: r.status, json: async () => r.body, headers: new Map(Object.entries(r.headers ?? {})) };
-    },
-  };
-}
-
 const DECISION = "/decision";
 const decision = (over = {}) => ({
   status: 200,
@@ -90,6 +70,8 @@ const decision = (over = {}) => ({
     degraded: false,
     policy: "allow_only",
     rules_version: "2026-09-02.1",
+    ...decisionFreshness(),
+    verified_terms: defaultVerifiedTerms("0x36038e1d712c5e39f35952164ec58ec2b96caee7"),
     ...over,
   },
 });

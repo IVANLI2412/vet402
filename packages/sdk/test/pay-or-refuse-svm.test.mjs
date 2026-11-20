@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import { Keypair, PublicKey, VersionedTransaction, TransactionMessage, ComputeBudgetProgram } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import * as sdk from "../dist/index.js";
+import { decisionFreshness, resolveStub } from "./_pay-or-refuse-harness.mjs";
 
 const { payOrRefuse, svmAccountFromKeypair } = sdk;
 
@@ -67,6 +68,14 @@ const decisionBody = (over = {}) => ({
   degraded: false,
   policy: "allow_only",
   rules_version: "2026-09-02.1",
+  ...decisionFreshness(),
+  verified_terms: {
+    pay_to: PAYEE,
+    asset: SOLANA_USDC,
+    amount: "20000",
+    network: SOLANA_MAINNET,
+    scheme: "exact",
+  },
   ...over,
 });
 
@@ -97,6 +106,10 @@ function harness({ decision = { status: 200, body: decisionBody() }, wall = { x4
   const fetch = async (url, init) => {
     const u = String(url);
     calls.push({ url: u, method: init?.method ?? "GET" });
+    if (u.includes("/resolve")) {
+      const d = resolveStub();
+      return { ok: true, status: d.status, json: async () => d.body, headers: new Map() };
+    }
     if (u.includes("/decision")) {
       const d = typeof decision === "function" ? decision() : decision;
       return { ok: d.status < 400, status: d.status, json: async () => { if (d.nonJson) throw new SyntaxError("bad json"); return d.body; }, headers: new Map() };

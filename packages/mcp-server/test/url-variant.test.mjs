@@ -9,6 +9,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { payIfTrusted } from "../dist/pay-if-trusted.js";
+import { allowDecisionBody, decisionFreshness } from "./helpers/decision.mjs";
 
 const sha = (s) => createHash("sha256").update(s, "utf8").digest("hex");
 const PAYEE = "0x79DC34E41B2b591078d3dE222C43EcaaBD52FcCB";
@@ -56,9 +57,23 @@ function world({ listings, hostKnownOn404 = "compute" } = {}) {
         const sellers = hostKnownOn404 === "compute" && raw ? new Set(live(raw).map((l) => l.payee ?? PAYEE)).size : undefined;
         return json(404, hk === "absent" ? { error: "not_found" } : { error: "not_found", host_known: hk, ...(sellers === undefined ? {} : { host_sellers: sellers }) });
       }
-      return json(200, { recommendation: l.recommendation, reason_codes: l.recommendation === "BLOCK" ? ["l0_fail"] : ["l0_pass", "l1_delivered"], facts: {}, evidence: [], degraded: false });
+      return json(
+        200,
+        allowDecisionBody(ACCEPT, {
+          recommendation: l.recommendation,
+          reason_codes: l.recommendation === "BLOCK" ? ["l0_fail"] : ["l0_pass", "l1_delivered"],
+        }),
+      );
     }
-    if (url.pathname.includes("/payees/")) return json(200, { recommendation: "ALLOW", score: 90, degraded: false, signalsUnavailable: [] });
+    if (url.pathname.includes("/payees/")) {
+      return json(200, {
+        recommendation: "ALLOW",
+        score: 90,
+        degraded: false,
+        signalsUnavailable: [],
+        ...decisionFreshness(),
+      });
+    }
     if (url.pathname.includes("/payments/x402")) return json(200, {});
     // 売り手（どの書き方でも同じ売り手）
     const h = init?.headers ?? {};

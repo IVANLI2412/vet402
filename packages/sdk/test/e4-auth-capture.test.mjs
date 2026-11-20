@@ -9,6 +9,7 @@
 // ============================================================
 import test from "node:test";
 import assert from "node:assert/strict";
+import { decisionFreshness, defaultVerifiedTerms } from "./_pay-or-refuse-harness.mjs";
 
 const sdk = await import("../dist/index.js");
 const { payOrRefuse, reclaimAuthCapture } = sdk;
@@ -87,6 +88,7 @@ const ALLOW = {
   degraded: false,
   policy: "allow_only",
   rules_version: "2026-09-02.1",
+  ...decisionFreshness(),
 };
 
 function respond(status, { body = "", headers = {}, text } = {}) {
@@ -103,12 +105,29 @@ function respond(status, { body = "", headers = {}, text } = {}) {
  * 売り手と vet402 の API の偽物。402 の壁と、支払いヘッダ付きの再送への答え（`onPaid`）を返す。
  * 再送の回数と中身を控える（9a-4 払い直し 0 回）。vet402 の attest（POST /payments/x402）は数える（呼ばれてはいけない）。
  */
+function decisionForAccepts(accepts) {
+  const head = accepts[0] ?? acAccept();
+  return {
+    ...ALLOW,
+    verified_terms: defaultVerifiedTerms(
+      head.payTo,
+      head.amount,
+      head.asset,
+      head.network,
+      head.scheme ?? "exact",
+    ),
+  };
+}
+
 function world(accepts, onPaid, { x402Version = 2 } = {}) {
   const paid = [];
   const attests = [];
   const fetch = async (url, init = {}) => {
     const u = String(url);
-    if (u.includes("/decision")) return respond(200, { body: JSON.stringify(ALLOW) });
+    if (u.includes("/resolve")) {
+      return respond(200, { body: JSON.stringify({ resource: { resource_id: "a".repeat(64) } }) });
+    }
+    if (u.includes("/decision")) return respond(200, { body: JSON.stringify(decisionForAccepts(accepts)) });
     if (u.includes("/payments/x402")) { attests.push(u); return respond(200, { body: "{}" }); }
     if (!u.startsWith(RESOURCE)) throw new Error(`unexpected call ${u}`);
     const h = init.headers ?? {};
@@ -157,7 +176,10 @@ function escrowWorld(accepts, { rule = "delivery", status = 200, body = '{"answe
   const paid = [];
   const fetch = async (url, init = {}) => {
     const u = String(url);
-    if (u.includes("/decision")) return respond(200, { body: JSON.stringify(ALLOW) });
+    if (u.includes("/resolve")) {
+      return respond(200, { body: JSON.stringify({ resource: { resource_id: "a".repeat(64) } }) });
+    }
+    if (u.includes("/decision")) return respond(200, { body: JSON.stringify(decisionForAccepts(accepts)) });
     if (u.includes("/payments/x402")) return respond(200, { body: "{}" });
     const h = init.headers ?? {};
     const raw = h["PAYMENT-SIGNATURE"] ?? h["payment-signature"];

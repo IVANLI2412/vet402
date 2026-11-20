@@ -15,6 +15,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 const { payChecked, readDemoDecisions, readL1Decisions } = await import("../dist/index.js");
+import { allowlistFetch, decisionFreshness, defaultVerifiedTerms } from "./_pay-or-refuse-harness.mjs";
 
 /** 第1層: signer への「参照」を記録する Proxy。回数ではなくアクセスを見る。 */
 function watchedAccount() {
@@ -26,30 +27,6 @@ function watchedAccount() {
   return { account, accessed, signAccesses: () => accessed.filter((k) => k.startsWith("sign")) };
 }
 
-/**
- * 第2層: 許可リスト外の fetch は throw。拒否経路で許すのは /decision と 402 を取る GET だけ。
- *
- * 2026-09-05: 応答は素のオブジェクトでも `(url, init) => 応答` でもよい。売り手は
- * 同じ URL に対して「支払いヘッダ無し → 402」「有り → 200 + レシート」と**2回**答えるので、
- * URL だけで引く固定応答では x402 の実際の往復を写せない。
- */
-function allowlistFetch(allowed, responses = {}) {
-  const calls = [];
-  return {
-    calls,
-    fetch: async (url, init) => {
-      const u = String(url);
-      calls.push(u);
-      if (!allowed.some((a) => u.includes(a))) {
-        throw new Error(`forbidden call in refuse path: ${u}`);
-      }
-      let r = responses[Object.keys(responses).find((k) => u.includes(k))];
-      if (typeof r === "function") r = r(u, init);
-      if (!r) throw new Error(`no stub for ${u}`);
-      return { ok: r.status < 400, status: r.status, json: async () => r.body, headers: new Map(Object.entries(r.headers ?? {})) };
-    },
-  };
-}
 
 const b64 = (o) => btoa(JSON.stringify(o));
 const wall = (accept, version = 2) => ({ status: 402, body: {}, headers: { "payment-required": b64({ x402Version: version, accepts: [accept] }) } });
@@ -94,6 +71,8 @@ const decisionBody = () => ({
   degraded: false,
   policy: "allow_only",
   rules_version: "2026-09-02.1",
+  ...decisionFreshness(),
+  verified_terms: defaultVerifiedTerms(base.payee),
 });
 
 const resolveBody = () => ({

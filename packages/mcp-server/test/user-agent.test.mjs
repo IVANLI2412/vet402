@@ -92,7 +92,28 @@ test("pay_if_trusted: /resolve and /decision say vet402-mcp, the SDK's own vet40
       const resolved = resolveReply(url);
       if (resolved) return resolved;
       if (kind === "decision") {
-        return { ok: true, status: 200, json: async () => ({ recommendation: "ALLOW", reason_codes: ["l0_pass", "l1_delivered"], facts: {}, evidence: [], degraded: false }), headers: new Map() };
+        return {
+          ok: true,
+          status: 200,
+          json: async () => ({
+            recommendation: "ALLOW",
+            reason_codes: ["l0_pass", "l1_delivered"],
+            facts: {},
+            evidence: [],
+            degraded: false,
+            rules_version: "stub",
+            scoredAt: new Date().toISOString(),
+            cacheExpiresAt: new Date(Date.now() + 300_000).toISOString(),
+            verified_terms: {
+              pay_to: accept.payTo,
+              asset: accept.asset,
+              amount: accept.amount,
+              network: "eip155:8453",
+              scheme: "exact",
+            },
+          }),
+          headers: new Map(),
+        };
       }
       if (kind === "attest") return { ok: true, status: 200, json: async () => ({ ok: true }), headers: new Map() };
       if (kind === "seller") {

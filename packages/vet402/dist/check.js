@@ -4,7 +4,7 @@
 //   GET /api/v1/resolve?q=<url>                       (key-less)
 //   GET /api/v1/resources/{resourceId}/decision?role=payer (key-less at 60/min per IP)
 // No payment code here.
-import { createVouchClient, DEFAULT_API_URL, VouchApiError } from "@vet402/sdk";
+import { createVouchClient, DEFAULT_API_URL, DEFAULT_MAX_SCORE_AGE_MS, VouchApiError } from "@vet402/sdk";
 /** Same predicate as `@vet402/sdk` `scoreQualityDefect`. Keep in sync with packages/sdk/src/verdict-shape.ts. */
 function scoreQualityDefect(score) {
     if (score === null || typeof score !== "object")
@@ -21,10 +21,39 @@ function scoreQualityDefect(score) {
 export { DEFAULT_API_URL };
 /** Public page of one record. Same form as the hosted MCP server's record_url. */
 export const RECORD_URL_BASE = "https://vet402.com/observatory/e/";
+function assertHttpsApiUrl(apiUrl) {
+    let parsed;
+    try {
+        parsed = new URL(apiUrl);
+    }
+    catch {
+        throw new Error("invalid_api_url");
+    }
+    if (parsed.protocol === "https:")
+        return;
+    const host = parsed.hostname;
+    if (parsed.protocol === "http:" && (host === "localhost" || host === "127.0.0.1"))
+        return;
+    throw new Error("invalid_api_url");
+}
+function decisionTooStale(scoredAt, cacheExpiresAt, nowMs) {
+    const scoredMs = Date.parse(scoredAt);
+    if (Number.isNaN(scoredMs))
+        return true;
+    if (nowMs - scoredMs > DEFAULT_MAX_SCORE_AGE_MS)
+        return true;
+    if (typeof cacheExpiresAt === "string") {
+        const exp = Date.parse(cacheExpiresAt);
+        if (!Number.isNaN(exp) && nowMs >= exp)
+            return true;
+    }
+    return false;
+}
 export async function check(url, opts = {}) {
     if (typeof url !== "string" || url.trim().length === 0)
         throw new Error("invalid_query");
     const apiUrl = opts.apiUrl ?? DEFAULT_API_URL;
+    assertHttpsApiUrl(apiUrl);
     const client = createVouchClient({ apiKey: opts.apiKey, apiUrl, fetch: opts.fetch, timeoutMs: opts.timeoutMs });
     const resolved = await call(apiUrl, () => client.resolve(url)).catch((err) => {
         if (err instanceof VouchApiError && err.status === 404)
@@ -48,6 +77,9 @@ export async function check(url, opts = {}) {
     });
     if (decision === null)
         return { recommendation: "UNKNOWN", reason: "not_found" };
+    if (decisionTooStale(decision.scoredAt, decision.cacheExpiresAt, Date.now())) {
+        return { recommendation: "UNKNOWN", reason: "stale" };
+    }
     const body = decision;
     const terms = body.verified_terms ?? null;
     const degradedFlag = body.degraded === true;

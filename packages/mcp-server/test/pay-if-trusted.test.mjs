@@ -6,6 +6,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { resolveReply, resolveBody } from "./helpers/resolve.mjs";
+import { allowDecisionBody, decisionFreshness, verifiedTermsForAccept } from "./helpers/decision.mjs";
 
 // 2026-09-05 訂正（SDK の pay-or-refuse.test.mjs が 09-05 に受けたのと同じ是正）:
 // Day 0 は `../src/pay-if-trusted.js` から import していたが、このパッケージは
@@ -91,7 +92,7 @@ test("G21b pay_if_trusted は ALLOW で signer を1回だけ呼び attest する
       if (String(u).includes("decision")) {
         // `degraded: false` はサーバが必ず出す欄（decide.ts）。2026-09-07 から SDK は boolean でない
         // degraded を「測れたと言えない」として止めるので、実形どおりに持たせる（追加1）。
-        return { ok: true, status: 200, json: async () => ({ recommendation: "ALLOW", reason_codes: ["l0_pass", "l1_delivered"], facts: {}, evidence: [{ level: "L1", source: "vet402" }], degraded: false }), headers: new Map() };
+        return { ok: true, status: 200, json: async () => allowDecisionBody(ACCEPT), headers: new Map() };
       }
       const res = String(u).includes("gateway.thegraph.com") ? s.stub(String(u), init) : { status: 200, body: { ok: true }, headers: {} };
       return { ok: res.status < 400, status: res.status, json: async () => res.body, headers: new Map(Object.entries(res.headers ?? {})) };
@@ -146,6 +147,8 @@ const warnDecision = (over = {}) => ({
   evidence: [{ level: "L0", source: "vet402", url: "https://vet402.com/observatory/e/x" }],
   degraded: false,
   rules_version: "2026-09-02.1",
+  ...decisionFreshness(),
+  verified_terms: verifiedTermsForAccept(ACCEPT),
   ...over,
 });
 

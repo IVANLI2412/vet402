@@ -126,10 +126,8 @@ export async function resourceDecision(target, query, method) {
         throw error;
     }
 }
-// ---- verified_terms（2026-09-29 監査 5 周目・受け口の準備）----
-// 判定の応答に、vet402 が確かめた支払い条件（payTo・金額・資産）が `verified_terms` として載る予定
-// （別の担当が /decision に追加する）。形はまだ確定していないので、読める鍵だけを拾い、
-// 読めなければ何も言わない。キーが無ければ summary は今までと 1 文字も変わらない。
+// ---- verified_terms（2026-09-29 以降は /decision に載る）----
+// 読める鍵だけを拾い、読めなければ何も言わない。キーが無ければ summary は今までと 1 文字も変わらない。
 // 値は上流の文字列なので、印字できる ASCII の短い値と有限の数だけを通す（モデルの文脈へ任意の文を流さない）。
 const TERM_KEYS = [
     ["payTo", ["pay_to", "payTo"]],

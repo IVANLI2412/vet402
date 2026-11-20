@@ -17,6 +17,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { resolveReply, resolveBody } from "./helpers/resolve.mjs";
+import { allowDecisionBody } from "./helpers/decision.mjs";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
@@ -137,7 +138,7 @@ function harness() {
       return {
         ok: true,
         status: 200,
-        json: async () => ({ recommendation: "ALLOW", reason_codes: ["l0_pass", "l1_delivered"], facts: {}, evidence: [{ level: "L1", source: "vet402" }], degraded: false }),
+        json: async () => allowDecisionBody(ACCEPT),
         headers: new Map(),
       };
     }

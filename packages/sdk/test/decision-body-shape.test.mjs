@@ -41,6 +41,9 @@ function harness({ decisionResponse, subgraphReceipts = null }) {
   const fetch = async (url, init) => {
     const u = String(url);
     calls.push(u);
+    if (u.includes("/resolve")) {
+      return { ok: true, status: 200, json: async () => ({ resource: { resource_id: "a".repeat(64) } }), headers: new Map() };
+    }
     if (u.includes("/decision")) return decisionResponse;
     if (String(init?.body ?? "").includes("x402AddressSummaries")) {
       return {
@@ -57,7 +60,7 @@ function harness({ decisionResponse, subgraphReceipts = null }) {
     }
     return { ok: true, status: 200, json: async () => ({ ok: true }), headers: new Map() };
   };
-  return { calls, paid, fetch, sellerCalls: () => calls.filter((u) => u.includes("kronos")) };
+  return { calls, paid, fetch, sellerCalls: () => calls.filter((u) => u === RESOURCE || u.startsWith(`${RESOURCE}?`)) };
 }
 
 const base = { payee: PAYEE, resource: RESOURCE, amountUsd: 0.02 };

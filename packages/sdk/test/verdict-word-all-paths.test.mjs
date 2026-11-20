@@ -14,6 +14,7 @@ import assert from "node:assert/strict";
 import { Keypair } from "@solana/web3.js";
 import { payOrRefuse } from "../dist/index.js";
 import { isUnknownVerdict } from "../dist/verdict-shape.js";
+import { decisionFreshness, defaultVerifiedTerms, resolveStub } from "./_pay-or-refuse-harness.mjs";
 
 const DECISION = "/decision";
 const SCORE = "/payees/";
@@ -41,6 +42,7 @@ function world({ decision, score }) {
     const u = String(url);
     calls.push(u);
     const answer = (r) => ({ ok: r.status < 400, status: r.status, json: async () => r.body, headers: new Map(Object.entries(r.headers ?? {})) });
+    if (u.includes("/resolve")) return answer(resolveStub());
     if (u.includes(DECISION)) return answer(decision);
     if (u.includes(SCORE)) return answer(score ?? { status: 500, body: {} });
     if (u.includes("gateway.thegraph.com")) {
@@ -55,7 +57,13 @@ function world({ decision, score }) {
     }
     throw new Error(`forbidden call: ${u}`);
   };
-  return { fetch, calls, paid, count: (part) => calls.filter((u) => u.includes(part)).length };
+  return {
+    fetch,
+    calls,
+    paid,
+    count: (part) => calls.filter((u) => u.includes(part)).length,
+    sellerCalls: () => calls.filter((u) => u.startsWith("https://kronossignals")),
+  };
 }
 
 const decisionBody = (over = {}) => ({
@@ -66,6 +74,8 @@ const decisionBody = (over = {}) => ({
   facts: { l0: { status: "pass" }, l1: { n_delivered: 3, n_attempts: 3 }, l2: { status: "undeclared" } },
   evidence: [],
   degraded: false,
+  ...decisionFreshness(),
+  verified_terms: defaultVerifiedTerms(PAYEE, "20000"),
   ...over,
 });
 const withoutWord = () => { const b = decisionBody(); delete b.recommendation; return b; };
@@ -98,7 +108,7 @@ for (const [name, body] of UNREADABLE_WORDS) {
     assert.equal(r.nonce, null);
     assert.deepEqual(w.accessed, [], "署名者のどのプロパティにも触っていない");
     assert.equal(f.count(DECISION), 1, "判定は1回引いている");
-    assert.equal(f.count("kronossignals"), 0, "402 を取りに行っていない");
+    assert.equal(f.sellerCalls().length, 0, "402 を取りに行っていない");
     assert.equal(f.paid.length, 0);
   });
 }

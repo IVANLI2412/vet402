@@ -732,13 +732,18 @@ export async function payChecked(input) {
     let host;
     try {
         const parsed = new URL(input.url);
-        if (parsed.protocol !== "http:" && parsed.protocol !== "https:")
+        if (parsed.protocol === "http:")
+            throw new Error("http_not_allowed");
+        if (parsed.protocol !== "https:")
             throw new Error("bad protocol");
         host = parsed.hostname;
         if (host === "")
             throw new Error("no host");
     }
-    catch {
+    catch (error) {
+        if (error instanceof Error && error.message === "http_not_allowed") {
+            throw new Error("invalid_url: pass an https URL of the resource to pay (http is not allowed)");
+        }
         throw new Error("invalid_url: pass the http(s) URL of the resource to pay");
     }
     if (typeof input.amountUsd !== "number" || !Number.isFinite(input.amountUsd) || input.amountUsd < 0) {
@@ -779,7 +784,33 @@ export async function payChecked(input) {
     }
     if (prepared.kind === "result")
         return prepared.result;
-    const { payment, delivered } = await executePayment(input, fetchImpl, payer, prepared.payTo, prepared.resourceId);
+    let payment;
+    let delivered;
+    try {
+        ({ payment, delivered } = await executePayment(input, fetchImpl, payer, prepared.payTo, prepared.resourceId));
+    }
+    catch (error) {
+        await appendRow(store, decisionRow({
+            recommendation: "REFUSE",
+            reasonCodes: ["evidence_unavailable"],
+            atMs: prepared.spentAt,
+            status: "failed",
+            url: input.url,
+            txHash: null,
+            nonce: null,
+            checked: {
+                state: "failed",
+                pendingId: prepared.pendingId,
+                idempotencyKey: key,
+                rulesJson,
+                amountUsd: input.amountUsd,
+                url: input.url,
+                spend: null,
+                result: unpaid("store_unreadable", evidenceUrl),
+            },
+        }));
+        throw error;
+    }
     const signed = payment.signed === true || payment.status === "paid";
     const result = {
         paid: payment.status === "paid",
