@@ -412,7 +412,7 @@ test("SellersIndexView: 検索欄・一覧・内訳・方法論・取得時刻",
   assert.match(html, /name="q"/);
   assert.match(html, /href="\/sellers\/shop\.example"/);
   assert.match(html, /href="\/sellers\/quiet\.example"/);
-  assert.match(html, /2 sellers with 6 active Base records \(a record vet402 has not closed can stay active after it leaves the catalog\); vet402 has tried to buy from 1 of\s+the sellers/);
+  assert.match(html, /2 sellers with 6 active Base records \(a record vet402 has not closed can stay active after it leaves the catalog\)\. vet402 has tried to buy from 1 of the sellers/);
   assert.match(html, /<h1[^>]*>Find your purchase results \(Base, as of 2026-09-14\)<\/h1>/, "the heading says when");
   assert.match(html, /Read from the database 2026-09-28 13:04 UTC/);
   assert.match(html, /href="\/observatory\/methodology"/);
@@ -583,7 +583,7 @@ test("一覧の見出し: active の数は依頼の記録を除いて言い、�
   assert.equal(withRequest.totals.listings, 5);
   assert.equal(withRequest.totals.sellerRequestListings, 1);
   const html = renderToStaticMarkup(createElement(SellersIndexView, { board: withRequest, page: 1, q: "", search: null }));
-  assert.match(html, /2 sellers with 4 active Base records \(a record vet402 has not closed can stay active after it leaves the catalog\) and 1 opened for a seller&#x27;s re-test request;/);
+  assert.match(html, /2 sellers with 4 active Base records \(a record vet402 has not closed can stay active after it leaves the catalog\) and 1 opened for a seller&#x27;s re-test request\. vet402 has tried to buy from 0 of the sellers/);
   const none = renderToStaticMarkup(createElement(SellersIndexView, { board: buildSellerBoard([{ host: "a.example", listings: 3 }], [], FETCHED), page: 1, q: "", search: null }));
-  assert.match(none, /1 sellers with 3 active Base records \(a record vet402 has not closed can stay active after it leaves the catalog\);/);
+  assert.match(none, /1 sellers with 3 active Base records \(a record vet402 has not closed can stay active after it leaves the catalog\)\./);
 });

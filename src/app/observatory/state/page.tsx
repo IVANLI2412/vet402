@@ -22,6 +22,7 @@ import {
   getCoverageShareCached,
 } from "@/lib/observatory/cached-reads";
 import { getDailyMetricsCoverage, getDailyMetricsHistory, type DailyMetricsRow } from "@/lib/observatory/metrics-rollup";
+import { humanDuration, maxStaleSecondsOf } from "@/lib/observatory/freshness";
 import { PUBLIC_READ_REVALIDATE } from "@/lib/observatory/public-read-revalidate";
 import { getAnchors } from "@/lib/observatory/anchors";
 import { CATALOG_SOURCE } from "@/lib/observatory/catalog-source";
@@ -312,9 +313,9 @@ export default async function ObservatoryStatePage() {
             x402 and MPP payments by chain
           </Link>
           . The L0 rows behind section 1 are in{" "}
-          <Link href="/api/v1/observatory/l0/export.csv" className="doc-link">
+          <a href="/api/v1/observatory/l0/export.csv" className="doc-link">
             /api/v1/observatory/l0/export.csv
-          </Link>{" "}
+          </a>{" "}
           (CC BY 4.0). Dated snapshot report:{" "}
           <Link href="/x402/report/2026-11" className="doc-link">
             State of x402: November 2026
@@ -330,9 +331,15 @@ export default async function ObservatoryStatePage() {
           read. It does not cover the chain table in section 2, the history graph, or the coverage
           share. The history graph uses lastRollupAt from the history response
           {historyCoverage.lastRollupAt ? ` (${historyCoverage.lastRollupAt})` : ""}. The coverage
-          share states its own read time in section 5. The shared read behind the state aggregate
-          is reused for up to {PUBLIC_READ_REVALIDATE} seconds, so a later API response can carry a
-          different retrievedAt and different counts.
+          share states its own read time in section 5.           The shared read behind the state aggregate is reused for up to {PUBLIC_READ_REVALIDATE}{" "}
+          seconds. The JSON at{" "}
+          <a href="/api/v1/observatory/state" className="doc-link">
+            /api/v1/observatory/state
+          </a>{" "}
+          can additionally sit on the CDN for up to{" "}
+          {humanDuration(maxStaleSecondsOf("public, s-maxage=900, stale-while-revalidate=1800"))} (s-maxage 900 plus
+          stale-while-revalidate 1800). A later API response can therefore carry a different retrievedAt and different
+          counts.
         </p>
         <div className="rule-double mx-auto mt-6 w-full max-w-[34ch]" />
 
@@ -617,8 +624,8 @@ export default async function ObservatoryStatePage() {
                     （settlement-source.ts）。証拠の強さとは別の軸なので、上の 2 行の和には入らない。 */}
                 <tr>
                   <td className="text-brand">
-                    settled where the seller returned no receipt and our own settlements index found
-                    the transfer afterwards (same on-chain re-read as the rest)
+                    settled where the seller returned no receipt and vet402&apos;s own settlements index found the
+                    transfer afterwards (same on-chain re-read as the rest)
                   </td>
                   <td className="num">{stats.l1.settledLateLinked.toLocaleString()}</td>
                   <td className="num">{pct(stats.l1.settledLateLinked, stats.l1.settled)} of settled</td>
@@ -691,8 +698,8 @@ export default async function ObservatoryStatePage() {
                 </tr>
                 <tr>
                   <td className="text-brand">
-                    of which answered <code>402</code> or <code>5xx</code> while our Base payer wallet was out of USDC
-                    (2026-09-13 00:00 to 2026-09-15 23:49 UTC)
+                    of which answered <code>402</code> or <code>5xx</code> while vet402&apos;s Base payer wallet was out
+                    of USDC (2026-09-13 00:00 to 2026-09-15 23:49 UTC)
                   </td>
                   <td className="num">{stats.l1.inconclusiveByReason.payerUnfunded.toLocaleString()}</td>
                   <td className="num">{pct(stats.l1.inconclusiveByReason.payerUnfunded, stats.l1.attempts)} of attempts</td>
@@ -700,8 +707,8 @@ export default async function ObservatoryStatePage() {
                 <tr>
                   <td className="text-brand">
                     Settled but not delivered and not <code>4xx</code> (a <code>5xx</code>,{" "}
-                    <code>202 Accepted</code>, an empty <code>2xx</code> body, or no status on record) — not a request we
-                    could have malformed
+                    <code>202 Accepted</code>, an empty <code>2xx</code> body, or no status on record). vet402 does not
+                    count these as a malformed request
                   </td>
                   <td className="num">
                     {Math.max(
@@ -925,9 +932,9 @@ export default async function ObservatoryStatePage() {
           <p className="doc-p">
             No rolled-up days yet. The daily rollup starts filling this section from its first
             run. The machine-readable series will appear at{" "}
-            <Link href={`/api/v1/observatory/history?days=${HISTORY_DAYS}`}>
+            <a href={`/api/v1/observatory/history?days=${HISTORY_DAYS}`}>
               /api/v1/observatory/history?days={HISTORY_DAYS}
-            </Link>.
+            </a>.
           </p>
         ) : (
           <>
@@ -936,9 +943,9 @@ export default async function ObservatoryStatePage() {
               <em>pass</em> (lower line), all chains combined, {historyDays.length}{" "}
               {historyDays.length === 1 ? "day" : "days"} with data ({historyFirstDay} to{" "}
               {historyLastDay}). Machine-readable, per chain:{" "}
-              <Link href={`/api/v1/observatory/history?days=${HISTORY_DAYS}`}>
+              <a href={`/api/v1/observatory/history?days=${HISTORY_DAYS}`}>
                 /api/v1/observatory/history?days={HISTORY_DAYS}
-              </Link>
+              </a>
               .
             </p>
             <HistoryChart rows={history} lastRollupAt={historyCoverage.lastRollupAt} />

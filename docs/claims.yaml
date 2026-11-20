@@ -1434,7 +1434,7 @@ claims:
   # ---- 2026-09-20 公開 export の末尾 3 列と、遅延回収の件数の開示 ----
   - id: settled_late_linked_is_disclosed
     surface: src/app/observatory/state/page.tsx
-    quote: "settled where the seller returned no receipt and our own settlements index found"
+    quote: "settled where the seller returned no receipt and vet402&apos;s own settlements index found"
     means: "settled のうち、tx を売り手が名指さず vet402 の決済索引が貼った行（遅延回収）を、件数のまま公開する。証拠の強さの 2 層とは別の軸で、その和には入らない"
     check:
       url: https://vet402.com/api/v1/observatory/state

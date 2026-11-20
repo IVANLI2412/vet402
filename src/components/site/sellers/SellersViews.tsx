@@ -467,8 +467,8 @@ export function SellersIndexView({
       </h2>
       <p className="doc-p">
         {n(t.sellers)} sellers with {n(t.listings - t.sellerRequestListings)} active Base records (a record vet402 has not closed can stay active after it leaves the catalog)
-        {t.sellerRequestListings > 0 ? ` and ${n(t.sellerRequestListings)} opened for a seller's re-test request` : ""}; vet402 has tried to buy from {n(t.sellersTried)} of
-        the sellers. By the latest attempt at each listing: <CountsLine c={t} notTriedWord="with no Base purchase" />.{" "}
+        {t.sellerRequestListings > 0 ? ` and ${n(t.sellerRequestListings)} opened for a seller's re-test request` : ""}
+        . vet402 has tried to buy from {n(t.sellersTried)} of the sellers. By the latest attempt at each listing: <CountsLine c={t} notTriedWord="with no Base purchase" />.{" "}
         <Link href="/sellers/fix-first" className="underline">
           What to fix first
         </Link>{" "}
@@ -524,13 +524,13 @@ function ReadingNotes() {
         not at fault: vet402 signed the payment on the terms the listing declares, its wallet held the price, it
         sent the input the listing declares, and the seller gave an explicit answer (or had its full declared time to
         give one). A row that cannot show one of these is <strong>not sorted</strong>.{" "}
-        <strong>vet402&apos;s side</strong> means the row shows the cause was ours or a limit of ours: our wallet held
-        less USDC than the price, we did not send the request body or query the seller declared and the input was
-        refused, the price was over our per-purchase ceiling, or our run did not finish.{" "}
+        <strong>vet402&apos;s side</strong> means the row shows vet402 caused the stop or hit a vet402 limit: the payer
+        wallet held less USDC than the price, vet402 did not send the request body or query the seller declared and the
+        input was refused, the price was over vet402&apos;s per-purchase ceiling, or the run did not finish.{" "}
         <strong>Not bought</strong> means vet402 did not sign a payment (for example the 402 offered no option
-        vet402 can sign, or its price differed from the listing); it is not a purchase result.{" "}
+        vet402 can sign, or its price differed from the listing). It is not a purchase result.{" "}
         <strong>Awaiting on-chain verification</strong> means the seller returned a receipt that vet402 has not
-        re-read on-chain yet; it is neither delivered nor failed. A count is one attempt, not a rating (
+        re-read on-chain yet. It is neither delivered nor failed. A count is one attempt rather than a rating (
         <Link href="/observatory/methodology" className="underline">
           methodology
         </Link>
