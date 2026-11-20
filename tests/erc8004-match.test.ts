@@ -244,7 +244,7 @@ test("state API keeps every existing key and adds erc8004", async (t) => {
     "activeEndpoints", "byChain", "byChainScope", "byChainTestnetEndpoints", "byChainUnclassified", "catalogSnapshots",
     "catalogSourcesNotRead", "cdpBazaarIngestStale", "cdpBazaarLastStrongPassAt", "cite", "coverage7d", "coverage7dDefinition", "delistedEndpoints", "disclaimer",
     "eventCounts", "humanReadable", "l1", "l1Rates", "latestSnapshot", "license", "licenseUrl", "methodUndeclared",
-    "methodology", "operatorEndpointsExcluded", "operatorExclusionConfigured", "publishedFail", "publishedPass",
+    "methodology", "operatorEndpointsExcluded", "operatorExclusionConfigured", "publishedFail", "publishedFailProbeOlderThan30d", "publishedPass",
     "publishedPassActive", "publishedPassActiveProbeOlderThan7d", "publishedUnverified",     "retrievedAt",
     "settlementIndex", "spendingHalted", "totalEndpoints", "withdrawnFail",
   ];

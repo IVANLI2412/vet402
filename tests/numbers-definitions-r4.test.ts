@@ -37,9 +37,10 @@ test("1・4. state API は掲載中の pass と、settled endpoint の内訳を�
   const res = await GET(new NextRequest("http://localhost/api/v1/observatory/state"));
   assert.equal(res.status, 200);
   const body = await res.json();
-  for (const key of ["publishedPassActive", "publishedPassActiveProbeOlderThan7d"]) {
+  for (const key of ["publishedPassActive", "publishedPassActiveProbeOlderThan7d", "publishedFailProbeOlderThan30d"]) {
     assert.equal(typeof body[key], "number", `${key} must be a number`);
   }
+  assert.ok(body.publishedFailProbeOlderThan30d <= body.publishedFail);
   assert.ok(body.publishedPassActive <= body.publishedPass, "掲載中の pass は pass 全体を超えない");
   assert.ok(body.publishedPassActive <= body.activeEndpoints, "掲載中の pass は掲載中の件数を超えない");
   assert.ok(body.publishedPassActiveProbeOlderThan7d <= body.publishedPassActive);
@@ -63,6 +64,7 @@ test("1・4. トップの図は掲載中の pass を使い、L1 を売り手の�
   assert.ok(src.includes("n: stats.l1.endpointsSettledIndexOnly"));
   // 同じ数を使う他の面も揃っている。
   assert.ok(read("src/app/observatory/state/page.tsx").includes("stats.publishedPassActive.toLocaleString()"));
+  assert.ok(read("src/app/observatory/state/page.tsx").includes("stats.publishedFailProbeOlderThan30d.toLocaleString()"));
   assert.ok(read("src/app/observatory/state/page.tsx").includes("stats.l1.endpointsSettledIndexOnly.toLocaleString()"));
   assert.ok(read("src/app/observatory/page.tsx").includes("stats.l1.endpointsSettledIndexOnly.toLocaleString()"));
   assert.ok(read("src/app/impact/page.tsx").includes("stats.l1.settledLateLinked.toLocaleString()"));

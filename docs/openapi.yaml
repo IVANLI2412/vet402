@@ -3960,6 +3960,13 @@ paths:
                       Endpoints whose newest probes publish as fail and whose
                       catalog status is not delisted. A delisted fail streak is
                       withdrawnFail. Since 2026-10-24.
+                  publishedFailProbeOlderThan30d:
+                    type: integer
+                    description: >-
+                      The part of `publishedFail` whose latest failing probe is
+                      more than 30 days old. Same fail definition as
+                      `publishedFail`; only the age window is split out.
+                      Since 2026-11-20.
                   withdrawnFail:
                     type: integer
                     description: >-

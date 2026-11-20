@@ -429,6 +429,13 @@ export default async function ObservatoryStatePage() {
               </tr>
               <tr>
                 <td className="text-brand">
+                  of published fail, latest failing probe more than 30 days old (stale fail face)
+                </td>
+                <td className="num">{stats.publishedFailProbeOlderThan30d.toLocaleString()}</td>
+                <td className="num">{pct(stats.publishedFailProbeOlderThan30d, stats.publishedFail)}</td>
+              </tr>
+              <tr>
+                <td className="text-brand">
                   {withdrawnStateLabel()}
                 </td>
                 <td className="num">{(stats.withdrawnFail ?? 0).toLocaleString()}</td>

@@ -857,6 +857,8 @@ export type ObservatoryStats = {
   delistedEndpoints: number;
   /** Endpoints whose published word is fail. A delisted fail streak is withdrawnFail, not this. */
   publishedFail: number;
+  /** publishedFail のうち、最新の fail を出した probe が 30 日より前の endpoint（定義は publishedFail のまま・窓だけ分ける）。 */
+  publishedFailProbeOlderThan30d: number;
   /**
    * Delisted endpoints whose newest probes would publish as fail.
    * Left out of publishedFail. Since 2026-10-24.
@@ -1068,6 +1070,7 @@ export async function getObservatoryStats(): Promise<ObservatoryStats> {
     activeEndpoints: 0,
     delistedEndpoints: 0,
     publishedFail: 0,
+    publishedFailProbeOlderThan30d: 0,
     withdrawnFail: 0,
     publishedPass: 0,
     publishedPassActive: 0,
@@ -1161,6 +1164,15 @@ export async function getObservatoryStats(): Promise<ObservatoryStats> {
             AND NOT EXISTS (
               SELECT 1 FROM unnest(verdicts) AS u(v) WHERE u.v <> 'fail'
             )
+            AND status <> 'delisted'
+            AND last_probed_at <= now() - interval '30 days'
+        )::int AS published_fail_probe_older_than_30d,
+        count(*) FILTER (
+          WHERE verdicts[1] = 'fail'
+            AND cardinality(verdicts) >= ${MIN_CONSECUTIVE_FAILS_TO_PUBLISH}
+            AND NOT EXISTS (
+              SELECT 1 FROM unnest(verdicts) AS u(v) WHERE u.v <> 'fail'
+            )
             AND status = 'delisted'
         )::int AS withdrawn_fail
       FROM latest
@@ -1173,6 +1185,7 @@ export async function getObservatoryStats(): Promise<ObservatoryStats> {
     const total = Number(agg.total ?? 0);
     const publishedPass = Number(agg.published_pass ?? 0);
     const publishedFail = Number(agg.published_fail ?? 0);
+    const publishedFailProbeOlderThan30d = Number(agg.published_fail_probe_older_than_30d ?? 0);
     const withdrawnFail = Number(agg.withdrawn_fail ?? 0);
 
     // 2026-09-19 再レビュー V2: 除外が**今日何件取り除いているか**を数えて出す。
@@ -1459,6 +1472,7 @@ export async function getObservatoryStats(): Promise<ObservatoryStats> {
       activeEndpoints: Number(agg.active ?? 0),
       delistedEndpoints: Number(agg.delisted ?? 0),
       publishedFail,
+      publishedFailProbeOlderThan30d,
       withdrawnFail,
       publishedPass,
       publishedPassActive: Number(agg.published_pass_active ?? 0),
