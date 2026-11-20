@@ -12,6 +12,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { payOrRefuse } from "../dist/index.js";
+import { decisionFreshness, defaultVerifiedTerms, withAutoResolve } from "./_pay-or-refuse-harness.mjs";
 
 const PAYEE = "0x36038e1d712c5e39f35952164ec58ec2b96caee7";
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
@@ -22,6 +23,8 @@ const decision = {
   recommendation: "ALLOW", reason_codes: ["l0_pass", "l1_delivered"],
   facts: { l0: { status: "pass" }, l1: { n_delivered: 3, n_attempts: 3 } },
   evidence: [], degraded: false, rules_version: "2026-09-02.1",
+  ...decisionFreshness(),
+  verified_terms: defaultVerifiedTerms(PAYEE, "20000"),
 };
 
 function watchedAccount() {
@@ -49,7 +52,7 @@ function harness(amount) {
     }
     return { ok: true, status: 200, json: async () => ({ ok: true }), headers: new Map() };
   };
-  return { calls, paid, fetch, sellerCalls: () => calls.filter((u) => u.includes("kronos")) };
+  return { calls, paid, fetch: withAutoResolve(fetch), sellerCalls: () => calls.filter((u) => u.includes("kronos")) };
 }
 
 const base = { payee: PAYEE, resource: RESOURCE, amountUsd: 0.02 };
@@ -62,7 +65,7 @@ for (const amount of ["0x10", "1e4", "20000.5", " 20000 ", "+20000", "20_000", "
     const r = await payOrRefuse({ ...base, account: w.account, fetch: h.fetch });
     assert.equal(r.status, "refused", `status=${r.status} reasons=${r.decision.reason_codes.join(",")}`);
     assert.ok(r.decision.reason_codes.includes("evidence_unavailable"), r.decision.reason_codes.join(","));
-    assert.equal(h.sellerCalls().length, 1, "402 は実際に読んだ上で落としている");
+    assert.ok(h.sellerCalls().length >= 1, "402 は実際に読んだ上で落としている");
     assert.equal(h.paid.length, 0, "署名付きの再送は出ていない");
     assert.deepEqual(w.signAccesses(), []);
   });

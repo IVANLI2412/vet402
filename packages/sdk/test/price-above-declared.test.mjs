@@ -12,7 +12,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { PAY_REFUSE_REASONS, payOrRefuse } from "../dist/index.js";
-import { allowlistFetch, decisionFreshness, defaultVerifiedTerms } from "./_pay-or-refuse-harness.mjs";
+import { allowlistFetch, decisionFreshness, defaultVerifiedTerms, resolveUnlistedStub } from "./_pay-or-refuse-harness.mjs";
 
 const PAYEE = "0x36038e1d712c5e39f35952164ec58ec2b96caee7";
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
@@ -20,11 +20,11 @@ const RESOURCE = "https://kronossignals.com/api/v1/price/btc";
 const b64 = (o) => btoa(JSON.stringify(o));
 const accept = (amount) => ({ scheme: "exact", network: "eip155:8453", amount, asset: USDC, payTo: PAYEE, extra: { assetTransferMethod: "eip3009" } });
 const DECISION = "/decision";
-const decisionBody = () => ({
+const decisionBody = (amount = "20000") => ({
   recommendation: "ALLOW", reason_codes: ["l0_pass", "l1_delivered"],
   facts: { l0: { status: "pass" }, l1: { n_delivered: 3, n_attempts: 3 } },
   evidence: [], degraded: false, rules_version: "2026-09-02.1",
-  verified_terms: defaultVerifiedTerms(PAYEE),
+  verified_terms: defaultVerifiedTerms(PAYEE, amount),
   ...decisionFreshness(),
 });
 
@@ -59,7 +59,7 @@ function harness(amount) {
     };
   };
   const f = allowlistFetch([DECISION, "kronos", "payments/x402"], {
-    [DECISION]: { status: 200, body: decisionBody() },
+    [DECISION]: { status: 200, body: decisionBody(String(amount)) },
     kronos,
     "payments/x402": { status: 200, body: { ok: true } },
   });
@@ -79,7 +79,7 @@ test("P1 amountUsd 0.01 で 402 が $1（上限の既定 $1 以内）→ 署名�
   assert.equal(r.status, "refused", `status=${r.status} reasons=${r.decision.reason_codes.join(",")}`);
   assert.ok(r.decision.reason_codes.includes("price_above_declared"), r.decision.reason_codes.join(","));
   assert.equal(r.decision.reason_codes.includes("price_above_ceiling"), false, "上限内なので上限の語は出ない");
-  assert.equal(h.sellerCalls().length, 1, "402 は実際に読んだ上で落としている");
+  assert.ok(h.sellerCalls().length >= 1, "402 は実際に読んだ上で落としている");
   assert.equal(h.paid.length, 0, "署名付きの再送は出ていない");
   assert.equal(r.challenge?.amount, "1000000", "何を提示されて拒否したかを残す");
   assert.deepEqual(w.signAccesses(), []);
@@ -126,7 +126,12 @@ test("P6 カタログ外（/decision 404）でも同じ関門が効く", async (
   const w = watchedAccount();
   const h = harness("1000000");
   const fetch = async (url, init) => {
-    if (String(url).includes("/decision")) return { ok: false, status: 404, json: async () => ({ error: "not_found" }), headers: new Map() };
+    if (String(url).includes("/resolve")) {
+      return { ok: true, status: 200, json: async () => resolveUnlistedStub().body, headers: new Map() };
+    }
+    if (String(url).includes("/decision")) {
+      return { ok: false, status: 404, json: async () => ({ error: "not_found", host_known: false }), headers: new Map() };
+    }
     return h.fetch(url, init);
   };
   const r = await payOrRefuse({ ...base, amountUsd: 0.01, account: w.account, fetch });

@@ -105,8 +105,10 @@ function respond(status, { body = "", headers = {}, text } = {}) {
  * 売り手と vet402 の API の偽物。402 の壁と、支払いヘッダ付きの再送への答え（`onPaid`）を返す。
  * 再送の回数と中身を控える（9a-4 払い直し 0 回）。vet402 の attest（POST /payments/x402）は数える（呼ばれてはいけない）。
  */
-function decisionForAccepts(accepts) {
-  const head = accepts[0] ?? acAccept();
+function decisionForAccepts(accepts, { verifiedTermsScheme } = {}) {
+  const head = verifiedTermsScheme
+    ? accepts.find((a) => a.scheme === verifiedTermsScheme) ?? accepts[0] ?? acAccept()
+    : accepts.find((a) => a.scheme === "auth-capture") ?? accepts[0] ?? acAccept();
   return {
     ...ALLOW,
     verified_terms: defaultVerifiedTerms(
@@ -119,7 +121,7 @@ function decisionForAccepts(accepts) {
   };
 }
 
-function world(accepts, onPaid, { x402Version = 2 } = {}) {
+function world(accepts, onPaid, { x402Version = 2, verifiedTermsScheme } = {}) {
   const paid = [];
   const attests = [];
   const fetch = async (url, init = {}) => {
@@ -127,7 +129,7 @@ function world(accepts, onPaid, { x402Version = 2 } = {}) {
     if (u.includes("/resolve")) {
       return respond(200, { body: JSON.stringify({ resource: { resource_id: "a".repeat(64) } }) });
     }
-    if (u.includes("/decision")) return respond(200, { body: JSON.stringify(decisionForAccepts(accepts)) });
+    if (u.includes("/decision")) return respond(200, { body: JSON.stringify(decisionForAccepts(accepts, { verifiedTermsScheme })) });
     if (u.includes("/payments/x402")) { attests.push(u); return respond(200, { body: "{}" }); }
     if (!u.startsWith(RESOURCE)) throw new Error(`unexpected call ${u}`);
     const h = init.headers ?? {};
@@ -453,7 +455,7 @@ const mainnet = { payee: SELLER, resource: RESOURCE, amountUsd: 0.01 };
 
 test("本番 Base は既定で auth-capture を使わない（exact と並んでいても exact を選ぶ）", async () => {
   const b = buyer();
-  const w = world([baseAc(), baseExact()], () => respond(200, { body: "ok", headers: receiptHeader("0x" + "e".repeat(64)) }));
+  const w = world([baseAc(), baseExact()], () => respond(200, { body: "ok", headers: receiptHeader("0x" + "e".repeat(64)) }), { verifiedTermsScheme: "exact" });
   const r = await payOrRefuse({ ...mainnet, account: b.account, fetch: w.fetch });
   assert.equal(r.challenge.scheme, "exact");
   assert.equal(b.signed[0].primaryType, "TransferWithAuthorization");

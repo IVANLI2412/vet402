@@ -127,7 +127,7 @@ test("pay_if_trusted: /resolve and /decision say vet402-mcp, the SDK's own vet40
   });
   assert.equal(r.decision, "PAID", r.refuse_reasons.join(","));
   const of = (kind) => seen.filter((s) => s.kind === kind);
-  assert.equal(of("resolve").length, 1);
+  assert.equal(of("resolve").length, 2, "MCP resolve と SDK payOrRefuse 内の resolve");
   assert.equal(userAgentOf(of("resolve")[0].init?.headers), EXPECTED_UA);
   // The decision is read twice: once by the MCP gate, once inside the SDK's payOrRefuse.
   assert.deepEqual(of("decision").map((s) => userAgentOf(s.init?.headers)), [EXPECTED_UA, `vet402-sdk/${sdkPkg.version}`]);

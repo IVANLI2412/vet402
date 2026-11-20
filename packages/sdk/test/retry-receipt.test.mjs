@@ -14,6 +14,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { Keypair, VersionedTransaction } from "@solana/web3.js";
 import { payOrRefuse } from "../dist/index.js";
+import { decisionFreshness, defaultVerifiedTerms, withAutoResolve } from "./_pay-or-refuse-harness.mjs";
 
 const b64 = (o) => btoa(JSON.stringify(o));
 
@@ -32,6 +33,8 @@ const decisionBody = (over = {}) => ({
   facts: { l1: { n_delivered: 3 } },
   evidence: [],
   degraded: false,
+  ...decisionFreshness(),
+  verified_terms: defaultVerifiedTerms(PAYEE, "20000"),
   ...over,
 });
 
@@ -64,7 +67,7 @@ function evmWorld({ decision = { status: 200, body: decisionBody() }, paidAnswer
     }
     throw new Error(`forbidden call: ${u}`);
   };
-  return { fetch, calls };
+  return { fetch: withAutoResolve(fetch), calls };
 }
 
 const sellerSays = (settlement, status = 200) => () => ({
@@ -213,13 +216,18 @@ const SVM_RESOURCE = "https://sol-seller.example/api/v1/price/sol";
 const RPC_URL = "https://rpc.solana.example/";
 const solAccept = { scheme: "exact", network: SOLANA_MAINNET, amount: "20000", asset: SOLANA_USDC, payTo: SVM_PAYEE, maxTimeoutSeconds: 60, extra: { feePayer: FEE_PAYER } };
 
+const svmDecisionBody = () => ({
+  ...decisionBody(),
+  verified_terms: defaultVerifiedTerms(SVM_PAYEE, "20000", SOLANA_USDC, SOLANA_MAINNET),
+});
+
 function svmWorld({ paidAnswer }) {
   const calls = [];
   const sent = [];
   const fetch = async (url, init) => {
     const u = String(url);
     calls.push(u);
-    if (u.includes(DECISION)) return { ok: true, status: 200, json: async () => decisionBody(), headers: new Map() };
+    if (u.includes(DECISION)) return { ok: true, status: 200, json: async () => svmDecisionBody(), headers: new Map() };
     if (u === RPC_URL) {
       return { ok: true, status: 200, json: async () => ({ jsonrpc: "2.0", id: 1, result: { context: { slot: 1 }, value: { blockhash: BLOCKHASH, lastValidBlockHeight: 100 } } }), headers: new Map() };
     }
@@ -231,7 +239,7 @@ function svmWorld({ paidAnswer }) {
     }
     throw new Error(`forbidden call: ${u}`);
   };
-  return { fetch, calls, sent };
+  return { fetch: withAutoResolve(fetch), calls, sent };
 }
 
 function svmSigner() {

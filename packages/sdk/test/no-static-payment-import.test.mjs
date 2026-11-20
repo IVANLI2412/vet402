@@ -22,6 +22,7 @@ import { readFileSync, existsSync, mkdtempSync, readdirSync, copyFileSync, write
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+import { decisionFreshness, defaultVerifiedTerms, withAutoResolve } from "./_pay-or-refuse-harness.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const DIST = resolve(here, "../dist");
@@ -155,6 +156,8 @@ const decisionBody = (recommendation) => ({
   degraded: false,
   policy: "allow_only",
   rules_version: "2026-09-02.1",
+  ...decisionFreshness(),
+  verified_terms: defaultVerifiedTerms(PAYEE, "20000"),
 });
 const wall402 = () => ({
   ok: false,
@@ -166,12 +169,13 @@ const wall402 = () => ({
   ]]),
 });
 /** /decision に recommendation を、資源 URL に 402 の壁を返す fetch。 */
-const fetchWith = (recommendation) => async (url) => {
+const fetchWith = (recommendation) => withAutoResolve(async (url) => {
   const u = String(url);
   if (u.includes("/decision")) return { ok: true, status: 200, json: async () => decisionBody(recommendation), headers: new Map() };
   if (u.startsWith(RESOURCE)) return wall402();
+  if (u.includes("/payments/x402")) return { ok: true, status: 200, json: async () => ({ ok: true }), headers: new Map() };
   throw new Error(`unexpected call: ${u}`);
-};
+});
 
 test("第3層: 拒否経路では支払いモジュールが評価されない（ロード即 throw に差し替えても拒否で返る）", async () => {
   const { payOrRefuse } = await import(isolatedDistWithPoisonedPaymentModule());
@@ -243,12 +247,21 @@ const solWall402 = () => ({
     btoa(JSON.stringify({ x402Version: 2, accepts: [{ scheme: "exact", network: "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp", amount: "20000", asset: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", payTo: SOL_PAYEE, extra: { feePayer: SOL_FEE_PAYER } }] })),
   ]]),
 });
-const solFetchWith = (recommendation) => async (url) => {
+const solFetchWith = (recommendation) => withAutoResolve(async (url) => {
   const u = String(url);
-  if (u.includes("/decision")) return { ok: true, status: 200, json: async () => decisionBody(recommendation), headers: new Map() };
+  if (u.includes("/decision")) {
+    const body = {
+      ...decisionBody(recommendation),
+      verified_terms: defaultVerifiedTerms(SOL_PAYEE, "20000", "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v", "solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp"),
+    };
+    return { ok: true, status: 200, json: async () => body, headers: new Map() };
+  }
+  if (u === "https://rpc.example/") {
+    return { ok: true, status: 200, json: async () => ({ jsonrpc: "2.0", id: 1, result: { context: { slot: 1 }, value: { blockhash: "11111111111111111111111111111111", lastValidBlockHeight: 100 } } }), headers: new Map() };
+  }
   if (u.startsWith(RESOURCE)) return solWall402();
   throw new Error(`unexpected call: ${u}`);
-};
+});
 
 test("第3層(SVM): svm-pay.js と spl-token-lite.js をロード即 throw にしても、Solana の BLOCK は拒否で返る", async () => {
   const { payOrRefuse } = await import(isolatedDist(["svm-pay.js", "spl-token-lite.js"]).entry);
@@ -276,7 +289,7 @@ test("peer 任意: @solana/web3.js が解決できない場所に dist だけを
   const { payOrRefuse } = await import(entry);
   let signed = 0;
   const account = { address: "0xDB62BD202914609830fA656F87996b91be3Aa673", signTypedData: async () => { signed++; return "0xsig"; } };
-  const fetch = async (url, init) => {
+  const fetch = withAutoResolve(async (url, init) => {
     const u = String(url);
     if (u.includes("/decision")) return { ok: true, status: 200, json: async () => decisionBody("ALLOW"), headers: new Map() };
     if (u.startsWith(RESOURCE)) {
@@ -285,7 +298,7 @@ test("peer 任意: @solana/web3.js が解決できない場所に dist だけを
     }
     if (u.includes("/payments/x402")) return { ok: true, status: 200, json: async () => ({}), headers: new Map() };
     throw new Error(`unexpected call: ${u}`);
-  };
+  });
   const r = await payOrRefuse({ payee: PAYEE, resource: RESOURCE, amountUsd: 0.02, account, fetch });
   assert.equal(r.status, "paid");
   assert.equal(r.rail, "evm");

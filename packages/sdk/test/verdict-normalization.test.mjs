@@ -21,6 +21,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { payOrRefuse, SpendGuard } from "../dist/index.js";
+import { decisionFreshness, defaultVerifiedTerms, resolveUnlistedStub, resolveStub } from "./_pay-or-refuse-harness.mjs";
 
 const PAYEE = "0x36038e1d712c5e39f35952164ec58ec2b96caee7";
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
@@ -75,6 +76,8 @@ const decisionBody = (over = {}) => ({
   evidence: [],
   policy: "allow_only",
   rules_version: "2026-09-02.1",
+  ...decisionFreshness(),
+  verified_terms: defaultVerifiedTerms(PAYEE, "20000"),
   ...over,
 });
 
@@ -85,10 +88,14 @@ const decisionBody = (over = {}) => ({
 function harness({ decision404 = false, decision = null, score = null } = {}) {
   return async (url, init) => {
     const u = String(url);
+    if (u.includes("/resolve")) {
+      const stub = decision404 ? resolveUnlistedStub() : resolveStub();
+      return { ok: true, status: 200, headers: new Map(), json: async () => stub.body };
+    }
     if (u.includes("gateway.thegraph.com")) return SUBGRAPH_OK;
     if (u.includes("/decision")) {
       return decision404
-        ? { ok: false, status: 404, headers: new Map(), json: async () => ({ error: "not_found" }) }
+        ? { ok: false, status: 404, headers: new Map(), json: async () => ({ error: "not_found", host_known: false }) }
         : { ok: true, status: 200, headers: new Map(), json: async () => decision };
     }
     if (u.includes("/payees/")) return { ok: true, status: 200, headers: new Map(), json: async () => score };

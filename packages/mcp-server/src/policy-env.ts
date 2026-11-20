@@ -31,7 +31,10 @@ export function policyFromEnv(env: NodeJS.ProcessEnv): PayPolicy {
 
 /** Tool input may only tighten policy relative to env (never waive or lower floors). */
 export function mergePolicyFromEnv(envPolicy: PayPolicy, tool?: PayPolicy): PayPolicy {
-  const requireVet402Allow = tool?.requireVet402Allow === false ? false : envPolicy.requireVet402Allow !== false;
+  if (envPolicy.requireVet402Allow !== false) {
+    return { ...envPolicy, requireVet402Allow: true, evidence: envPolicy.evidence };
+  }
+  const requireVet402Allow = tool?.requireVet402Allow === false ? false : true;
   if (requireVet402Allow) return { ...envPolicy, requireVet402Allow: true, evidence: envPolicy.evidence };
   const envFloor = envPolicy.evidence?.minL1Deliveries ?? 0;
   const toolFloor = tool?.evidence?.minL1Deliveries;

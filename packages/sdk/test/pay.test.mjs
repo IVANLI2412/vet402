@@ -34,8 +34,9 @@ const verdict = (recommendation, over = {}) => ({
 });
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-const resolveListed = () => {
-  const id = createHash("sha256").update(`GET ${URL_A}`).digest("hex");
+const resolveListed = (url) => {
+  const method = new URL(String(url)).searchParams.get("method") ?? "GET";
+  const id = createHash("sha256").update(`${method} ${URL_A}`).digest("hex");
   return json(200, { resource: { resource_id: id, payee_id: `eip155:8453:${PAY_TO}` } });
 };
 const resolveUnlisted = () => json(200, {

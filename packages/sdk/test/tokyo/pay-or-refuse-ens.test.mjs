@@ -9,6 +9,7 @@
 //   - 決定行の ENS の内訳は形を決め打ちせず、JSON に "recovered" と expected のアドレスが出ることだけを見る。
 import test from "node:test";
 import assert from "node:assert/strict";
+import { decisionFreshness, defaultVerifiedTerms } from "../_pay-or-refuse-harness.mjs";
 
 // ==== harness begin（ENS の偽物。同じ塊を tokyo の各テストファイルに写している。ネットワークに出ない）====
 // 固定値は PLAN_v4.3 §2.1・§10.1。署名は anvil の既知鍵（#0 = K_atst・#1 = 2人目の attester・#2 = 差し替え後の鍵）。
@@ -185,10 +186,15 @@ function watchedAccount() {
 const b64 = (o) => Buffer.from(JSON.stringify(o)).toString("base64");
 const ACCEPT_SEPOLIA = { scheme: "exact", network: "eip155:84532", amount: "10000", asset: USDC_SEPOLIA, payTo: W_ENS, extra: { assetTransferMethod: "eip3009", name: "USDC", version: "2" } };
 const ACCEPT_BASE = { ...ACCEPT_SEPOLIA, network: "eip155:8453", asset: USDC_BASE, extra: { assetTransferMethod: "eip3009", name: "USD Coin", version: "2" } };
-const decisionBody = (over = {}) => ({
+const termsForAccept = (accept) =>
+  defaultVerifiedTerms(accept.payTo, accept.amount, accept.asset, accept.network, accept.scheme ?? "exact");
+const decisionBody = (accept = ACCEPT_SEPOLIA, over = {}) => ({
   subject: { type: "resource", id: "b".repeat(64) }, role: "payer", recommendation: "ALLOW",
   reason_codes: ["l0_pass"], facts: { l0: { status: "pass" }, l1: { n_delivered: 0, n_attempts: 0 }, l2: { status: "undeclared" } },
-  evidence: [], degraded: false, policy: "allow_only", rules_version: "2026-09-02.1", ...over,
+  evidence: [], degraded: false, policy: "allow_only", rules_version: "2026-09-02.1",
+  ...decisionFreshness(),
+  verified_terms: termsForAccept(accept),
+  ...over,
 });
 function resp(r) {
   const headers = new Headers(r.headers ?? {});
@@ -202,16 +208,25 @@ function resp(r) {
  * 許可リストの偽 fetch。apiUrl（/decision など）と売り手（RESOURCE）だけに答え、他は throw。
  * decision: 応答 {status, body|raw} か Error（接続不能）か関数。accept: 402 に載せる accept。
  */
-function router({ decision = { status: 200, body: decisionBody() }, accept = ACCEPT_SEPOLIA, onWall } = {}) {
+function router({ decision = { status: 200, body: decisionBody(ACCEPT_SEPOLIA) }, accept = ACCEPT_SEPOLIA, onWall } = {}) {
   const calls = [];
   const paid = [];
   const fetch = async (url, init) => {
     const u = String(url);
     calls.push({ u, method: (init && init.method) || "GET" });
     if (u.startsWith(API)) {
+      if (u.includes("/resolve")) {
+        return resp({ status: 200, body: { resource: { resource_id: "b".repeat(64) } } });
+      }
       const d = typeof decision === "function" ? decision(u, init) : decision;
       if (d instanceof Error) throw d;
       if (!u.includes("/decision")) throw new Error(`unexpected api call: ${u}`);
+      if (d.status === 200 && d.body && typeof d.body === "object") {
+        return resp({
+          ...d,
+          body: { ...d.body, ...decisionFreshness(), verified_terms: termsForAccept(accept) },
+        });
+      }
       return resp(d);
     }
     if (u.startsWith(RESOURCE)) {

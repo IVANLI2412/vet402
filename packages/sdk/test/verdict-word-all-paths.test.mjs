@@ -14,7 +14,12 @@ import assert from "node:assert/strict";
 import { Keypair } from "@solana/web3.js";
 import { payOrRefuse } from "../dist/index.js";
 import { isUnknownVerdict } from "../dist/verdict-shape.js";
-import { decisionFreshness, defaultVerifiedTerms, resolveStub } from "./_pay-or-refuse-harness.mjs";
+import {
+  decisionFreshness,
+  defaultVerifiedTerms,
+  resolveStub,
+  resolveUnlistedStub,
+} from "./_pay-or-refuse-harness.mjs";
 
 const DECISION = "/decision";
 const SCORE = "/payees/";
@@ -38,11 +43,15 @@ function watchedAccount() {
 function world({ decision, score }) {
   const calls = [];
   const paid = [];
+  const uncatalogued =
+    decision?.status === 404 && decision?.body?.error === "not_found";
   const fetch = async (url, init) => {
     const u = String(url);
     calls.push(u);
     const answer = (r) => ({ ok: r.status < 400, status: r.status, json: async () => r.body, headers: new Map(Object.entries(r.headers ?? {})) });
-    if (u.includes("/resolve")) return answer(resolveStub());
+    if (u.includes("/resolve")) {
+      return answer(uncatalogued ? resolveUnlistedStub() : resolveStub());
+    }
     if (u.includes(DECISION)) return answer(decision);
     if (u.includes(SCORE)) return answer(score ?? { status: 500, body: {} });
     if (u.includes("gateway.thegraph.com")) {
@@ -147,7 +156,7 @@ for (const [name, body] of UNREADABLE_WORDS) {
 
 // ---------- 404 → 受取人スコアの経路 ----------
 
-const notFound = { status: 404, body: { error: "not_found" } };
+const notFound = { status: 404, body: { error: "not_found", host_known: false } };
 const payeeScore = (over = {}) => ({
   status: 200,
   body: { payee: PAYEE, score: 69, recommendation: "WARN", dataDepth: "thin", degraded: false, signalsUnavailable: [], ...over },
@@ -207,7 +216,14 @@ test("K7 Solana の payee＋免除＋床: 判定語の無い 200 → 拒否・�
   const fetch = async (url) => {
     const u = String(url);
     calls.push(u);
-    if (u.includes(DECISION)) return { ok: true, status: 200, json: async () => withoutWord(), headers: new Map() };
+    const answer = (r) => ({
+      ok: r.status < 400,
+      status: r.status,
+      json: async () => r.body,
+      headers: new Map(Object.entries(r.headers ?? {})),
+    });
+    if (u.includes("/resolve")) return answer(resolveStub());
+    if (u.includes(DECISION)) return answer({ status: 200, body: withoutWord() });
     throw new Error(`forbidden call: ${u}`);
   };
   const r = await payOrRefuse({
@@ -222,7 +238,7 @@ test("K7 Solana の payee＋免除＋床: 判定語の無い 200 → 拒否・�
   assert.equal(r.rail, "svm");
   assert.equal(r.decision.reason_codes.includes("evidence_unavailable"), true, r.decision.reason_codes.join(","));
   assert.deepEqual(accessed, [], "Solana の署名者に触っていない");
-  assert.deepEqual(calls.filter((u) => !u.includes(DECISION)), [], "判定のほかには何も引いていない");
+  assert.deepEqual(calls.filter((u) => !u.includes(DECISION) && !u.includes("/resolve")), [], "判定のほかには何も引いていない");
   assert.equal(r.svmTransaction, null);
 });
 

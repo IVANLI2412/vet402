@@ -14,7 +14,7 @@ import assert from "node:assert/strict";
 import { Keypair, PublicKey, VersionedTransaction, TransactionMessage, ComputeBudgetProgram } from "@solana/web3.js";
 import { getAssociatedTokenAddressSync, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import * as sdk from "../dist/index.js";
-import { decisionFreshness, resolveStub } from "./_pay-or-refuse-harness.mjs";
+import { decisionFreshness, resolveStub, resolveUnlistedStub, withAutoResolve } from "./_pay-or-refuse-harness.mjs";
 
 const { payOrRefuse, svmAccountFromKeypair } = sdk;
 
@@ -103,15 +103,32 @@ function watchedSvmAccount({ keypair = PAYER, returnTx } = {}) {
 function harness({ decision = { status: 200, body: decisionBody() }, wall = { x402Version: 2, accepts: [solAccept()] }, settlement = { success: true, transaction: "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW", network: SOLANA_MAINNET }, rpc } = {}) {
   const calls = [];
   const paid = [];
+  const termsForWall = () => {
+    const a =
+      wall.accepts.find((x) => typeof x.network === "string" && x.network.startsWith("solana")) ?? wall.accepts[0];
+    return { pay_to: a.payTo, asset: a.asset, amount: a.amount, network: a.network, scheme: a.scheme ?? "exact" };
+  };
+  const decisionResolved = typeof decision === "function" ? decision() : decision;
+  const decisionWithTerms =
+  decisionResolved?.status === 200
+      ? {
+          ...decisionResolved,
+          body: decisionBody({
+            ...(decisionResolved.body ?? {}),
+            verified_terms: termsForWall(),
+          }),
+        }
+      : decisionResolved;
   const fetch = async (url, init) => {
     const u = String(url);
     calls.push({ url: u, method: init?.method ?? "GET" });
     if (u.includes("/resolve")) {
-      const d = resolveStub();
+      const dec = typeof decision === "function" ? decision() : decision;
+      const d = dec?.status === 404 ? resolveUnlistedStub() : resolveStub();
       return { ok: true, status: d.status, json: async () => d.body, headers: new Map() };
     }
     if (u.includes("/decision")) {
-      const d = typeof decision === "function" ? decision() : decision;
+      const d = typeof decision === "function" ? decisionWithTerms : decisionWithTerms;
       return { ok: d.status < 400, status: d.status, json: async () => { if (d.nonJson) throw new SyntaxError("bad json"); return d.body; }, headers: new Map() };
     }
     if (u === RPC_URL) {
@@ -240,9 +257,16 @@ test("S4c EVM の payee では、Solana が先頭でも従来どおり Base を�
   const accessed = [];
   const account = new Proxy({ address: "0xDB62BD202914609830fA656F87996b91be3Aa673", signTypedData: async () => "0xsig" }, { get(t, p) { accessed.push(String(p)); return Reflect.get(t, p); } });
   const paid = [];
-  const fetch = async (url, init) => {
+  const fetch = withAutoResolve(async (url, init) => {
     const u = String(url);
-    if (u.includes("/decision")) return { ok: true, status: 200, json: async () => decisionBody(), headers: new Map() };
+    if (u.includes("/decision")) {
+      return {
+        ok: true,
+        status: 200,
+        json: async () => decisionBody({ verified_terms: { pay_to: evmPayee, asset: BASE_USDC, amount: "20000", network: "eip155:8453", scheme: "exact" } }),
+        headers: new Map(),
+      };
+    }
     if (u.startsWith(RESOURCE)) {
       const raw = (init?.headers ?? {})["PAYMENT-SIGNATURE"];
       if (!raw) return { ok: false, status: 402, json: async () => ({}), headers: new Map([["payment-required", b64({ x402Version: 2, accepts: [solAccept({ payTo: evmPayee }), baseAccept] })]]) };
@@ -251,7 +275,7 @@ test("S4c EVM の payee では、Solana が先頭でも従来どおり Base を�
     }
     if (u.includes("/payments/")) return { ok: true, status: 200, json: async () => ({}), headers: new Map() };
     throw new Error(`forbidden: ${u}`);
-  };
+  });
   const r = await payOrRefuse({ payee: evmPayee, resource: RESOURCE, amountUsd: 0.02, account, fetch });
   assert.equal(r.status, "paid");
   assert.equal(r.rail, "evm");
@@ -318,7 +342,7 @@ test("S6c 名乗りが上限を超える → 判定も引かずに price_above_c
 
 test("S7 /decision 404（カタログ外）→ resource_uncatalogued ＋ evidence_unavailable・402 も受取人スコアも引かない", async () => {
   const w = watchedSvmAccount();
-  const h = harness({ decision: { status: 404, body: { error: "not_found" } } });
+  const h = harness({ decision: { status: 404, body: { error: "not_found", host_known: false } } });
   const r = await payOrRefuse(svmInput(w, h));
   assertRefusedBeforeSigning(r, w, h, "uncatalogued");
   assert.ok(r.decision.reason_codes.includes("resource_uncatalogued"), r.decision.reason_codes.join(","));

@@ -25,7 +25,7 @@ function canonical(raw) {
 }
 
 /** 掲載 2 件（同じホスト）と、その判定を持つ偽の vet402 ＋ 402 を返す売り手。 */
-function world({ listings, hostKnownOn404 = "compute" } = {}) {
+function world({ listings, hostKnownOn404 = "compute", hostSellersOn404 } = {}) {
   const byId = new Map(listings.map((l) => [sha(`${l.method} ${canonical(l.url)}`), l]));
   const calls = [];
   const accessed = [];
@@ -54,8 +54,10 @@ function world({ listings, hostKnownOn404 = "compute" } = {}) {
       if (!l) {
         const raw = url.searchParams.get("url");
         const hk = hostKnownOn404 === "compute" ? (raw ? hostListed(raw) : null) : hostKnownOn404;
-        const sellers = hostKnownOn404 === "compute" && raw ? new Set(live(raw).map((l) => l.payee ?? PAYEE)).size : undefined;
-        return json(404, hk === "absent" ? { error: "not_found" } : { error: "not_found", host_known: hk, ...(sellers === undefined ? {} : { host_sellers: sellers }) });
+        const onHost = raw ? live(raw) : [];
+        const sellers = onHost.length > 0 ? new Set(onHost.map((l) => l.payee ?? PAYEE)).size : undefined;
+        const hostSellers = hk === true ? (hostSellersOn404 ?? sellers) : undefined;
+        return json(404, hk === "absent" ? { error: "not_found" } : { error: "not_found", host_known: hk, ...(hostSellers !== undefined ? { host_sellers: hostSellers } : {}) });
       }
       return json(
         200,
@@ -178,7 +180,7 @@ const SHARED = [
 ];
 
 test("共有ホスト（受取人 2 人以上）の未掲載の売り手は止めない: 既定はカタログ外と同じで払い、summary に resource_unresolved", async () => {
-  const w = world({ listings: SHARED });
+  const w = world({ listings: SHARED, hostSellersOn404: 2 });
   const url = "https://x402.shared.example/new-seller";
   const r = await payIfTrusted({ resourceId: sha(`GET ${url}`), resource: url, payee: PAYEE, amountUsd: 0.01, maxPerTxUsd: 1, signer: w.signer, fetch: w.fetch });
   assert.equal(r.decision, "PAID", JSON.stringify(r.refuse_reasons));

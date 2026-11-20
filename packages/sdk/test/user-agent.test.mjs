@@ -17,6 +17,7 @@ import { readFileSync } from "node:fs";
 import { Keypair } from "@solana/web3.js";
 import { createVouchClient, payOrRefuse } from "../dist/index.js";
 import { SDK_VERSION, SDK_USER_AGENT, clientIdentityHeaders } from "../dist/user-agent.js";
+import { decisionFreshness, defaultVerifiedTerms, resolveStub, withAutoResolve } from "./_pay-or-refuse-harness.mjs";
 
 const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
 /** サーバ側 `client-usage.ts` の VERSION_RE と同じ形（数字3組・各1〜3桁）。 */
@@ -126,7 +127,15 @@ const BASE_USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const RESOURCE = "https://kronossignals.com/api/v1/price/btc";
 const b64 = (o) => btoa(JSON.stringify(o));
 const okAccept = { scheme: "exact", network: "eip155:8453", amount: "20000", asset: BASE_USDC, payTo: PAYEE, extra: { assetTransferMethod: "eip3009" } };
-const decisionBody = { recommendation: "ALLOW", reason_codes: ["l0_pass"], facts: { l1: { n_delivered: 3 } }, evidence: [], degraded: false };
+const decisionBody = {
+  recommendation: "ALLOW",
+  reason_codes: ["l0_pass"],
+  facts: { l1: { n_delivered: 3 } },
+  evidence: [],
+  degraded: false,
+  ...decisionFreshness(),
+  verified_terms: defaultVerifiedTerms(PAYEE, "20000"),
+};
 const account = { address: "0xDB62BD202914609830fA656F87996b91be3Aa673", signTypedData: async () => "0xsig" };
 
 /** 行き先ごとに、実際に出た要求（url と init）を記録する。 */
@@ -146,7 +155,7 @@ function evmWorld({ decision = { status: 200, body: decisionBody } } = {}) {
     }
     throw new Error(`forbidden call: ${u}`);
   };
-  return { fetch, seen };
+  return { fetch: withAutoResolve(fetch, { unlisted: decision?.status === 404 }), seen };
 }
 
 test("U5 payOrRefuse: /decision と attest には付け、売り手への要求（402 の取得・支払いつきの再送）には付けない", async () => {
@@ -162,7 +171,7 @@ test("U5 payOrRefuse: /decision と attest には付け、売り手への要求�
   assert.equal(f.seen.attest[0].init.headers["Content-Type"], "application/json");
   // 売り手への要求は 0.7.0 と同じ形のまま。
   assert.equal(f.seen.wall.length, 1);
-  assert.deepEqual(f.seen.wall[0].init, { method: "GET" }, "402 の取得はヘッダ無し");
+  assert.deepEqual(f.seen.wall[0].init, { method: "GET", redirect: "error" }, "402 の取得はヘッダ無し（302 でヘッダが落ちないよう redirect: error）");
   assert.equal(f.seen.paid.length, 1);
   assert.deepEqual(Object.keys(f.seen.paid[0].init.headers).sort(), ["PAYMENT-SIGNATURE", "accept"], "再送のヘッダは accept と PAYMENT-SIGNATURE だけ");
   assert.equal(userAgentOf(f.seen.paid[0].init), undefined);
@@ -171,7 +180,7 @@ test("U5 payOrRefuse: /decision と attest には付け、売り手への要求�
 });
 
 test("U6 payOrRefuse: カタログ外の経路で引く受取人スコアにも付く（鍵なしなら Authorization は無い）", async () => {
-  const f = evmWorld({ decision: { status: 404, body: { error: "not_found" } } });
+  const f = evmWorld({ decision: { status: 404, body: { error: "not_found", host_known: false } } });
   const r = await payOrRefuse({ payee: PAYEE, resource: RESOURCE, amountUsd: 0.02, account, fetch: f.fetch });
   assert.equal(r.status, "paid", r.decision.reason_codes.join(","));
   assert.equal(f.seen.score.length, 1);
@@ -202,9 +211,16 @@ test("U8 Solana: /decision には付け、RPC と売り手への要求には付�
   const resource = "https://sol-seller.example/api/v1/price/sol";
   const rpcUrl = "https://rpc.solana.example/";
   const seen = { decision: [], rpc: [], wall: [], paid: [] };
-  const fetch = async (url, init) => {
+  const fetch = withAutoResolve(async (url, init) => {
     const u = String(url);
-    if (u.includes("/decision")) { seen.decision.push(init); return { ok: true, status: 200, json: async () => decisionBody, headers: new Map() }; }
+    if (u.includes("/decision")) {
+      seen.decision.push(init);
+      const body = {
+        ...decisionBody,
+        verified_terms: defaultVerifiedTerms(payee, "20000", accept.asset, SOLANA_MAINNET),
+      };
+      return { ok: true, status: 200, json: async () => body, headers: new Map() };
+    }
     if (u === rpcUrl) { seen.rpc.push(init); return { ok: true, status: 200, json: async () => ({ result: { value: { blockhash: kp(3).publicKey.toBase58() } } }), headers: new Map() }; }
     if (u.startsWith(resource)) {
       if (!(init?.headers ?? {})["PAYMENT-SIGNATURE"]) { seen.wall.push(init); return { ok: false, status: 402, json: async () => ({}), headers: new Map([["payment-required", b64({ x402Version: 2, accepts: [accept] })]]) }; }
@@ -212,7 +228,7 @@ test("U8 Solana: /decision には付け、RPC と売り手への要求には付�
       return { ok: true, status: 200, json: async () => ({}), headers: new Map([["PAYMENT-RESPONSE", b64({ success: true, transaction: "5VERv8NMvzbJMEkV8xnrLkEaWRtSz9CosKDYjCJjBRnbJLgp8uirBgmQpjKhoR4tjF3ZpRzrFmBV6UjKdiSZkQUW", network: SOLANA_MAINNET })]]) };
     }
     throw new Error(`forbidden call: ${u}`);
-  };
+  });
   const r = await payOrRefuse({
     payee, resource, amountUsd: 0.02, fetch,
     svm: { account: { address: payer.publicKey.toBase58(), signTransaction: async (tx) => { tx.sign([payer]); return tx; } }, rpcUrl },
@@ -221,6 +237,6 @@ test("U8 Solana: /decision には付け、RPC と売り手への要求には付�
   assert.equal(userAgentOf(seen.decision[0]), EXPECTED_UA);
   assert.equal(seen.rpc.length, 1);
   assert.deepEqual(seen.rpc[0].headers, { "content-type": "application/json" }, "RPC への要求は 0.7.0 と同じ");
-  assert.deepEqual(seen.wall[0], { method: "GET" });
+  assert.deepEqual(seen.wall[0], { method: "GET", redirect: "error" });
   assert.deepEqual(Object.keys(seen.paid[0].headers).sort(), ["PAYMENT-SIGNATURE", "accept"]);
 });

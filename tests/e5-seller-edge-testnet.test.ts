@@ -111,6 +111,8 @@ test("[fix] E5 testnet: a missing receipt, a replay, and a different amount do n
   const readGood = createSellerChainReader({
     network: fixture.network,
     asset: fixture.asset,
+    payTo: fixture.payTo,
+    amount: fixture.amount,
     rpc: rpcFrom(fixture.receipt).rpc,
   });
   const edge = edgeMod.createSellerEdge({
@@ -133,6 +135,8 @@ test("[fix] E5 testnet: a missing receipt, a replay, and a different amount do n
     readChain: createSellerChainReader({
       network: fixture.network,
       asset: fixture.asset,
+      payTo: fixture.payTo,
+      amount: fixture.amount,
       rpc: missingRpc.rpc,
     }),
     signDelivery,
@@ -169,6 +173,8 @@ test("[fix] E5 testnet: a missing receipt, a replay, and a different amount do n
     readChain: createSellerChainReader({
       network: fixture.network,
       asset: fixture.asset,
+      payTo: fixture.payTo,
+      amount: fixture.amount,
       rpc: high.rpc,
     }),
     signDelivery,
@@ -178,7 +184,7 @@ test("[fix] E5 testnet: a missing receipt, a replay, and a different amount do n
   });
   const mismatched = await amountEdge.run({ purchaseId: "e5-tn-amount", receipt: facilitator() }, handler);
   assert.equal(mismatched.delivered, false);
-  assert.equal(mismatched.reason, "amount_mismatch");
+  assert.equal(mismatched.reason, "payment_fake", "受取人・額付きの seller-chain 照合はログ不一致を payment_fake にする");
   assert.equal(mismatched.body.includes(SECRET), false);
   assert.equal(handlerCalls, 1);
   assert.deepEqual(seen, ["e5-tn-ok"]);
@@ -193,6 +199,8 @@ test("[fix] E5 testnet: a matching receipt returns a proof and an E6 seller leg"
     readChain: createSellerChainReader({
       network: fixture.network,
       asset: fixture.asset,
+      payTo: fixture.payTo,
+      amount: fixture.amount,
       rpc: rpcFrom(fixture.receipt).rpc,
     }),
     signDelivery,
@@ -229,6 +237,8 @@ test("[fix] E5 testnet: a mainnet chain id does not satisfy a Base Sepolia offer
     readChain: createSellerChainReader({
       network: fixture.network,
       asset: fixture.asset,
+      payTo: fixture.payTo,
+      amount: fixture.amount,
       rpc: rpcFrom(fixture.receipt, "0x2105").rpc,
     }),
     signDelivery,
@@ -257,6 +267,8 @@ test("[fix] E5 testnet: two transfers of the offer asset do not deliver", async 
     readChain: createSellerChainReader({
       network: fixture.network,
       asset: fixture.asset,
+      payTo: fixture.payTo,
+      amount: fixture.amount,
       rpc: rpcFrom(receipt).rpc,
     }),
     signDelivery,
@@ -283,6 +295,8 @@ test("[fix] E5 testnet: Express uses the chain reader and still does not settle"
     readChain: createSellerChainReader({
       network: fixture.network,
       asset: fixture.asset,
+      payTo: fixture.payTo,
+      amount: fixture.amount,
       rpc: rpcFrom(fixture.receipt).rpc,
     }),
     signDelivery,
@@ -348,6 +362,8 @@ test("[fix] E5: state API publishes seller edge overhead and does not claim an u
       readChain: createSellerChainReader({
         network: fixture.network,
         asset: fixture.asset,
+        payTo: fixture.payTo,
+        amount: fixture.amount,
         rpc: rpcFrom(null).rpc,
       }),
       signDelivery,

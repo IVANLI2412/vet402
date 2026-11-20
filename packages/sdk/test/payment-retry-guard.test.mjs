@@ -3,6 +3,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 const { payOrRefuse } = await import("../dist/index.js");
+const { decisionFreshness, defaultVerifiedTerms, withAutoResolve } = await import("./_pay-or-refuse-harness.mjs");
 const { executeX402Payment: executeX402 } = await import("../dist/x402-pay.js");
 
 const PAY_TO = "0x36038e1d712c5e39f35952164ec58ec2b96caee7";
@@ -27,6 +28,8 @@ function decision() {
       degraded: false,
       policy: "allow_only",
       rules_version: "test",
+      ...decisionFreshness(),
+      verified_terms: defaultVerifiedTerms(PAY_TO, "20000"),
     },
   };
 }
@@ -83,7 +86,7 @@ test("payOrRefuse: signed retry uses redirect error so a 302 cannot carry the he
   const resource = "https://kronossignals.com/api/v1/price/btc";
   const paidRedirects = [];
   let signs = 0;
-  const fetchFn = async (url, init) => {
+  const fetchFn = withAutoResolve(async (url, init) => {
     const u = String(url);
     if (u.includes("/resources/") && u.includes("/decision")) {
       return new Response(JSON.stringify(decision().body), { status: 200, headers: { "content-type": "application/json" } });
@@ -97,7 +100,7 @@ test("payOrRefuse: signed retry uses redirect error so a 302 cannot carry the he
     paidRedirects.push(init?.redirect);
     if (init?.redirect === "error") throw new TypeError("unexpected redirect");
     throw new Error("redirect target must never run");
-  };
+  });
   const r = await payOrRefuse({
     payee: PAY_TO,
     resource,

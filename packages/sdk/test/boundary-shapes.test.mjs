@@ -22,6 +22,7 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { payOrRefuse, PAY_REFUSE_REASONS } from "../dist/index.js";
 import { ABSENT, BROKEN_SHAPES, REQUIRED_SHAPE_IDS, withShape, showShape } from "./_shapes.mjs";
+import { decisionFreshness, defaultVerifiedTerms, withAutoResolve } from "./_pay-or-refuse-harness.mjs";
 
 const PAYEE = "0x36038e1d712c5e39f35952164ec58ec2b96caee7";
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
@@ -45,6 +46,8 @@ const allowDecision = () => ({
   rules_version: "2026-09-02.1",
   registry: { status: "anchored", tx_hash: null },
   caller_policy: { verdict: "ALLOW", reason_codes: [] },
+  ...decisionFreshness(),
+  verified_terms: defaultVerifiedTerms(PAYEE, "20000"),
 });
 const warnDecision = () => ({ ...allowDecision(), recommendation: "WARN", reason_codes: ["l1_thin"] });
 
@@ -104,7 +107,7 @@ function harness({ decision = allowDecision(), decisionStatus = 200, challenge =
     }
     return { ok: true, status: 200, json: async () => ({ ok: true }), headers: new Map() };
   };
-  return { calls, fetch };
+  return { calls, fetch: withAutoResolve(fetch) };
 }
 
 const base = () => ({ payee: PAYEE, resource: RESOURCE, amountUsd: 0.02 });

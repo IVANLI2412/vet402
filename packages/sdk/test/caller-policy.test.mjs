@@ -12,6 +12,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { createVouchClient, payOrRefuse, DEFAULT_MAX_PER_TX_USD } from "../dist/index.js";
+import { decisionFreshness, defaultVerifiedTerms, withAutoResolve } from "./_pay-or-refuse-harness.mjs";
 
 const RID = "a".repeat(64);
 const PAYEE = "0x36038e1d712c5e39f35952164ec58ec2b96caee7";
@@ -38,6 +39,8 @@ const decision = (over = {}) => ({
   degraded: false,
   policy: "allow_only",
   rules_version: "2026-09-02.1",
+  ...decisionFreshness(),
+  verified_terms: defaultVerifiedTerms(PAYEE, "20000"),
   ...over,
 });
 
@@ -56,7 +59,7 @@ function harness(decisionBody) {
     }
     return { ok: true, status: 200, json: async () => ({ ok: true }), headers: new Map() };
   };
-  return { calls, fetchFn, decisionUrl: () => new URL(calls.find((u) => u.includes("/decision"))) };
+  return { calls, fetchFn: withAutoResolve(fetchFn), decisionUrl: () => new URL(calls.find((u) => u.includes("/decision"))) };
 }
 
 test("Q1 payOrRefuse は amount_usd / max_per_tx_usd をクエリに載せる（max は既定 $1 でも明示して送る）", async () => {

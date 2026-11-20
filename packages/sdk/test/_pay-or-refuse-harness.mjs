@@ -110,6 +110,18 @@ export function allowlistFetch(allowed, responses = {}) {
   };
 }
 
+/** ALLOW の /decision 本文に freshness と verified_terms を足す。 */
+export function withVerifiedTerms(body, payTo, amount = "20000") {
+  return {
+    ...body,
+    ...decisionFreshness(),
+    verified_terms: defaultVerifiedTerms(payTo, amount),
+  };
+}
+
+/** カタログ外の /decision 404（host_known: false とセットで使う）。 */
+export const UNCATALOGUED_404 = { status: 404, body: { error: "not_found", host_known: false } };
+
 /** Stub missing /resolve on an existing test fetch. */
 export function withAutoResolve(fetchImpl, options = {}) {
   if (fetchImpl.__vet402ResolveWrapped) return fetchImpl;
