@@ -307,6 +307,33 @@ export default async function ObservatoryStatePage() {
         </div>
 
         <h1 className="doc-title mt-8">State of x402</h1>
+        <dl className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+          <div>
+            <dt className="text-brand-deep">Settled purchases</dt>
+            <dd className="num mt-1 text-xl font-semibold text-brand">{stats.l1.settled.toLocaleString()}</dd>
+          </div>
+          <div>
+            <dt className="text-brand-deep">Delivered</dt>
+            <dd className="num mt-1 text-xl font-semibold text-brand">{stats.l1.delivered.toLocaleString()}</dd>
+          </div>
+          <div>
+            <dt className="text-brand-deep">Settled without delivery</dt>
+            <dd className="num mt-1 text-xl font-semibold text-brand">
+              {Math.max(0, stats.l1.settled - stats.l1.delivered - stats.l1.inconclusiveSettled).toLocaleString()}
+            </dd>
+          </div>
+          <div>
+            <dt className="text-brand-deep">Settled, inconclusive (4xx)</dt>
+            <dd className="num mt-1 text-xl font-semibold text-brand">{stats.l1.inconclusiveSettled.toLocaleString()}</dd>
+          </div>
+        </dl>
+        <p className="doc-p mt-4 text-brand">
+          Read at <span className="text-signal">{stats.readAt}</span>. Same four counts appear on the{" "}
+          <Link href="/" className="doc-link">
+            home page
+          </Link>
+          .
+        </p>
         <p className="doc-p mt-4">
           Purchase counts by chain are listed at{" "}
           <Link href="/x402/chains" className="doc-link">
