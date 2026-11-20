@@ -123,7 +123,7 @@ export const ERROR_TEXT = {
   invalid_agent_id: "agentId must be a decimal token id.",
   missing_client_or_index: "Pass client or feedbackIndex.",
   invalid_client: "client must be a 0x-prefixed EVM address.",
-  invalid_feedback_index: "feedbackIndex must be a non-negative integer.",
+  invalid_feedback_index: "feedbackIndex must be a positive integer.",
   feedback_not_found: "No feedback matches agentId with that client or feedbackIndex.",
   ambiguous_feedback_index:
     "Several clients left feedback at this index. Pass client with feedbackIndex to choose one.",
