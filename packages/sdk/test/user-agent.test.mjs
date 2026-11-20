@@ -145,7 +145,17 @@ function evmWorld({ decision = { status: 200, body: decisionBody } } = {}) {
   const fetch = async (url, init) => {
     const u = String(url);
     if (u.includes("/decision")) { seen.decision.push({ u, init }); return answer(decision.status, decision.body); }
-    if (u.includes("/payees/")) { seen.score.push({ u, init }); return answer(200, { payee: PAYEE, score: 90, recommendation: "ALLOW", degraded: false, signalsUnavailable: [] }); }
+    if (u.includes("/payees/")) {
+      seen.score.push({ u, init });
+      return answer(200, {
+        payee: PAYEE,
+        score: 90,
+        recommendation: "ALLOW",
+        degraded: false,
+        signalsUnavailable: [],
+        ...decisionFreshness(),
+      });
+    }
     if (u.includes("/payments/x402")) { seen.attest.push({ u, init }); return answer(200, { ok: true }); }
     if (u.includes("gateway.thegraph.com")) { seen.graph.push({ u, init }); return answer(200, { data: { x402AddressSummaries: [{ role: "RECIPIENT", totalPayments: "253" }], _meta: { block: { number: 50890586 } } } }); }
     if (u.startsWith(RESOURCE)) {
@@ -171,7 +181,9 @@ test("U5 payOrRefuse: /decision と attest には付け、売り手への要求�
   assert.equal(f.seen.attest[0].init.headers["Content-Type"], "application/json");
   // 売り手への要求は 0.7.0 と同じ形のまま。
   assert.equal(f.seen.wall.length, 1);
-  assert.deepEqual(f.seen.wall[0].init, { method: "GET", redirect: "error" }, "402 の取得はヘッダ無し（302 でヘッダが落ちないよう redirect: error）");
+  assert.equal(f.seen.wall[0].init.method, "GET");
+  assert.equal(f.seen.wall[0].init.redirect, "error");
+  assert.ok(f.seen.wall[0].init.signal, "402 の取得は読み取り期限付き");
   assert.equal(f.seen.paid.length, 1);
   assert.deepEqual(Object.keys(f.seen.paid[0].init.headers).sort(), ["PAYMENT-SIGNATURE", "accept"], "再送のヘッダは accept と PAYMENT-SIGNATURE だけ");
   assert.equal(userAgentOf(f.seen.paid[0].init), undefined);
@@ -237,6 +249,8 @@ test("U8 Solana: /decision には付け、RPC と売り手への要求には付�
   assert.equal(userAgentOf(seen.decision[0]), EXPECTED_UA);
   assert.equal(seen.rpc.length, 1);
   assert.deepEqual(seen.rpc[0].headers, { "content-type": "application/json" }, "RPC への要求は 0.7.0 と同じ");
-  assert.deepEqual(seen.wall[0], { method: "GET", redirect: "error" });
+  assert.equal(seen.wall[0].method, "GET");
+  assert.equal(seen.wall[0].redirect, "error");
+  assert.ok(seen.wall[0].signal, "402 の取得は読み取り期限付き");
   assert.deepEqual(Object.keys(seen.paid[0].headers).sort(), ["PAYMENT-SIGNATURE", "accept"]);
 });

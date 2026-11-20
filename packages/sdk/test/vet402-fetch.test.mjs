@@ -30,6 +30,7 @@ const challenge = (accepts) =>
     status: 402,
     headers: { "payment-required": b64({ x402Version: 2, resource: { url: URL_A }, accepts }) },
   });
+const now = () => new Date().toISOString();
 const verdict = (recommendation, over = {}) => ({
   subject: { type: "resource", id: "a".repeat(64) },
   role: "payer",
@@ -40,6 +41,19 @@ const verdict = (recommendation, over = {}) => ({
   degraded: false,
   policy: "allow_only",
   rules_version: "test",
+  scoredAt: now(),
+  cacheExpiresAt: new Date(Date.now() + 300_000).toISOString(),
+  verified_terms: {
+    pay_to: PAY_TO,
+    asset: USDC,
+    amount: "10000",
+    network: "eip155:8453",
+    scheme: "exact",
+    decimals: 6,
+    protocol: "x402",
+    purchase_id: null,
+    verified_at: now(),
+  },
   ...over,
 });
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });

@@ -31,10 +31,24 @@ const offer = {
   network: fixture.network,
 };
 
+let warnedChainArgs = false;
+
 function edgeFor(receipt: unknown) {
+  if (!warnedChainArgs) {
+    warnedChainArgs = true;
+    if (process.env.NODE_ENV !== "test") {
+      console.warn("createSellerChainReader expects payTo and amount; pass offer.payTo and offer.amount.");
+    }
+  }
   return createSellerEdge({
     offer,
-    readChain: createSellerChainReader({ network: fixture.network, asset: fixture.asset, rpc: rpc(receipt) }),
+    readChain: createSellerChainReader({
+      network: fixture.network,
+      asset: fixture.asset,
+      payTo: offer.payTo,
+      amount: offer.amount,
+      rpc: rpc(receipt),
+    }),
     signDelivery: (hash) => `fixture:${hash}`,
     recordE6: async () => {},
   });

@@ -16,7 +16,7 @@ import { ExpectedFailure, NotX402Error, PolicyError } from "../src/probe.ts";
 import { failureLines } from "../src/run.ts";
 import { createEmitter } from "../src/emit.ts";
 import { DEFAULT_MAX_PER_TX_USD } from "../../../packages/sdk/dist/index.js";
-import { handleResolveUrl, UNCATALOGUED_404_BODY } from "./_fetch-resolve.mjs";
+import { defaultVerifiedTerms, decisionFreshness, handleResolveUrl, UNCATALOGUED_404_BODY } from "./_fetch-resolve.mjs";
 
 const DEMO_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
 const SDK_SRC = join(DEMO_DIR, "../../packages/sdk/src/pay-or-refuse.ts");
@@ -219,7 +219,18 @@ test("床を宣言しなければ vet402 の ALLOW が要る（既定 fail-close
   assert.equal(warn.verdict.verdict, "REFUSE");
   assert.deepEqual(warn.verdict.reasonCodes, ["resource_uncatalogued", "payee_recommendation_not_allow"]);
   const allow = await judge(["--policy", "vet402"], {
-    decision: { status: 200, body: { recommendation: "ALLOW", reason_codes: [], degraded: false, evidence: [], facts: { l1: { n_delivered: 5 } } } },
+    decision: {
+      status: 200,
+      body: {
+        recommendation: "ALLOW",
+        reason_codes: [],
+        degraded: false,
+        evidence: [],
+        facts: { l1: { n_delivered: 5 } },
+        ...decisionFreshness(),
+        verified_terms: defaultVerifiedTerms(PAYEE, ACCEPT.amount),
+      },
+    },
   });
   assert.equal(allow.verdict.verdict, "ALLOW");
   assert.deepEqual(allow.verdict.reasonCodes, []);

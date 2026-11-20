@@ -72,6 +72,8 @@ export type SellerEdgeConfig = {
   signDelivery: (bodyHash: string) => string | Promise<string>;
   recordE6: (record: SellerEdgeE6Write) => void | Promise<void>;
   replay?: ReplayStore;
+  /** Test-only: allow a ReplayStore without addIfAbsent (not safe under concurrency). */
+  allowUnsafeReplayStore?: boolean;
   /** Test clock. Production uses performance.now. */
   clock?: () => number;
 };
@@ -267,6 +269,16 @@ export function createSellerEdge(config: SellerEdgeConfig): SellerEdge {
   const recordE6 = config.recordE6;
   const clock = typeof config.clock === "function" ? config.clock : () => performance.now();
   const replay = config.replay ?? memoryReplay();
+  if (
+    config.replay !== undefined &&
+    typeof config.replay.addIfAbsent !== "function" &&
+    config.allowUnsafeReplayStore !== true
+  ) {
+    throw new SellerEdgeError(
+      "replay store must implement addIfAbsent (or pass allowUnsafeReplayStore: true)",
+      "unsafe_replay_store",
+    );
+  }
   const samples: number[] = [];
 
   function bad(result: SellerEdgeResult): Stopped {
@@ -305,6 +317,9 @@ export function createSellerEdge(config: SellerEdgeConfig): SellerEdge {
     const chainNetwork = networkReason(chain.network, offer.network);
     if (chainNetwork) return bad(refuse(chainNetwork, 402, false));
 
+    if (typeof request.purchaseId !== "string" || !PURCHASE_ID.test(request.purchaseId)) {
+      return bad(refuse("missing_purchase_id", 400, false));
+    }
     const replayKey = `${offer.network}\n${normalizeTx(receipt.txHash)}`;
     let reserved = false;
     if (typeof replay.addIfAbsent === "function") {
@@ -316,9 +331,6 @@ export function createSellerEdge(config: SellerEdgeConfig): SellerEdge {
       reserved = true;
     }
     if (!reserved) return bad(refuse("payment_replay", 409, false));
-    if (typeof request.purchaseId !== "string" || !PURCHASE_ID.test(request.purchaseId)) {
-      return bad(refuse("missing_purchase_id", 400, false));
-    }
     return { ok: true, txHash: receipt.txHash, replayKey };
   }
 

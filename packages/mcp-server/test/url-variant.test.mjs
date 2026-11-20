@@ -179,21 +179,12 @@ const SHARED = [
   { url: "https://x402.shared.example/b", method: "GET", recommendation: "ALLOW", payee: "0x" + "02".repeat(20) },
 ];
 
-test("共有ホスト（受取人 2 人以上）の未掲載の売り手は止めない: 既定はカタログ外と同じで払い、summary に resource_unresolved", async () => {
+test("共有ホスト（受取人 2 人以上）の未掲載 URL は host_known:true で払わない（resource_unresolved_host_known）", async () => {
   const w = world({ listings: SHARED, hostSellersOn404: 2 });
   const url = "https://x402.shared.example/new-seller";
   const r = await payIfTrusted({ resourceId: sha(`GET ${url}`), resource: url, payee: PAYEE, amountUsd: 0.01, maxPerTxUsd: 1, signer: w.signer, fetch: w.fetch });
-  assert.equal(r.decision, "PAID", JSON.stringify(r.refuse_reasons));
-  assert.match(r.summary, /resource_unresolved/);
-  assert.ok(w.calls.some((c) => c.includes("/payees/")), "カタログ外と同じく受取人スコアで判定した");
-});
-
-test("共有ホストの未掲載の売り手は onUnresolved: refuse なら払わない（resource_unresolved）", async () => {
-  const w = world({ listings: SHARED });
-  const url = "https://x402.shared.example/new-seller";
-  const r = await payIfTrusted({ resourceId: sha(`GET ${url}`), resource: url, payee: PAYEE, amountUsd: 0.01, maxPerTxUsd: 1, signer: w.signer, fetch: w.fetch, onUnresolved: "refuse" });
   assert.equal(r.decision, "REFUSE");
-  assert.ok(r.refuse_reasons.includes("resource_unresolved"), String(r.refuse_reasons));
+  assert.ok(r.refuse_reasons.includes("resource_unresolved_host_known"), String(r.refuse_reasons));
   assert.deepEqual(w.signs(), []);
 });
 

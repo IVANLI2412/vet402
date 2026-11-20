@@ -46,6 +46,18 @@ function edgeWith(chain) {
   });
 }
 
+test("missing purchaseId does not burn the tx replay slot", async () => {
+  const chain = { txHash: TX, amount: OFFER.amount, payTo: OFFER.payTo, asset: OFFER.asset, network: OFFER.network };
+  const edge = edgeWith(chain);
+  const receiptObj = receipt();
+  const handler = async () => ({ status: 200, body: SECRET });
+  const first = await edge.run({ purchaseId: undefined, receipt: receiptObj }, handler);
+  assert.equal(first.reason, "missing_purchase_id");
+  const second = await edge.run({ purchaseId: "ok-1", receipt: receiptObj }, handler);
+  assert.equal(second.delivered, true);
+  assert.equal(second.body, SECRET);
+});
+
 test("dist seller edge: fake, replay, and amount mismatch withhold the body", async () => {
   const fake = edgeWith({
     txHash: TX,

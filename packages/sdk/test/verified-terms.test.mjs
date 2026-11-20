@@ -145,6 +145,28 @@ test("V4 ALLOW なのに verified_terms も payees も無い → refused", async
   assert.ok(r.decision.reason_codes.includes("evidence_unavailable"));
 });
 
+test("V4b ALLOW で verified_terms キーが無く payees も無い → refused", async () => {
+  const fetch = stubFetch(TERMS, GOOD, "10000");
+  const stubFetchNoKey = async (input, init) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.includes("/decision")) {
+      const body = { ...decisionBody(TERMS) };
+      delete body.verified_terms;
+      return new Response(JSON.stringify(body), { status: 200 });
+    }
+    return fetch(input, init);
+  };
+  const r = await payOrRefuse({
+    payee: GOOD,
+    resource: RESOURCE,
+    amountUsd: 0.01,
+    account,
+    fetch: stubFetchNoKey,
+  });
+  assert.equal(r.status, "refused");
+  assert.ok(r.decision.reason_codes.includes("evidence_unavailable"));
+});
+
 test("V5 skipVerifiedTermsCheck で照合を外せる", async () => {
   const signed = [];
   const acc = { ...account, signTypedData: async () => (signed.push(1), "0x" + "00".repeat(65)) };

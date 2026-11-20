@@ -14,6 +14,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { Keypair, VersionedTransaction } from "@solana/web3.js";
 import { payIfTrusted } from "../dist/pay-if-trusted.js";
+import { allowDecisionBody } from "./helpers/decision.mjs";
 import { payerConfiguredFor, resolveSvmPayer } from "../dist/payer.js";
 
 const PKG = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -39,7 +40,7 @@ function watchedSigners() {
   return { signer, svmSigner, evmSigns: () => signs(evmAccess), svmSigns: () => signs(svmAccess) };
 }
 
-const decision = (over = {}) => ({ recommendation: "ALLOW", reason_codes: ["l0_pass", "l1_delivered"], facts: { l1: { n_delivered: 3 } }, evidence: [], degraded: false, rules_version: "t", ...over });
+const decision = (over = {}, accept = SOL_ACCEPT) => ({ ...allowDecisionBody(accept), facts: { l1: { n_delivered: 3 } }, ...over });
 
 function harness(body = decision()) {
   const paid = [];
@@ -125,7 +126,7 @@ test("M2b 0x の payee は従来どおり EVM の署名者で払い、Solana の
     const u = String(url);
     const resolved = resolveReply(u);
     if (resolved) return resolved;
-    if (u.includes("/decision")) return { ok: true, status: 200, json: async () => decision(), headers: new Map() };
+    if (u.includes("/decision")) return { ok: true, status: 200, json: async () => decision({}, accept), headers: new Map() };
     if (u.startsWith(RESOURCE)) {
       if (!(init?.headers ?? {})["PAYMENT-SIGNATURE"]) return { ok: false, status: 402, json: async () => ({}), headers: new Map([["payment-required", b64({ x402Version: 2, accepts: [accept] })]]) };
       return { ok: true, status: 200, json: async () => ({}), headers: new Map([["PAYMENT-RESPONSE", b64({ success: true, transaction: "0xtx" })]]) };

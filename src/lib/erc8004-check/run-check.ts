@@ -31,7 +31,6 @@ import {
 } from "./verdict";
 import {
   ERC8004_CHECK_CHAIN,
-  countIndexedFeedbackEventsForTx,
   findFeedbackLog,
   parseAgentIdParam,
   parseClientParam,
@@ -440,16 +439,6 @@ async function verifyProofOnChain(
     paymentKind,
     (to) => addressInPayTargets(to, payTargets),
   );
-
-  if (proof.txHash && classified.kind === "supported" && classified.network.kind === "evm") {
-    const reuse = await countIndexedFeedbackEventsForTx(classified.network.chain.chainId, proof.txHash);
-    if (reuse > 1) {
-      sources.push({
-        kind: "payment_chain",
-        detail: `tx_reused_in_${reuse}_indexed_feedback_events`,
-      });
-    }
-  }
 
   checks.amount = comparePaymentAmount(proof.amount, movement.amount, paymentKind);
 

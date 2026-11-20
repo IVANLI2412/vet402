@@ -275,6 +275,9 @@ function meetsEvidenceFloors(body: ScoreResponse, floors: GateEvidenceFloors): b
  */
 export const DEFAULT_MAX_SCORE_AGE_MS = 5 * 60 * 1000;
 
+/** Clock skew allowance when judging scoredAt / cacheExpiresAt (audit R3). */
+const DECISION_FRESHNESS_SKEW_MS = 60_000;
+
 /**
  * Is the score body too old to act on? Fail-closed only when the body actually
  * carries freshness fields: a body with no `scoredAt` AND no `cacheExpiresAt`
@@ -323,12 +326,12 @@ function isScoreStale(body: ScoreResponse, nowMs: number, maxScoreAgeMs: number)
   if (hasScoredAt) {
     const scoredAtMs = Date.parse(body.scoredAt as string);
     if (Number.isNaN(scoredAtMs)) return true;
-    if (nowMs - scoredAtMs > maxScoreAgeMs) return true;
+    if (nowMs - scoredAtMs > maxScoreAgeMs + DECISION_FRESHNESS_SKEW_MS) return true;
   }
   if (hasExpiry) {
     const expiresMs = Date.parse(body.cacheExpiresAt as string);
     if (Number.isNaN(expiresMs)) return true;
-    if (nowMs >= expiresMs) return true;
+    if (nowMs > expiresMs + DECISION_FRESHNESS_SKEW_MS) return true;
   }
   return false;
 }

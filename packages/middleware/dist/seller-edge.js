@@ -169,6 +169,11 @@ export function createSellerEdge(config) {
     const recordE6 = config.recordE6;
     const clock = typeof config.clock === "function" ? config.clock : () => performance.now();
     const replay = config.replay ?? memoryReplay();
+    if (config.replay !== undefined &&
+        typeof config.replay.addIfAbsent !== "function" &&
+        config.allowUnsafeReplayStore !== true) {
+        throw new SellerEdgeError("replay store must implement addIfAbsent (or pass allowUnsafeReplayStore: true)", "unsafe_replay_store");
+    }
     const samples = [];
     function bad(result) {
         return { ok: false, result };
@@ -213,6 +218,9 @@ export function createSellerEdge(config) {
         const chainNetwork = networkReason(chain.network, offer.network);
         if (chainNetwork)
             return bad(refuse(chainNetwork, 402, false));
+        if (typeof request.purchaseId !== "string" || !PURCHASE_ID.test(request.purchaseId)) {
+            return bad(refuse("missing_purchase_id", 400, false));
+        }
         const replayKey = `${offer.network}\n${normalizeTx(receipt.txHash)}`;
         let reserved = false;
         if (typeof replay.addIfAbsent === "function") {
@@ -227,9 +235,6 @@ export function createSellerEdge(config) {
         }
         if (!reserved)
             return bad(refuse("payment_replay", 409, false));
-        if (typeof request.purchaseId !== "string" || !PURCHASE_ID.test(request.purchaseId)) {
-            return bad(refuse("missing_purchase_id", 400, false));
-        }
         return { ok: true, txHash: receipt.txHash, replayKey };
     }
     async function finish(ready, purchaseId, produced) {

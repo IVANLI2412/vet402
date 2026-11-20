@@ -1,9 +1,15 @@
 /** Plain-language next step after ALLOW / WARN / BLOCK (home paste and MCP check_x402_seller). ADVICE §4. */
-export function verdictNextStep(recommendation: "ALLOW" | "WARN" | "BLOCK"): string {
+export function verdictNextStep(
+  recommendation: "ALLOW" | "WARN" | "BLOCK",
+  reasonCodes?: readonly string[],
+): string {
   if (recommendation === "ALLOW") {
     return "Pay only if the 402 in hand matches the verified terms of this record. A later payment can still fail.";
   }
   if (recommendation === "WARN") {
+    if (reasonCodes?.includes("l1_latest_failed")) {
+      return "The latest paid call to this seller failed. Do not pay until a newer delivery is on record.";
+    }
     return "Do not treat this as a go. Evidence is old or inconclusive. Pay only under your own ceiling, or pick another URL.";
   }
   return "Do not pay this URL on the current record.";

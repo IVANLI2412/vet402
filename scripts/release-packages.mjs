@@ -67,8 +67,23 @@ try {
 // the owner claimed on npm. Every other package stays under the scope.
 const UNSCOPED_OK = new Set(["vet402"]);
 
+const LINKED_DEP_RE = /^(file:|link:|workspace:)/;
+
+function assertPublishableDeps(pkgPath, pkg) {
+  for (const section of ["dependencies", "peerDependencies"]) {
+    const block = pkg[section];
+    if (!block || typeof block !== "object") continue;
+    for (const [name, spec] of Object.entries(block)) {
+      if (typeof spec === "string" && LINKED_DEP_RE.test(spec.trim())) {
+        fail(`${pkgPath} ${section}["${name}"] uses a linked spec (${spec}) — use a published semver before release`);
+      }
+    }
+  }
+}
+
 const manifests = PACKAGES.map((dir) => {
   const pkg = JSON.parse(readFileSync(path.join(ROOT, dir, "package.json"), "utf8"));
+  assertPublishableDeps(dir, pkg);
   if (pkg.private) fail(`${dir} still has "private": true`);
   if (!pkg.name.startsWith("@") && !UNSCOPED_OK.has(pkg.name)) fail(`${dir} has an unscoped name (${pkg.name})`);
   if (pkg.publishConfig?.access !== "public") {

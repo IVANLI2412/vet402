@@ -54,7 +54,7 @@ import { DEFAULT_API_URL } from "./index.js";
 import { readSubgraphReceipts, X402_BASE_SUBGRAPH_ID } from "./subgraph-evidence.js";
 // 判定語と「測れたか」の欄の読み方。2つの金の経路で1つの規則を共有する（`./verdict-shape.js`）。
 import { isBlockVerdict, isDecimalUnits, isPlainObject, isUnknownVerdict, scoreQualityDefect } from "./verdict-shape.js";
-import { DEFAULT_MAX_SCORE_AGE_MS } from "./spend-guard.js";
+import { DECISION_FRESHNESS_SKEW_MS, DEFAULT_MAX_SCORE_AGE_MS } from "./spend-guard.js";
 import { keccak256Bytes } from "./keccak256.js";
 // 支払いチェーンの定数表（Tokyo B3）。import を持たない定数だけのモジュールなので静的 import でよい。
 import { CHAIN_PROFILES, profileFor } from "./chain-profile.js";
@@ -157,6 +157,7 @@ export const PAY_REFUSE_REASONS = [
     "insufficient_subgraph_evidence",
     "resource_uncatalogued",
     "resource_unresolved_host_known",
+    "decision_stale",
     "subgraph_evidence_unavailable",
     "no_eligible_accept",
     "allowed_by_caller_policy",
@@ -211,6 +212,29 @@ const USDC_DECIMALS = 6;
 function sameAddress(a, b) {
     return typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase();
 }
+function caip10Parts(value) {
+    const m = /^(.*):([^:]+)$/.exec(value);
+    if (!m)
+        return { network: null, address: value };
+    const head = m[1];
+    const address = m[2];
+    if (/^eip155:\d+$/i.test(head))
+        return { network: head, address };
+    if (/^0x[a-fA-F0-9]{40}$/i.test(value))
+        return { network: null, address: value };
+    return { network: null, address: value };
+}
+function payeeMatchesDeclared(payee, acceptPayTo, acceptNetwork) {
+    const left = caip10Parts(payee);
+    const right = caip10Parts(acceptPayTo);
+    if (!sameAddress(left.address, right.address))
+        return false;
+    if (left.network !== null && left.network !== acceptNetwork)
+        return false;
+    return true;
+}
+/** Initial seller GET for the 402 challenge (audit R3: bounded wait). */
+const SELLER_READ_TIMEOUT_MS = 10_000;
 const RESOURCE_ID_RE = /^[0-9a-f]{64}$/;
 function assertHttpsApiUrl(apiUrl) {
     let parsed;
@@ -227,23 +251,25 @@ function assertHttpsApiUrl(apiUrl) {
         return;
     throw new Error("invalid_api_url: vet402 API URL must use https (loopback http is allowed for local tests)");
 }
-function isDecisionStale(body, nowMs, maxAgeMs) {
+export function isDecisionStale(body, nowMs, maxAgeMs, skewMs = DECISION_FRESHNESS_SKEW_MS) {
     const hasScoredAt = typeof body.scoredAt === "string";
     const hasExpiry = typeof body.cacheExpiresAt === "string";
-    if (!hasScoredAt && !hasExpiry)
-        return false;
+    if (!hasScoredAt && !hasExpiry) {
+        const rec = body.recommendation;
+        return rec === "ALLOW";
+    }
     if (hasScoredAt) {
         const scoredAtMs = Date.parse(body.scoredAt);
         if (Number.isNaN(scoredAtMs))
             return true;
-        if (nowMs - scoredAtMs > maxAgeMs)
+        if (nowMs - scoredAtMs > maxAgeMs + skewMs)
             return true;
     }
     if (hasExpiry) {
         const expiresMs = Date.parse(body.cacheExpiresAt);
         if (Number.isNaN(expiresMs))
             return true;
-        if (nowMs >= expiresMs)
+        if (nowMs > expiresMs + skewMs)
             return true;
     }
     return false;
@@ -290,9 +316,10 @@ function matchDeclaredPayTerms(decision, accept, profile) {
     const vtRaw = body.verified_terms;
     if (!hasKey) {
         const payees = payeesFromFacts(decision);
-        if (payees.length > 0 && !payees.some((p) => sameAddress(p, accept.payTo))) {
+        if (payees.length === 0)
+            return ["evidence_unavailable"];
+        if (!payees.some((p) => payeeMatchesDeclared(p, accept.payTo, profile.network)))
             return ["payee_mismatch"];
-        }
         return null;
     }
     if (vtRaw !== null && vtRaw !== undefined && isPlainObject(vtRaw)) {
@@ -301,23 +328,27 @@ function matchDeclaredPayTerms(decision, accept, profile) {
         if (payTo === null || amount === null || !isDecimalUnits(amount)) {
             return ["evidence_unavailable"];
         }
-        if (!sameAddress(accept.payTo, payTo))
+        if (!sameAddress(accept.payTo, payTo) && !payeeMatchesDeclared(payTo, accept.payTo, profile.network)) {
             return ["payee_mismatch"];
+        }
         if (BigInt(accept.amount) > BigInt(amount))
             return ["price_above_declared"];
-        if (typeof vtRaw.asset === "string" && !sameAddress(accept.asset, vtRaw.asset))
-            return ["chain_or_asset_mismatch"];
-        if (typeof vtRaw.scheme === "string" && accept.scheme !== vtRaw.scheme)
-            return ["chain_or_asset_mismatch"];
+        const vtNetwork = typeof vtRaw.network === "string" ? vtRaw.network : null;
+        const sameChain = vtNetwork === null || vtNetwork === profile.network;
+        if (sameChain) {
+            if (typeof vtRaw.asset === "string" && !sameAddress(accept.asset, vtRaw.asset))
+                return ["chain_or_asset_mismatch"];
+            if (typeof vtRaw.scheme === "string" && accept.scheme !== vtRaw.scheme)
+                return ["chain_or_asset_mismatch"];
+        }
         return null;
     }
     const payees = payeesFromFacts(decision);
-    if (payees.length > 0) {
-        if (!payees.some((p) => sameAddress(p, accept.payTo)))
-            return ["payee_mismatch"];
-        return null;
-    }
-    return ["evidence_unavailable"];
+    if (payees.length === 0)
+        return ["evidence_unavailable"];
+    if (!payees.some((p) => payeeMatchesDeclared(p, accept.payTo, profile.network)))
+        return ["payee_mismatch"];
+    return null;
 }
 /**
  * 資源 ID。WINDOW_PLAN §3.1 の実測で示された規則は sha256("<METHOD> <正規化URL>")。
@@ -825,11 +856,7 @@ async function decideAndPay(input, facts) {
             }
             if (response.status === 404 && isPlainObject(body) && body.error === "not_found") {
                 const hostKnown = body.host_known;
-                const hostSellers = body.host_sellers;
-                if (hostKnown === true && resourceUnlisted && typeof hostSellers === "number" && hostSellers > 1) {
-                    uncatalogued = true;
-                }
-                else if (hostKnown === true) {
+                if (hostKnown === true) {
                     return refuse(["resource_unresolved_host_known", "evidence_unavailable"], "decision");
                 }
                 else if (hostKnown !== false || !resourceUnlisted) {
@@ -858,7 +885,25 @@ async function decideAndPay(input, facts) {
             return refuse(["evidence_unavailable"], "decision");
         }
     if (decision !== null && isDecisionStale(decision, Date.now(), DEFAULT_MAX_SCORE_AGE_MS)) {
-        return refuse(["evidence_unavailable"], "decision");
+        try {
+            const again = await fetchFn(decisionUrl, { headers });
+            let againBody = null;
+            try {
+                againBody = await again.json();
+            }
+            catch {
+                againBody = null;
+            }
+            if (again.ok && isPlainObject(againBody)) {
+                decision = againBody;
+            }
+        }
+        catch {
+            // keep first body
+        }
+        if (decision !== null && isDecisionStale(decision, Date.now(), DEFAULT_MAX_SCORE_AGE_MS)) {
+            return refuse(["decision_stale"], "decision");
+        }
     }
     // G9: 届かなかったなら vet402 の台帳は読めていない。その台帳に依存する床（minL1Deliveries）を宣言していれば、
     // 0 件と読まずに「読めなかった」と言う。評価できるのは ENS・chain・subgraph の床だけ。
@@ -1011,7 +1056,11 @@ async function decideAndPay(input, facts) {
     // 一次の所見としてこの語を先頭に置く（売り手が順序を変えても理由がすり替わらない）。
     let selectionReasons = [];
     try {
-        const response = await fetchFn(input.resource, { method, redirect: "error" });
+        const response = await fetchFn(input.resource, {
+            method,
+            redirect: "error",
+            signal: AbortSignal.timeout(SELLER_READ_TIMEOUT_MS),
+        });
         const raw = readHeader(response.headers, "payment-required");
         const challenge = raw ? decodeChallenge(raw, rail, profile, authCaptureOn) : null;
         if (challenge) {
@@ -1085,6 +1134,10 @@ async function decideAndPay(input, facts) {
         // ——`/decision` 経路が 2026-09-07 に入れた規律を、ここへも同じ形で通す（2026-09-08）。
         if (scoreQualityDefect(payeeScore) !== null) {
             return refuse([...pathReasons, "evidence_unavailable"], "payee_score", null, payeeScore, accept);
+        }
+        const scoreHasFreshness = typeof payeeScore.scoredAt === "string" || typeof payeeScore.cacheExpiresAt === "string";
+        if (scoreHasFreshness && isDecisionStale(payeeScore, Date.now(), DEFAULT_MAX_SCORE_AGE_MS)) {
+            return refuse([...pathReasons, "decision_stale"], "payee_score", null, payeeScore, accept);
         }
         // 判定語の検査は受取人スコアにも当てる（0.7.1）。免除の下で、語の無い・知らない語のスコアを WARN と同じに
         // 読んで払わない。既定（免除なし）の呼び手は、下の ALLOW 検査が今までと同じ語で拒む。

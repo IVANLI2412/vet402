@@ -471,9 +471,9 @@ const MUTATIONS = [
     what: "vet402 の API 用のヘッダ（User-Agent・Authorization）を売り手への 402 の取得にも付ける",
     rule: "U5 売り手への要求は 0.7.0 の形のまま（名乗らない・鍵を渡さない）",
     file: PAY,
-    find: "    const response = await fetchFn(input.resource, { method, redirect: \"error\" });",
+    find: "    const response = await fetchFn(input.resource, {\n      method,\n      redirect: \"error\",\n      signal: AbortSignal.timeout(SELLER_READ_TIMEOUT_MS),\n    });",
     replace:
-      "    const response = await fetchFn(input.resource, { method, redirect: \"error\", headers }); /* MUTANT */",
+      "    const response = await fetchFn(input.resource, {\n      method,\n      redirect: \"error\",\n      signal: AbortSignal.timeout(SELLER_READ_TIMEOUT_MS),\n      headers,\n    }); /* MUTANT */",
   },
 ];
 

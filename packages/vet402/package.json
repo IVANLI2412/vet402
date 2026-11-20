@@ -24,8 +24,8 @@
     "test": "npm run build && node --test 'test/*.test.mjs'"
   },
   "dependencies": {
-    "@vet402/middleware": "file:../middleware",
-    "@vet402/sdk": "file:../sdk"
+    "@vet402/middleware": "^0.5.1",
+    "@vet402/sdk": "^0.10.1"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",

@@ -15,6 +15,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { payOrRefuse } from "../dist/index.js";
+import { decisionFreshness, defaultVerifiedTerms } from "./_pay-or-refuse-harness.mjs";
 
 const PAYEE = "0x36038e1d712c5e39f35952164ec58ec2b96caee7";
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
@@ -130,6 +131,8 @@ for (const degraded of ["true", "false", 1, 0, null, undefined, {}]) {
       recommendation: "ALLOW", reason_codes: ["l0_pass", "l1_delivered"],
       facts: { l0: { status: "pass" }, l1: { n_delivered: 3, n_attempts: 3 } },
       evidence: [], rules_version: "2026-09-02.1",
+      ...decisionFreshness(),
+      verified_terms: defaultVerifiedTerms(PAYEE, "20000"),
     };
     if (degraded !== undefined) body.degraded = degraded;
     const h = harness({ decisionResponse: ok200(body) });
@@ -143,7 +146,18 @@ for (const degraded of ["true", "false", 1, 0, null, undefined, {}]) {
 
 test("S3b degraded: false（boolean）の ALLOW は従来どおり払う（ネガティブコントロール）", async () => {
   const w = watchedAccount();
-  const h = harness({ decisionResponse: ok200({ recommendation: "ALLOW", reason_codes: ["l0_pass"], facts: {}, evidence: [], degraded: false, rules_version: "t" }) });
+  const h = harness({
+    decisionResponse: ok200({
+      recommendation: "ALLOW",
+      reason_codes: ["l0_pass"],
+      facts: {},
+      evidence: [],
+      degraded: false,
+      rules_version: "t",
+      ...decisionFreshness(),
+      verified_terms: defaultVerifiedTerms(PAYEE, "20000"),
+    }),
+  });
   const r = await payOrRefuse({ ...base, account: w.account, fetch: h.fetch });
   assert.equal(r.status, "paid", r.decision.reason_codes.join(","));
   assert.equal(w.signAccesses().length, 1);

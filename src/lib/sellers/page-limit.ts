@@ -15,6 +15,14 @@ export function isSellersPath(pathname: string): boolean {
   return pathname === "/sellers" || pathname.startsWith("/sellers/");
 }
 
+function safeRateLimitRetryPath(pathname: string | undefined): string {
+  if (!pathname || pathname.length === 0) return "/sellers";
+  if (pathname === "/sellers" || pathname.startsWith("/sellers/")) return pathname;
+  if (pathname === "/payee" || pathname.startsWith("/payee/")) return pathname;
+  if (pathname === "/agent" || pathname.startsWith("/agent/")) return pathname;
+  return "/sellers";
+}
+
 function escapeHtml(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 }
@@ -36,7 +44,7 @@ export function rateLimitPageHtml(opts: {
   const lead = opts.unavailable
     ? "vet402 could not check the request limit just now, so this page was not loaded."
     : (opts.tooManyLead ?? "This network has opened seller pages more than " + SELLERS_RL_LIMIT + " times in the last minute.");
-  const retryHref = escapeHtml(opts.path && isSellersPath(opts.path) ? opts.path : "/sellers");
+  const retryHref = escapeHtml(safeRateLimitRetryPath(opts.path));
   return `<!doctype html>
 <html lang="en">
 <head>

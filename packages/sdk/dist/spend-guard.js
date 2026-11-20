@@ -58,6 +58,8 @@ const WALLET_RE = /^0x[a-fA-F0-9]{40}$/;
  * it from cache. See SpendGuardPolicy.maxScoreAgeMs.
  */
 export const DEFAULT_MAX_SCORE_AGE_MS = 5 * 60 * 1000;
+/** Clock skew allowance when judging scoredAt / cacheExpiresAt (audit R3). */
+export const DECISION_FRESHNESS_SKEW_MS = 60_000;
 /**
  * Is this score too old to act on? Fail-closed: an unparseable `scoredAt`
  * counts as stale (we cannot prove freshness), and the score's own

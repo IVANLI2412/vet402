@@ -82,6 +82,7 @@
 import { DEFAULT_API_URL, decisionQueryString, type CallerPolicy } from "./vouch-client.js";
 import { refusalReasonCodes } from "./decision.js";
 import { MCP_USER_AGENT } from "./version.js";
+import { authorizationResourceKey } from "./authorization-resource-key.js";
 import { clearLiveAuthorization, hasLiveAuthorization, rememberLiveAuthorization } from "./pending-payment.js";
 // 型だけ。値の import は ALLOW ブランチ内の動的 import に限る（第3層）。`import type` は
 // tsc が消すので、dist の拒否経路に `@vet402/sdk` への静的な参照は残らない。
@@ -416,21 +417,7 @@ async function payIfTrustedCore(input: PayIfTrustedInput, notes: string[]): Prom
       //   - それ以外（理由の分からない 404・URL が掲載に結べたのに 404）→ 払わない
       const hostKnown = (body as { host_known?: unknown } | null)?.host_known;
       const hostSellers = (body as { host_sellers?: unknown } | null)?.host_sellers;
-      if (hostKnown === true && resourceUnlisted && typeof hostSellers === "number" && hostSellers > 1) {
-        if (input.onUnresolved === "refuse") {
-          return refuse(
-            measure(body),
-            ["resource_unresolved", "evidence_unavailable"],
-            `vet402 has live listings from ${hostSellers} sellers on this URL's host, but not this URL, so there is no vet402 judgement for it; ` +
-              "onUnresolved is \"refuse\".",
-          );
-        }
-        notes.push(
-          `resource_unresolved: this URL is not listed, and vet402 has live listings from ${hostSellers} other sellers on its host; ` +
-            "it was judged as an uncatalogued seller (the 402's payTo and the payee score). Pass onUnresolved: \"refuse\" to refuse these instead.",
-        );
-        uncatalogued = true;
-      } else if (hostKnown === true) {
+      if (hostKnown === true) {
         return refuse(
           measure(body),
           ["resource_unresolved_host_known", "evidence_unavailable"],
@@ -517,7 +504,12 @@ async function payIfTrustedCore(input: PayIfTrustedInput, notes: string[]): Prom
     );
   }
 
-  if (typeof input.resource === "string" && hasLiveAuthorization(input.resource)) {
+  const authKey = authorizationResourceKey({
+    resourceUrl: input.resource,
+    resourceId,
+    payTo: input.payee,
+  });
+  if (authKey !== null && hasLiveAuthorization(authKey)) {
     return refuse(
       m,
       [...serverWords, "evidence_unavailable"],
@@ -573,8 +565,8 @@ async function payIfTrustedCore(input: PayIfTrustedInput, notes: string[]): Prom
   }
   if (paid.status === "failed") {
     const validBefore = paid.receipt?.retry?.authorization?.validBefore ?? null;
-    if (typeof input.resource === "string" && validBefore !== null) {
-      rememberLiveAuthorization(input.resource, Number(validBefore), paid.nonce ?? "");
+    if (authKey !== null && validBefore !== null) {
+      rememberLiveAuthorization(authKey, Number(validBefore), paid.nonce ?? "");
     }
     // §4 E18: 署名は実在する。隠さない——認可は validBefore まで生きた金で、
     // 遅れて決済され得る。何に署名したか（nonce）が残らないと後から照合できない。
@@ -595,7 +587,7 @@ async function payIfTrustedCore(input: PayIfTrustedInput, notes: string[]): Prom
       decision_record: paid.decision,
     };
   }
-  if (typeof input.resource === "string") clearLiveAuthorization(input.resource);
+  if (authKey !== null) clearLiveAuthorization(authKey);
   return {
     decision: "PAID",
     safe_to_pay: true,

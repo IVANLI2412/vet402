@@ -4,7 +4,14 @@
 //   GET /api/v1/resolve?q=<url>                       (key-less)
 //   GET /api/v1/resources/{resourceId}/decision?role=payer (key-less at 60/min per IP)
 // No payment code here.
-import { createVouchClient, DEFAULT_API_URL, DEFAULT_MAX_SCORE_AGE_MS, VouchApiError, type DecisionRecommendation } from "@vet402/sdk";
+import {
+  createVouchClient,
+  DECISION_FRESHNESS_SKEW_MS,
+  DEFAULT_API_URL,
+  DEFAULT_MAX_SCORE_AGE_MS,
+  VouchApiError,
+  type DecisionRecommendation,
+} from "@vet402/sdk";
 
 /** Same predicate as `@vet402/sdk` `scoreQualityDefect`. Keep in sync with packages/sdk/src/verdict-shape.ts. */
 function scoreQualityDefect(
@@ -83,10 +90,10 @@ function assertHttpsApiUrl(apiUrl: string): void {
 function decisionTooStale(scoredAt: string, cacheExpiresAt: string | undefined, nowMs: number): boolean {
   const scoredMs = Date.parse(scoredAt);
   if (Number.isNaN(scoredMs)) return true;
-  if (nowMs - scoredMs > DEFAULT_MAX_SCORE_AGE_MS) return true;
+  if (nowMs - scoredMs > DEFAULT_MAX_SCORE_AGE_MS + DECISION_FRESHNESS_SKEW_MS) return true;
   if (typeof cacheExpiresAt === "string") {
     const exp = Date.parse(cacheExpiresAt);
-    if (!Number.isNaN(exp) && nowMs >= exp) return true;
+    if (!Number.isNaN(exp) && nowMs > exp + DECISION_FRESHNESS_SKEW_MS) return true;
   }
   return false;
 }

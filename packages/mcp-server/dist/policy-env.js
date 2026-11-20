@@ -46,6 +46,11 @@ export function mergePolicyFromEnv(envPolicy, tool) {
         },
     };
 }
+export function sessionWouldExceed(amountUsd, cap) {
+    if (!Number.isFinite(amountUsd) || amountUsd <= 0)
+        return false;
+    return sessionSpentUsd + amountUsd > cap;
+}
 export function chargeSessionSpend(amountUsd, cap) {
     if (!Number.isFinite(amountUsd) || amountUsd <= 0)
         return true;

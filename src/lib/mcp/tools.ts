@@ -293,7 +293,7 @@ export async function checkSeller(deps: CheckSellerDeps, input: { url: string; m
     // 判定は 5 分キャッシュされる。キャッシュから返した文書に「今」を付けない（判定を作った時刻）。
     as_of: decision.scoredAt,
     truncated: false,
-    next_action: verdictNextStep(decision.recommendation),
+    next_action: verdictNextStep(decision.recommendation, decision.reason_codes),
   };
   fitBudget(out, ["reasons"]);
   if (Buffer.byteLength(JSON.stringify(out), "utf8") > MAX_STRUCTURED_BYTES) {

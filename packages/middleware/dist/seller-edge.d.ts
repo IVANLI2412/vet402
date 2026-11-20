@@ -49,6 +49,8 @@ export type SellerEdgeConfig = {
     signDelivery: (bodyHash: string) => string | Promise<string>;
     recordE6: (record: SellerEdgeE6Write) => void | Promise<void>;
     replay?: ReplayStore;
+    /** Test-only: allow a ReplayStore without addIfAbsent (not safe under concurrency). */
+    allowUnsafeReplayStore?: boolean;
     /** Test clock. Production uses performance.now. */
     clock?: () => number;
 };

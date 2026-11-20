@@ -176,6 +176,7 @@ function seller(accept) {
 }
 
 function decisionBody() {
+  const now = new Date().toISOString();
   return {
     subject: { type: "resource", id: RESOURCE_ID },
     role: "payer",
@@ -191,6 +192,19 @@ function decisionBody() {
     degraded: false,
     policy: "allow_only",
     rules_version: "2026-09-02.1",
+    scoredAt: now,
+    cacheExpiresAt: new Date(Date.now() + 300_000).toISOString(),
+    verified_terms: {
+      purchase_id: "p1",
+      pay_to: base.payee,
+      asset: okAccept.asset,
+      amount: okAccept.amount,
+      decimals: 6,
+      network: "eip155:8453",
+      scheme: "exact",
+      protocol: "x402",
+      verified_at: now,
+    },
   };
 }
 

@@ -144,6 +144,7 @@ fails if this table and those constants drift apart. Server `reason_codes` (for 
 | `chain_or_asset_mismatch` | no accept is Base mainnet + canonical USDC + scheme `exact` | stop; this gate pays USDC on Base only |
 | `no_eligible_accept` | the 402 was readable but offered no payable option | stop; report the seller's accepts to the user |
 | `evidence_unavailable` | `/decision` or the 402 could not be read (network, non-JSON, wrong API key) | not an ALLOW. Check `VOUCH_API_URL` / `VOUCH_API_KEY`, retry once later; do not pay blind |
+| `decision_stale` | the `/decision` body is outside the freshness window (or ALLOW with no `scoredAt` / `cacheExpiresAt`) | the SDK refetches once; if still stale, do not pay until vet402 rescored |
 | `subgraph_evidence_unavailable` | The Graph's subgraph could not be read (or a pinned `deploymentId` did not match) | check `GRAPH_API_KEY`; with `source: "both"` this refuses even if vet402 could be read |
 | `graph_key_not_configured` | `policy.evidence.source` is `subgraph`/`both` but the MCP server has no `GRAPH_API_KEY` | set the key in the server's env block, never in tool input |
 | `payee_recommendation_block` | vet402 says BLOCK for this payee | stop. BLOCK cannot be waived by `requireVet402Allow: false` |

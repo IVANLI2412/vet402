@@ -8,7 +8,7 @@ import { sanitizeToolError } from "./tool-errors.js";
 import { payIfTrusted } from "./pay-if-trusted.js";
 import { payerConfiguredFor, resolveSvmPayer, UNCONFIGURED_SVM_SIGNER } from "./payer.js";
 import { resolveMaxPerTxUsd, ceilingNotes, MAX_PER_TX_USD_ENV, DEFAULT_MAX_PER_TX_USD } from "./ceiling.js";
-import { chargeSessionSpend, mergePolicyFromEnv, policyFromEnv, sessionCapUsd } from "./policy-env.js";
+import { chargeSessionSpend, mergePolicyFromEnv, policyFromEnv, sessionCapUsd, sessionWouldExceed, } from "./policy-env.js";
 import { decideFromScore, decideFromFailure, refusalReasonCodes } from "./decision.js";
 import { resourceDecision, verifiedTermsNote } from "./resource-decision.js";
 import { attestX402Payment, fetchAgentScore, fetchDiagnose, fetchPayeeScore, fetchWalletScore, } from "./vouch-client.js";
@@ -42,6 +42,35 @@ function scoreToolFailure(error) {
     return {
         content: [{ type: "text", text: JSON.stringify(decision, null, 2) }],
         isError: true,
+    };
+}
+/** vet402 API ルートの origin（boundedFetch の照合に使う）。ハンドラ内 try/catch に置かない。 */
+function originOfVet402ApiRoot(apiRoot) {
+    try {
+        return new URL(apiRoot.includes("://") ? apiRoot : `https://${apiRoot}`).origin;
+    }
+    catch {
+        return apiRoot;
+    }
+}
+/** vet402 へだけ AbortSignal.timeout を付ける fetch。 */
+function vet402BoundedFetch(apiRoot, timeoutMs) {
+    const apiOrigin = originOfVet402ApiRoot(apiRoot);
+    return (url, init) => {
+        const target = String(url);
+        let isVet402 = target.startsWith(apiRoot);
+        if (!isVet402) {
+            try {
+                isVet402 = new URL(target).origin === apiOrigin;
+            }
+            catch {
+                isVet402 = false;
+            }
+        }
+        if (!isVet402) {
+            return fetch(url, init);
+        }
+        return fetch(url, { ...init, signal: init?.signal ?? AbortSignal.timeout(timeoutMs) });
     };
 }
 const AGENT_ID = z.string().max(78).describe("ERC-8004 agent ID (tokenId)");
@@ -441,14 +470,7 @@ async function main() {
             // 注入する fetch は必ず期限付き。ハングした上流はツール呼び出しを永久に返さず、
             // 返らない呼び出しはモデルが fail-closed に扱えない（vouch-client.ts と同じ規律）。
             const apiRoot = (process.env.VOUCH_API_URL ?? "https://vet402.com/api/v1").replace(/\/$/, "");
-            const boundedFetch = (url, init) => {
-                const target = String(url);
-                const isVet402 = target.startsWith(apiRoot) || target.includes("/api/v1/");
-                if (!isVet402) {
-                    return fetch(url, init);
-                }
-                return fetch(url, { ...init, signal: init?.signal ?? AbortSignal.timeout(timeoutMs) });
-            };
+            const boundedFetch = vet402BoundedFetch(apiRoot, timeoutMs);
             const signer = await resolvePayer();
             // Solana の署名者（base58 の payee 用）。鍵と RPC は env だけから。ツール入力には存在しない。
             const svmPayer = await resolveSvmPayer(process.env.VOUCH_SOLANA_PAYER_SECRET_KEY, process.env.SOLANA_RPC_URL);
@@ -463,7 +485,7 @@ async function main() {
             const ceiling = resolveMaxPerTxUsd(maxPerTxUsd, process.env[MAX_PER_TX_USD_ENV]);
             const envPolicy = policyFromEnv(process.env);
             const effectivePolicy = mergePolicyFromEnv(envPolicy, policy);
-            if (typeof amountUsd === "number" && !chargeSessionSpend(amountUsd, sessionCapUsd(process.env.VOUCH_SESSION_MAX_USD))) {
+            if (typeof amountUsd === "number" && sessionWouldExceed(amountUsd, sessionCapUsd(process.env.VOUCH_SESSION_MAX_USD))) {
                 return {
                     content: [
                         {
@@ -495,6 +517,15 @@ async function main() {
                 // 常に上書きすることで、天井の入口を env の1本だけにする。
                 ...(payerReady ? { resource, payee, amountUsd, method, maxPerTxUsd: ceiling.effective, solanaRpcUrl: svmPayer?.rpcUrl } : {}),
             });
+            if (typeof amountUsd === "number" &&
+                (result.decision === "PAID" || (result.decision === "FAILED" && result.signed === true))) {
+                const cap = sessionCapUsd(process.env.VOUCH_SESSION_MAX_USD);
+                if (!chargeSessionSpend(amountUsd, cap)) {
+                    result.summary =
+                        `Session cumulative cap exceeded (env ${cap} USD) after this signed attempt. ` +
+                            [result.summary, "Waiver and floors are controlled by the server env, not tool input."].filter(Boolean).join(" ");
+                }
+            }
             if (!payerReady && wantsPayment) {
                 result.refuse_reasons = [
                     ...result.refuse_reasons.filter((r) => r !== "payment_target_unknown"),

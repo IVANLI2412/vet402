@@ -23,6 +23,7 @@
 // 数えない（coverage.ts は `k2:` だけを見る）——同じ持ち主の鍵を別々に数えた行を 7 日の窓に残さないため。
 // ============================================================
 import { createHash, createHmac, hkdfSync } from "node:crypto";
+import { logServerWarnSafe } from "@/lib/util/log-safe";
 
 /** IPv6 を /64 に丸める。IPv4・読めない値はそのまま（小文字・前後空白なし）。 */
 export function ipCounterKey(ip: string): string {
@@ -101,9 +102,23 @@ export function lookupCallerHash(material: string, day: string): string {
   return hashText(`${day}|${material}`);
 }
 
+let warnedMissingPepper = false;
+
 function hashText(text: string): string {
   const key = hmacKey();
   // 鍵が無いのはローカルとテストだけ（本番は production-env が API_KEY_PEPPER を必須にする）。
-  if (!key) return createHash("sha256").update(`vet402/decision-lookup-callers/v1|${text}`).digest("hex");
+  if (!key) {
+    if (process.env.NODE_ENV === "production") {
+      throw new Error("API_KEY_PEPPER is required in production");
+    }
+    if (!warnedMissingPepper) {
+      warnedMissingPepper = true;
+      logServerWarnSafe(
+        "decision.lookup-caller",
+        "API_KEY_PEPPER is unset: decision lookup caller hashes use a dev-only sha256 fallback",
+      );
+    }
+    return createHash("sha256").update(`vet402/decision-lookup-callers/v1|${text}`).digest("hex");
+  }
   return createHmac("sha256", key).update(text).digest("hex");
 }

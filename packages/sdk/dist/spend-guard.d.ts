@@ -226,6 +226,8 @@ export type SpendDecision = {
  * it from cache. See SpendGuardPolicy.maxScoreAgeMs.
  */
 export declare const DEFAULT_MAX_SCORE_AGE_MS: number;
+/** Clock skew allowance when judging scoredAt / cacheExpiresAt (audit R3). */
+export declare const DECISION_FRESHNESS_SKEW_MS = 60000;
 /**
  * Non-custodial spend-policy layer: answers "may my agent send this payment?"
  * and nothing else. It never touches keys, funds, signing, or transaction

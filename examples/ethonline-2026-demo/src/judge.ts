@@ -11,7 +11,7 @@
  * ここでは**閾値を SDK の定数から引き、理由コードは SDK のソースに実在する語だけ**を使う。
  * 語を1つでも発明すれば `judge.test.mjs`「理由コードは SDK に実在する語」が落ちる。
  */
-import { DEFAULT_MAX_PER_TX_USD } from "../../../packages/sdk/dist/index.js";
+import { DEFAULT_MAX_PER_TX_USD, DEFAULT_MAX_SCORE_AGE_MS, isDecisionStale } from "../../../packages/sdk/dist/index.js";
 // 判定語と「測れたか」の欄の読み方。`assess.ts` の関門表・`pay-or-refuse.ts`・`spend-guard.ts` と同じ 1 本。
 import { decisionResponseDefect, isBlockVerdict, isDecimalUnits, isUnknownVerdict, scoreQualityDefect } from "../../../packages/sdk/dist/verdict-shape.js";
 import type { PayRefuseReason } from "../../../packages/sdk/src/pay-or-refuse.ts";
@@ -47,6 +47,7 @@ export const JUDGE_REASON_CODES = [
   "subgraph_evidence_unavailable",
   "no_eligible_accept",
   "allowed_by_caller_policy",
+  "decision_stale",
 ] as const;
 
 type ReasonCode = PayRefuseReason | "payee_recommendation_block";
@@ -264,6 +265,11 @@ export function dryRunVerdict(
   const pathReasons: string[] = uncatalogued ? ["resource_uncatalogued"] : [];
   const serverReasons = decision && Array.isArray(decision.reason_codes) ? decision.reason_codes.map(String) : [];
   const evidenceVerdictSource: VerdictSource = uncatalogued ? "payee_score" : "decision";
+
+  // SDK `decideAndPay` と同じ位置: 鮮度は品質欄・床より先（R3）。
+  if (decision && isDecisionStale(decision, Date.now(), DEFAULT_MAX_SCORE_AGE_MS)) {
+    return refuse([...serverReasons, "decision_stale"], "decision");
+  }
 
   // --- 3.5 宣言された証拠源をすべて読めているか（C12: 片方でも読めなければ fail-closed）---
   if (policy.evidence.source !== "vet402" && !reads.subgraph?.ok) {

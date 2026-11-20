@@ -16,6 +16,7 @@ import assert from "node:assert/strict";
 import { payIfTrusted, REFUSE_REASONS } from "../dist/pay-if-trusted.js";
 import { PAY_REFUSE_REASONS } from "@vet402/sdk";
 import { BROKEN_SHAPES, REQUIRED_SHAPE_IDS, withShape, showShape } from "../../sdk/test/_shapes.mjs";
+import { allowDecisionBody } from "./helpers/decision.mjs";
 
 const PAYEE = "0x79DC34E41B2b591078d3dE222C43EcaaBD52FcCB";
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
@@ -28,12 +29,8 @@ const JSON_ROWS = BROKEN_SHAPES.filter((r) => r.from === "json");
 const ALL_ROWS = BROKEN_SHAPES;
 
 const allowDecision = () => ({
-  recommendation: "ALLOW",
-  reason_codes: ["l0_pass", "l1_delivered"],
+  ...allowDecisionBody(ACCEPT),
   facts: { l0: { status: "pass" }, l1: { n_delivered: 3, n_attempts: 3 } },
-  evidence: [{ level: "L1", url: "https://vet402.com/api/v1/purchases/p1", purchase_id: "p1" }],
-  degraded: false,
-  rules_version: "2026-09-02.1",
   registry: { status: "anchored", tx_hash: null },
   caller_policy: { verdict: "ALLOW", reason_codes: [] },
 });

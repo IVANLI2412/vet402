@@ -294,7 +294,7 @@ test("H-4/H-2: a score older than maxScoreAgeMs blocks", async () => {
     fetch: scoreFetch({
       score: 80,
       recommendation: "ALLOW",
-      scoredAt: new Date(Date.now() - 60000).toISOString(),
+      scoredAt: new Date(Date.now() - 120_000).toISOString(),
       cacheExpiresAt: new Date(Date.now() + 300000).toISOString(),
     }),
   });

@@ -4,6 +4,7 @@ import { clientIdentityHeaders } from "./user-agent.js";
 export {
   SpendGuard,
   DEFAULT_MAX_SCORE_AGE_MS,
+  DECISION_FRESHNESS_SKEW_MS,
   type SpendGuardPolicy,
   type SpendGuardTrustPolicy,
   type SpendEvaluateInput,
@@ -17,6 +18,7 @@ export {
 // テストは dist から読む（rootDir: src / outDir: dist）ので、ここから re-export する。
 export {
   payOrRefuse,
+  isDecisionStale,
   readDemoDecisions,
   readL1Decisions,
   appendDecision,

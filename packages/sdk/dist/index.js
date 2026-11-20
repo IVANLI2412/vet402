@@ -1,9 +1,9 @@
 import { SpendGuard } from "./spend-guard.js";
 import { clientIdentityHeaders } from "./user-agent.js";
-export { SpendGuard, DEFAULT_MAX_SCORE_AGE_MS, } from "./spend-guard.js";
+export { SpendGuard, DEFAULT_MAX_SCORE_AGE_MS, DECISION_FRESHNESS_SKEW_MS, } from "./spend-guard.js";
 // ETHOnline 2026（会期中の新規・WINDOW_PLAN §2）。判定のあと、条件を全部通したときだけ払う。
 // テストは dist から読む（rootDir: src / outDir: dist）ので、ここから re-export する。
-export { payOrRefuse, readDemoDecisions, readL1Decisions, appendDecision, DEFAULT_DECISION_STORE, BASE_CHAIN, BASE_CHAIN_ID, BASE_USDC, DEFAULT_MAX_PER_TX_USD, PAY_REFUSE_REASONS, 
+export { payOrRefuse, isDecisionStale, readDemoDecisions, readL1Decisions, appendDecision, DEFAULT_DECISION_STORE, BASE_CHAIN, BASE_CHAIN_ID, BASE_USDC, DEFAULT_MAX_PER_TX_USD, PAY_REFUSE_REASONS, 
 // 2026-09-15: Solana（SVM exact）。payee が base58 なら svm の署名者で払う。web3.js は ALLOW でだけ読む。
 SOLANA_MAINNET, SOLANA_USDC, svmAccountFromKeypair, } from "./pay-or-refuse.js";
 // pay(): the standard path. Checks the seller with vet402, then pays through payOrRefuse.

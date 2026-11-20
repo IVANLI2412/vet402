@@ -204,7 +204,9 @@ A 4xx hold is not scored as a seller miss.
 
 `edge.latency().statement` is the sentence vet402 publishes for the overhead. That sentence includes the measured p95. vet402 does not fill it in before measuring.
 
-`createSellerChainReader` reads `eth_chainId` and `eth_getTransactionReceipt` on the RPC the seller passes in. vet402 does not send a transaction.
+`createSellerChainReader` reads `eth_chainId` and `eth_getTransactionReceipt` on the RPC the seller passes in. vet402 does not send a transaction. Pass `payTo` and `amount` so the reader can match the transfer.
+
+An external `replay` store passed into `createSellerEdge` must implement `addIfAbsent` for atomic reservation. Without it, `createSellerEdge` throws at startup (pass `allowUnsafeReplayStore: true` only in tests).
 
 vet402 publishes that overhead sentence on `GET /api/v1/observatory/state` as `sellerEdgeOverhead.statement`.
 
