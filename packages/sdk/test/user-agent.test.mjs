@@ -184,6 +184,7 @@ test("U5 payOrRefuse: /decision と attest には付け、売り手への要求�
   assert.equal(f.seen.wall[0].init.method, "GET");
   assert.equal(f.seen.wall[0].init.redirect, "error");
   assert.ok(f.seen.wall[0].init.signal, "402 の取得は読み取り期限付き");
+  assert.deepEqual(Object.keys(f.seen.wall[0].init).sort(), ["method", "redirect", "signal"], "402 の取得はヘッダ無し（鍵も名乗りも売り手へ渡さない）");
   assert.equal(f.seen.paid.length, 1);
   assert.deepEqual(Object.keys(f.seen.paid[0].init.headers).sort(), ["PAYMENT-SIGNATURE", "accept"], "再送のヘッダは accept と PAYMENT-SIGNATURE だけ");
   assert.equal(userAgentOf(f.seen.paid[0].init), undefined);
@@ -251,6 +252,7 @@ test("U8 Solana: /decision には付け、RPC と売り手への要求には付�
   assert.deepEqual(seen.rpc[0].headers, { "content-type": "application/json" }, "RPC への要求は 0.7.0 と同じ");
   assert.equal(seen.wall[0].method, "GET");
   assert.equal(seen.wall[0].redirect, "error");
+  assert.equal(seen.wall[0].headers, undefined, "402 の取得はヘッダ無し");
   assert.ok(seen.wall[0].signal, "402 の取得は読み取り期限付き");
   assert.deepEqual(Object.keys(seen.paid[0].headers).sort(), ["PAYMENT-SIGNATURE", "accept"]);
 });
