@@ -62,6 +62,11 @@ const VARIANT_TABLE: Row[] = [
     spellings: ["https://port.example:8443/v1/q/", "https://PORT.EXAMPLE:8443/v1/q"],
     notAliases: ["https://port.example/v1/q", "https://port.example:443/v1/q"],
   },
+  {
+    listed: "https://h/p",
+    method: "GET",
+    spellings: ["https://h./p"],
+  },
 ];
 
 for (const row of VARIANT_TABLE) {

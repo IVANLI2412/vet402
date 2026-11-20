@@ -9,11 +9,12 @@
 // 持ち込まないため。規則が 1 つであることは tests/sellers-fix-modes.test.ts が
 // censusHostOf と突き合わせて固定する。
 // ============================================================
+import { stripTrailingHostnameDot } from "@/lib/ids/canonical";
 import { censusHostSql } from "@/lib/observatory/retest-sellers-sql";
 
 /** census の censusHostOf と同じ規則（小文字・末尾の `:ポート` を落とす）。 */
 export function sellerHostOf(host: string): string {
-  return host.toLowerCase().replace(/:[0-9]+$/, "");
+  return stripTrailingHostnameDot(host.toLowerCase().replace(/:[0-9]+$/, ""));
 }
 
 /** resource_key（host+path）から売り手のホスト名を出す。 */

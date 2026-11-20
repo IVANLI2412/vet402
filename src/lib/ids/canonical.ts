@@ -44,6 +44,13 @@ export const VOLATILE_QUERY_KEYS: ReadonlySet<string> = new Set([
 
 export type CanonicalUrl = { url: string; undeclaredQuery: string[] };
 
+/** DNS の末尾 FQDN 点を 1 段落とす（`api.example.com.` → `api.example.com`）。 */
+export function stripTrailingHostnameDot(host: string): string {
+  let h = host;
+  while (h.endsWith(".")) h = h.slice(0, -1);
+  return h;
+}
+
 export function canonicalUrl(raw: string): CanonicalUrl | null {
   let u: URL;
   try {
@@ -52,7 +59,7 @@ export function canonicalUrl(raw: string): CanonicalUrl | null {
     return null;
   }
   if (u.protocol !== "https:") return null;
-  const host = u.hostname.toLowerCase();
+  const host = stripTrailingHostnameDot(u.hostname.toLowerCase());
   const port = u.port && u.port !== "443" ? `:${u.port}` : "";
   let path = u.pathname.replace(/\/+$/, "");
   if (path === "/") path = "";
@@ -125,7 +132,7 @@ export function resourceUrlVariants(listedUrl: string): string[] {
   const u = new URL(c.url);
   const host = u.hostname;
   const rawHost = /^\s*https:\/\/([^/:?#]+)/i.exec(listedUrl)?.[1];
-  const hosts = [...new Set([host, host.toUpperCase(), ...(rawHost ? [rawHost] : [])])];
+  const hosts = [...new Set([host, `${host}.`, host.toUpperCase(), ...(rawHost ? [rawHost, `${rawHost}.`] : [])])];
   const ports = u.port ? [`:${u.port}`] : ["", ":443"];
   const path = u.pathname === "/" ? "" : u.pathname;
   const paths = [path, `${path}/`];
