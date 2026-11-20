@@ -183,7 +183,7 @@ export default async function ImpactPage() {
           {stats.l1.endpointsSettledSellerReceipt.toLocaleString()} endpoints have at least one seller-named
           receipt and {stats.l1.endpointsSettledIndexOnly.toLocaleString()} have no seller-named receipt: the index
           found their transfers, or Circle&apos;s Gateway API named the batch.
-          Settled attempts and attempts that did not settle are published with the same weight — a receipt series
+          Settled attempts and attempts that did not settle are published with the same weight. Each endpoint gets a receipt series
           per endpoint, transaction hashes included.{" "}
           <a href="/api/v1/observatory/export.csv" className="underline">
             export.csv

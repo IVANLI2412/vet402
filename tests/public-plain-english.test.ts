@@ -176,6 +176,12 @@ test("public/llms.txt prose lines follow public English rules", () => {
   assertNoViolations(llmsProseLines(), "llms.txt");
 });
 
+test("C-9/C-11: impact copy gate fails if a checked sentence reintroduces an em dash", () => {
+  const line = readFileSync("src/app/impact/page.tsx", "utf8");
+  assert.match(line, /published with the same weight\. Each endpoint/);
+  assert.doesNotMatch(line, /published with the same weight — a receipt/);
+});
+
 for (const { file, fragments } of extractApiPublicStrings()) {
   test(`API public strings ${file}`, () => {
     assertNoViolations(fragments, file);
