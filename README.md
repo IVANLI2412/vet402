@@ -133,6 +133,8 @@ npm i @vet402/mcp-server   # MCP tools for Cursor / Claude Desktop
 - [@vet402/middleware](https://www.npmjs.com/package/@vet402/middleware)
 - [@vet402/mcp-server](https://www.npmjs.com/package/@vet402/mcp-server)
 
+`@vet402/ai-sdk`, `@vet402/langchain`, and `@vet402/agentkit` live under `packages/` in this repository but are **not published to npm yet**. Build them from source (`packages/ai-sdk`, `packages/langchain`, `packages/agentkit`) until release tarballs exist.
+
 ```typescript
 import { createVouchClient } from "@vet402/sdk";
 ```
