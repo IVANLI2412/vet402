@@ -96,6 +96,7 @@ const nextConfig: NextConfig = {
       // 正典は /observatory/methodology。短い方を打った読者を正典へ送る。
       { source: "/methodology", destination: "/observatory/methodology", permanent: false },
       { source: "/verify", destination: "/payee", permanent: false },
+      { source: "/check", destination: "/playground", permanent: false },
       // 2026-09-02 敵対的監査: /docs が 404 だった。正典は /docs/api で、これが
       // 別ページに昇格する予定は無いので 308（permanent）。/agent も 404 だが、
       // 旧 URL として何を指していたかが不明なので行き先を推測して足さない。
