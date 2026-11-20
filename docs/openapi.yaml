@@ -1904,7 +1904,8 @@ paths:
       summary: Badge image fetch counts by referer host
       description: |
         Daily tallies of GET /api/badge/** image responses, grouped by referer host
-        name (not path or IP). `days` defaults to 7 (clamped 1 to 365).
+        name (not path or IP). `days` defaults to 7. Non-integers use the default.
+        Integer values are clamped to 1..365. The response `days` field is the value actually used.
       security: []
       parameters:
         - in: query
@@ -1938,7 +1939,8 @@ paths:
       tags: [Observatory]
       summary: Watch-all-sellers interest clicks (no IP)
       description: |
-        Sums first-party `watch_sellers_interest` site events over the last `days` (default 14, clamped 1 to 365).
+        Sums first-party `watch_sellers_interest` site events over the last `days` (default 14).
+        Non-integers use the default. Integer values are clamped to 1..365. The response `days` field is the value actually used.
         Counts only. No email or identifier is stored or returned.
       security: []
       parameters:
@@ -1964,7 +1966,8 @@ paths:
       tags: [Observatory]
       summary: Page views by referrer group (no IP)
       description: |
-        Sums first-party `page_view` site events over the last `days` (default 7, clamped 1 to 365),
+        Sums first-party `page_view` site events over the last `days` (default 7).
+        Non-integers use the default. Integer values are clamped to 1..365. The response `days` field is the value actually used.
         grouped by coarse referrer label (`x` covers x.com and t.co, `google`, `direct`, and so on).
         No IP or full referrer URL is stored or returned.
       security: []
