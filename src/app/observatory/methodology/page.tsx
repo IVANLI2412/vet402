@@ -1252,9 +1252,9 @@ export default async function ObservatoryMethodologyPage() {
         </h3>
         <p className="doc-p">
           The <code>erc8004</code> object in the{" "}
-          <Link href="/api/v1/observatory/state" className="underline">
+          <a href="/api/v1/observatory/state" className="underline">
             state API
-          </Link>{" "}
+          </a>{" "}
           counts exact address equality between the payTo of a vet402 purchase row and the owner
           of an agent in vet402&apos;s index of the ERC-8004 Identity Registry (or the
           agent&apos;s agentWallet, once that index holds rows). Addresses are compared in

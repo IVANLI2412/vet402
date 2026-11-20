@@ -155,9 +155,9 @@ export default async function ChainGuidePage({ params }: { params: Promise<Param
           <span>Where to read on</span>
         </h2>
         <p className="doc-p">
-          <Link href="/api/v1/observatory/state" className="doc-link">
+          <a href="/api/v1/observatory/state" className="doc-link">
             /api/v1/observatory/state
-          </Link>{" "}
+          </a>{" "}
           (CC BY 4.0) is the source. Definitions are in the{" "}
           <Link href="/observatory/methodology" className="doc-link">
             methodology

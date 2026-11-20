@@ -146,9 +146,9 @@ export default async function DecisionsPage() {
               {" "}
               The table below shows the newest {feed.rows.length.toLocaleString()} of them; the full
               window is at{" "}
-              <Link href={`/api/v1/observatory/decisions?days=${DECISION_WINDOW_DAYS}`} className="underline">
+              <a href={`/api/v1/observatory/decisions?days=${DECISION_WINDOW_DAYS}`} className="underline">
                 /api/v1/observatory/decisions
-              </Link>
+              </a>
               , and the whole ledger at <code>/api/v1/observatory/export.csv</code>.
             </>
           ) : (

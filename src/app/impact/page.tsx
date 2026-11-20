@@ -160,9 +160,9 @@ export default async function ImpactPage() {
               its own retrievedAt.
             </>
           )}{" "}
-          <Link href="/api/v1/observatory/state" className="underline">
+          <a href="/api/v1/observatory/state" className="underline">
             /api/v1/observatory/state
-          </Link>
+          </a>
         </p>
 
         <h2 className="sec-head">
@@ -183,9 +183,9 @@ export default async function ImpactPage() {
           found their transfers, or Circle&apos;s Gateway API named the batch.
           Settled attempts and attempts that did not settle are published with the same weight — a receipt series
           per endpoint, transaction hashes included.{" "}
-          <Link href="/api/v1/observatory/export.csv" className="underline">
+          <a href="/api/v1/observatory/export.csv" className="underline">
             export.csv
-          </Link>
+          </a>
         </p>
         {/* 2026-09-04 監査 E: 「attempts」は API ごとに定義が違い 4 値あった。この頁の数字は
             state API の l1.attempts / l1.settled だけを引く。出所と定義を数字の隣に書く。 */}
@@ -290,9 +290,9 @@ export default async function ImpactPage() {
                   , which also leaves out the attempts held by vet402).
                 </>
               )}{" "}
-              <Link href="/api/v1/observatory/decisions" className="underline">
+              <a href="/api/v1/observatory/decisions" className="underline">
                 /decisions
-              </Link>
+              </a>
             </p>
           </>
         )}
@@ -334,9 +334,9 @@ export default async function ImpactPage() {
           ) : (
             "The purchase ledger is a daily hash chain; anchoring begins with the first anchored day."
           )}{" "}
-          <Link href="/api/v1/observatory/anchors" className="underline">
+          <a href="/api/v1/observatory/anchors" className="underline">
             /anchors
-          </Link>
+          </a>
         </p>
 
         <h2 className="sec-head">

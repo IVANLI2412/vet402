@@ -300,13 +300,13 @@ export default async function X402PillarPage() {
                 Full state of x402
               </Link>
               ,{" "}
-              <Link href="/api/v1/observatory/state" className="doc-link">
+              <a href="/api/v1/observatory/state" className="doc-link">
                 State API (JSON)
-              </Link>
+              </a>
               ,{" "}
-              <Link href="/api/v1/observatory/export.csv" className="doc-link">
+              <a href="/api/v1/observatory/export.csv" className="doc-link">
                 Purchases as CSV
-              </Link>
+              </a>
               ,{" "}
               <Link href="/x402/report/2026-11" className="doc-link">
                 State of x402: November 2026
@@ -323,9 +323,9 @@ export default async function X402PillarPage() {
         ) : (
           <p className="doc-p">
             Live figures are unavailable right now. The state API is at{" "}
-            <Link href="/api/v1/observatory/state" className="doc-link">
+            <a href="/api/v1/observatory/state" className="doc-link">
               /api/v1/observatory/state
-            </Link>
+            </a>
             .
           </p>
         )}

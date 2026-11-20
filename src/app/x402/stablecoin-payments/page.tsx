@@ -87,9 +87,9 @@ export default async function StablecoinPaymentsPage() {
             chain pages
           </Link>{" "}
           and{" "}
-          <Link href="/api/v1/observatory/state" className="doc-link">
+          <a href="/api/v1/observatory/state" className="doc-link">
             /api/v1/observatory/state
-          </Link>
+          </a>
           . Purchase lanes with a page:{" "}
           {GUIDE_CHAINS.map((c, i) => (
             <span key={c.slug}>

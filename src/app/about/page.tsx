@@ -174,9 +174,9 @@ export default async function AboutPage() {
           <h2 className="sec-head">Data and code</h2>
           <p>
             The measurements are open data under CC BY 4.0 and the code is MIT. Read the{" "}
-            <Link href="/api/v1/observatory/state" className="doc-link">
+            <a href="/api/v1/observatory/state" className="doc-link">
               state API
-            </Link>
+            </a>
             , the{" "}
             <Link href="/observatory/methodology" className="doc-link">
               methodology

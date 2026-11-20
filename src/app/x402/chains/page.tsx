@@ -140,9 +140,9 @@ export default async function ChainsHubPage() {
 
         <p className="doc-p mt-8">
           Source:{" "}
-          <Link href="/api/v1/observatory/state" className="doc-link">
+          <a href="/api/v1/observatory/state" className="doc-link">
             /api/v1/observatory/state
-          </Link>{" "}
+          </a>{" "}
           (CC BY 4.0). How an agent pays with a stablecoin:{" "}
           <Link href="/x402/stablecoin-payments" className="doc-link">
             stablecoin payments
