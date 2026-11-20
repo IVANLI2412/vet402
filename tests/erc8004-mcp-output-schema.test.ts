@@ -69,3 +69,25 @@ test("REST が返しうる理由の全部を MCP の outputSchema が受ける",
   for (const r of ERC8004_UNREADABLE_REASONS) assert.ok(base.unreadable_reason.safeParse(r).success, r);
   for (const r of ERC8004_NO_PROOF_REASONS) assert.ok(base.no_proof_reason.safeParse(r).success, r);
 });
+
+test("Erc8004CheckResult のキーはすべて check8004AgentOutput の shape にある", () => {
+  const schemaKeys = new Set(Object.keys(check8004AgentOutput.shape));
+  const resultKeys = [
+    "verdict",
+    "reasons",
+    "unreadable_reason",
+    "no_proof_reason",
+    "chain",
+    "agentId",
+    "clientAddress",
+    "feedbackIndex",
+    "feedback",
+    "proofOfPayment",
+    "checks",
+    "sources",
+    "as_of",
+  ] as const;
+  for (const key of resultKeys) {
+    assert.ok(schemaKeys.has(key), `check8004AgentOutput.shape に ${key} が無い`);
+  }
+});
