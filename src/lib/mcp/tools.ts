@@ -611,14 +611,7 @@ export function registerVet402Tools(server: McpServer, deps: McpDeps, state: Mcp
     },
     async (args) =>
       guarded(state, TOOL_NAMES.check8004, async () => {
-        let out: Awaited<ReturnType<typeof check8004Agent>>;
-        try {
-          out = await check8004Agent(deps, args);
-        } catch (error) {
-          // チェーンや feedbackURI が読めないのは DB の障害ではない。応答全体を 503 にせず、道具の結果として返す。
-          logServerErrorSafe(`mcp.${TOOL_NAMES.check8004}`, error);
-          return fail("chain_unreadable");
-        }
+        const out = await check8004Agent(deps, args);
         if ("error" in out) {
           if (ERC8004_INPUT_ERRORS.has(out.error)) return fail(out.error as keyof typeof ERROR_TEXT);
           return fail("invalid_agent_id");
