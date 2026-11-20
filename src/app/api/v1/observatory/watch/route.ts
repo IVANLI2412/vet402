@@ -64,7 +64,22 @@ export async function GET(request: NextRequest) {
         .limit(100);
     }
   } catch (error) {
-    if (!isMissingSchemaError(error)) throw error;
+    if (isMissingSchemaError(error)) {
+      // Migration not applied yet: behave like an empty preview, not a 500.
+    } else {
+      logServerErrorSafe("observatory_watch_get", error);
+      return withRateLimitHeaders(
+        NextResponse.json(
+          {
+            message: observatoryWatchMessage(normalized, auth.ctx.apiKeyId),
+            endpointsPayingThisWallet: [],
+            error: "service_unavailable",
+          },
+          { status: 503 },
+        ),
+        auth.ctx.rateLimit,
+      );
+    }
   }
 
   return withRateLimitHeaders(
@@ -226,7 +241,10 @@ export async function DELETE(request: NextRequest) {
     return withRateLimitHeaders(NextResponse.json({ ok: true }), auth.ctx.rateLimit);
   } catch (error) {
     if (isMissingSchemaError(error)) {
-      return withRateLimitHeaders(NextResponse.json({ ok: true }), auth.ctx.rateLimit);
+      return withRateLimitHeaders(
+        NextResponse.json({ error: "service_unavailable" }, { status: 503 }),
+        auth.ctx.rateLimit,
+      );
     }
     logServerErrorSafe("observatory_watch_delete", error);
     return withRateLimitHeaders(
