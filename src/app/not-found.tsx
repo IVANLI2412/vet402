@@ -26,19 +26,19 @@ export default function NotFound() {
 
         <h1 className="doc-title mt-8">404 Not Found</h1>
         <p className="mx-auto mt-3 max-w-[56ch] text-center text-brand-lift">
-          The requested path does not exist on this server.
+          To check a seller, paste a URL on the home page.
         </p>
         <div className="rule-double mx-auto mt-6 w-full max-w-[34ch]" />
 
         <p className="mt-8 text-center text-[0.84375rem]">
-          <Link href="/" className="doc-link">
-            Home
+          <Link href="/#lp-paste-url" className="doc-link">
+            Check
           </Link>
           <span aria-hidden="true" className="mx-2 text-brand-lift">
             ·
           </span>
-          <Link href="/payee" className="doc-link">
-            Verify a payee
+          <Link href="/sellers" className="doc-link">
+            Sellers
           </Link>
           <span aria-hidden="true" className="mx-2 text-brand-lift">
             ·
@@ -51,6 +51,12 @@ export default function NotFound() {
           </span>
           <Link href="/observatory" className="doc-link">
             Observatory
+          </Link>
+          <span aria-hidden="true" className="mx-2 text-brand-lift">
+            ·
+          </span>
+          <Link href="/" className="doc-link">
+            Home
           </Link>
         </p>
       </article>
