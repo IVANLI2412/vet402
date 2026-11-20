@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isSellersPath, sellersRateLimitResponse } from "@/lib/sellers/page-limit";
+import { isPublicScorePagePath, publicScoreRateLimitResponse } from "@/lib/scoring/public-page-limit";
 import { invalidPayeeAddressHtml, isMalformedPayeePath } from "@/lib/payee/invalid-address-page";
 import { clarityCspApplies, clarityCspSources, clarityProjectId } from "@/lib/clarity";
 
@@ -41,6 +42,11 @@ export async function proxy(request: NextRequest) {
   // /sellers（鍵なしの公開面）: IP ごとの上限を超えたら頁を描かずに 429 を返す（src/lib/sellers/page-limit.ts）。
   if (isSellersPath(request.nextUrl.pathname)) {
     const limited = await sellersRateLimitResponse(request);
+    if (limited) return limited;
+  }
+  // 鍵なしの /payee/*・/agent/* 採点頁: 10 回/分/IP（監査 R3 whitehat-01）。
+  if (isPublicScorePagePath(request.nextUrl.pathname)) {
+    const limited = await publicScoreRateLimitResponse(request);
     if (limited) return limited;
   }
   const nonce = generateNonce();

@@ -24,12 +24,18 @@ function escapeHtml(s: string): string {
  * 人が開く頁なので text/plain ではなく、lang・title・viewport のある頁を返し、待ち時間と戻る導線を載せる。
  * スクリプトは持たない（CSP は default-src 'none' とインラインの style だけ）。API（/api/**）はここを通らず JSON のまま。
  */
-export function rateLimitPageHtml(opts: { waitSeconds: number; unavailable?: boolean; path?: string }): string {
+export function rateLimitPageHtml(opts: {
+  waitSeconds: number;
+  unavailable?: boolean;
+  path?: string;
+  /** 省略時は /sellers 向けの既定文。 */
+  tooManyLead?: string;
+}): string {
   const wait = Math.max(1, Math.ceil(opts.waitSeconds));
   const title = opts.unavailable ? "Temporarily unavailable" : "Too many requests";
   const lead = opts.unavailable
     ? "vet402 could not check the request limit just now, so this page was not loaded."
-    : "This network has opened seller pages more than " + SELLERS_RL_LIMIT + " times in the last minute.";
+    : (opts.tooManyLead ?? "This network has opened seller pages more than " + SELLERS_RL_LIMIT + " times in the last minute.");
   const retryHref = escapeHtml(opts.path && isSellersPath(opts.path) ? opts.path : "/sellers");
   return `<!doctype html>
 <html lang="en">
