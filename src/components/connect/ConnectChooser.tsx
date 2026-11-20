@@ -66,10 +66,15 @@ export default function ConnectChooser({ choices, signupHref }: { choices: Conne
 
           <ol className={styles.steps}>
             <li>
-              <span className={styles.mark}>1.</span> {c.steps[0]}{" "}
-              <Link href={signupHref} className={styles.link}>
-                Get a key
-              </Link>
+              <span className={styles.mark}>1.</span> {c.steps[0]}
+              {c.id !== "buy" ? (
+                <>
+                  {" "}
+                  <Link href={signupHref} className={styles.link}>
+                    Get a key
+                  </Link>
+                </>
+              ) : null}
             </li>
             <li>
               <span className={styles.mark}>2.</span> {c.steps[1]}

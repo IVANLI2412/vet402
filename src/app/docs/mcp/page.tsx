@@ -153,7 +153,7 @@ export default async function McpDocsPage() {
           <h2 className="sec-head">Tools</h2>
           <p className="text-[0.84375rem] text-brand">
             Production <code className="text-brand-deep">tools/list</code> returns five read-only tools (and{" "}
-            <code className="text-brand-deep">find_x402_sellers</code> when enabled). Titles and descriptions below come from the server catalog.
+            <code className="text-brand-deep">find_x402_sellers</code> when on). Titles and descriptions below come from the server catalog.
           </p>
           <p className="text-[0.84375rem] text-brand">
             The same <code className="text-brand-deep">check_x402_seller</code> answer is also available over key-less REST at{" "}

@@ -40,7 +40,8 @@ export const TOOL_TEXT = {
   check_x402_seller: {
     title: "What vet402 saw when it paid this x402 URL",
     description:
-      "Pass the x402 URL your agent is about to pay. " +
+      "Look up vet402's published purchase record for one x402 URL. Read-only. It does not pay. " +
+      "Pass url: the absolute https x402 URL. " +
       "check_x402_seller shows what happened when vet402 paid an x402 URL: whether the payment settled, whether content came back, and the transaction where vet402 recorded one. " +
       "For WARN or BLOCK, read reason_codes. " +
       "verified_terms holds the payTo, amount and network of the last purchase where content came back, so they can be set against the terms of a 402 response. " +

@@ -4,6 +4,8 @@ import TrackView from "@/components/site/TrackView";
 import ConnectChooser from "@/components/connect/ConnectChooser";
 import { TryInChatConnect } from "@/components/connect/TryInChatConnect";
 import MonoCode from "@/components/connect/MonoCode";
+import { PromptCopyButton } from "@/components/docs/PromptCopyButton";
+import { MCP_FIRST_PROMPTS } from "@/lib/docs/mcp-first-prompts";
 import {
   CONNECT_CHOICES,
   CONNECT_KEYLESS_CHECK_CURL,
@@ -71,6 +73,7 @@ export default function ConnectPage() {
           </h2>
           <p className={styles.intro}>{CONNECT_MCP.intro}</p>
           <MonoCode code={CONNECT_MCP.code} label="MCP config without a key" />
+          <PromptCopyButton prompt={MCP_FIRST_PROMPTS[0]!.prompt} label="Copy first chat prompt" />
         </section>
 
         <TryInChatConnect />
