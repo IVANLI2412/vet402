@@ -564,7 +564,7 @@ function pendingLine(r: ShownRow): string {
 function seenLine(r: ShownRow): string {
   if (r.bucket === "pending") return pendingLine(r);
   if (r.bucket === "delivered") {
-    return `Paid; vet402 confirmed the transfer on-chain and the paid request answered HTTP ${r.facts.httpStatusPaid ?? "—"}.`;
+    return `The payment settled on-chain and vet402 confirmed it. The paid request answered HTTP ${r.facts.httpStatusPaid ?? "—"}.`;
   }
   return r.mode?.what ?? "";
 }

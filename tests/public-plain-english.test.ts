@@ -14,6 +14,11 @@ const RULES: { name: string; re: RegExp }[] = [
   { name: "semicolon", re: /;/ },
   { name: "dash", re: /[\u2013\u2014]| - / },
   { name: ", not X", re: /,\s*not\b/i },
+  { name: "capital Vet402", re: /\bVet402\b/ },
+  {
+    name: "vet402 verb agreement",
+    re: /\bvet402 (do|are|were|have|buy|pay|carry|hold|request|record)(?=[\s:;,.'"]|$)/i,
+  },
 ];
 
 function violations(text: string): string[] {
@@ -85,8 +90,11 @@ test("規則そのものが当たる", () => {
   assert.ok(violations("We pay").includes("we/our/us"));
   assert.ok(violations("a; b").includes("semicolon"));
   assert.ok(violations("a \u2014 b").includes("dash"));
+  assert.ok(violations("Vet402 record:").includes("capital Vet402"));
+  assert.ok(violations("vet402 do not know").includes("vet402 verb agreement"));
   assert.deepEqual(violations("—"), []);
   assert.deepEqual(violations("— (denominator)"), []);
+  assert.deepEqual(violations("vet402 buys under its own name"), []);
 });
 
 for (const page of PAGE_FILES) {
