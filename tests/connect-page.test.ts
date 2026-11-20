@@ -228,7 +228,8 @@ test("/connect is in the sitemap, the footer, and not in the five-item header, a
   const header = read("src/components/site/SiteHeader.tsx");
   const nav = header.slice(header.indexOf("const NAV_ITEMS"), header.indexOf("];", header.indexOf("const NAV_ITEMS")) + 2);
   assert.ok(!nav.includes('href: "/connect"'));
-  assert.ok(!read("src/app/page.tsx").includes("/connect"));
+  assert.ok(read("src/app/page.tsx").includes('href="/connect"'), "home local bar links to /connect");
+  assert.match(read("src/components/site/SiteChrome.tsx"), /isHome \? null : <SiteHeader/);
 });
 
 test("llms.txt points to /connect and to the vet402 package on npm", () => {

@@ -21,7 +21,7 @@ import {
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
 // connect/snippets.ts does not export SAMPLE_URL — use the memo snippets anchor URL instead.
-const DEMO_URL = "https://api.example.com/v1/quote";
+const DEMO_URL = "https://api.exa.ai/search";
 
 test("B: /connect leads with three keyless paths and MCP after them", () => {
   const page = read("src/app/connect/page.tsx");

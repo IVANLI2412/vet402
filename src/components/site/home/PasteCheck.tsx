@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { reasonTextOf } from "@/lib/decision/reason-text";
+import { verdictNextStep } from "@/lib/decision/verdict-next-step";
 import { beforePaySnippets } from "@/lib/find/snippets";
 import { isPublicExplorerTxUrl } from "@/lib/observatory/chains";
 
@@ -117,6 +118,24 @@ function filterAlternativesByPath(alts: FindAlt[], raw: string): FindAlt[] {
 }
 
 const DIAGNOSE_EXTRA_ENCODE = new Set(["!", "'", "(", ")", "*"]);
+
+const EXAMPLE_X402_URL = "https://api.exa.ai/search";
+
+function deliveredRate(alt: FindAlt): number | null {
+  if (alt.paid_attempts_30d <= 0) return null;
+  return alt.delivered_30d / alt.paid_attempts_30d;
+}
+
+function filterAlternativesHigherDelivery(alts: FindAlt[], check: CheckBody): FindAlt[] {
+  const paid = check.delivery?.paid_attempts ?? 0;
+  const delivered = check.delivery?.delivered ?? 0;
+  const currentRate = paid > 0 ? delivered / paid : null;
+  if (currentRate === null) return alts;
+  return alts.filter((alt) => {
+    const rate = deliveredRate(alt);
+    return rate !== null && rate > currentRate;
+  });
+}
 
 const RECORD_UPDATE_NOTE =
   "The record updates after each purchase. Open it to get an email when it changes.";
@@ -252,7 +271,7 @@ export function PasteCheck({
         parsed = new URL(v);
       } catch {
         setPhase("result");
-        setHint("Paste a full https URL, for example https://api.example.com/v1/quote.");
+        setHint(`Paste a full https URL, for example ${EXAMPLE_X402_URL}.`);
         setCheck(null);
         setCheckErr(null);
         setAlts(null);
@@ -262,7 +281,7 @@ export function PasteCheck({
       }
       if (parsed.protocol !== "https:") {
         setPhase("result");
-        setHint("Paste a full https URL, for example https://api.example.com/v1/quote.");
+        setHint(`Paste a full https URL, for example ${EXAMPLE_X402_URL}.`);
         setCheck(null);
         setCheckErr(null);
         setAlts(null);
@@ -370,7 +389,10 @@ export function PasteCheck({
         : "record"
       : null;
 
-  const recordAlts = outcome === "record" && alts ? alts.slice(0, 3) : [];
+  const recordAlts =
+    outcome === "record" && alts && check
+      ? filterAlternativesHigherDelivery(alts, check).slice(0, 3)
+      : [];
   const sameHostAlts =
     outcome === "same_host" && submittedUrl && alts ? filterAlternativesByPath(alts, submittedUrl).slice(0, 3) : [];
   const displayAlts = outcome === "same_host" ? sameHostAlts : recordAlts;
@@ -398,7 +420,7 @@ export function PasteCheck({
             autoCapitalize="none"
             spellCheck={false}
             data-clarity-mask="true"
-            placeholder="https://api.example.com/quote"
+            placeholder={EXAMPLE_X402_URL}
             value={url}
             onChange={(ev) => setUrl(ev.target.value)}
           />
@@ -495,6 +517,9 @@ export function PasteCheck({
                       <VerdictMark verdict={verdict} cls={s} />
                       {verdict}
                     </dd>
+                    {verdict === "ALLOW" || verdict === "WARN" || verdict === "BLOCK" ? (
+                      <dd className={s.pasteNextStep}>{verdictNextStep(verdict)}</dd>
+                    ) : null}
                   </div>
                 ) : null}
                 <div>

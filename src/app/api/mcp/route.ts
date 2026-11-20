@@ -240,8 +240,28 @@ async function rateLimitedOrUnavailable(response: NextResponse, id: unknown): Pr
   return jsonRpcError(429, id, MCP_RATE_LIMIT_CODE, "rate_limited", headers, { retry_after_s: Number.isFinite(retry) ? retry : 60 });
 }
 
-export async function GET(): Promise<Response> {
+const MCP_HTML = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>vet402 MCP</title>
+</head>
+<body style="font-family: system-ui, sans-serif; line-height: 1.5; max-width: 40rem; margin: 2rem auto; padding: 0 1rem;">
+<h1 style="font-size: 1.25rem; font-weight: 600;">vet402 hosted MCP</h1>
+<p>This URL speaks MCP over POST for clients that accept JSON. Open <a href="https://vet402.com/docs/mcp">https://vet402.com/docs/mcp</a> for setup, tools, and example chat prompts.</p>
+</body>
+</html>`;
+
+export async function GET(request: NextRequest): Promise<Response> {
   if (!mcpEnabled()) return disabled();
+  const accept = request.headers.get("accept") ?? "";
+  if (accept.includes("text/html")) {
+    return new Response(MCP_HTML, {
+      status: 200,
+      headers: { ...NO_STORE, "Content-Type": "text/html; charset=utf-8" },
+    });
+  }
   return methodNotAllowed();
 }
 

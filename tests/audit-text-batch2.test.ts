@@ -37,7 +37,7 @@ test("A-06 keeps the decision enum and states when conform, mismatch, not_checke
   assert.equal(method.includes("undeclared is no_declaration"), false);
   const docs = read("src/app/docs/api/page.tsx");
   const quick = docs.slice(
-    docs.indexOf("Should my agent pay this URL"),
+    docs.indexOf("Resolve a URL, then read the decision"),
     docs.indexOf("What happened when vet402 actually paid"),
   );
   assert.match(quick, /https:\/\/api\.exa\.ai\/search/);

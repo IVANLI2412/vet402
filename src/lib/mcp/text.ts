@@ -26,10 +26,21 @@ export const SERVER_INSTRUCTIONS =
   "check_8004_agent re-reads one ERC-8004 Reputation Registry feedback and its proofOfPayment. " +
   "Each record links to its public page at record_url, and method_url explains how vet402 measures.";
 
+export const TOOL_EMPTY_HINT = {
+  check_x402_seller: "Pass url: the absolute https x402 URL your agent is about to pay, such as https://api.exa.ai/search.",
+  check_my_x402_endpoint: "Pass url: any https URL on your host, such as https://api.exa.ai/search.",
+  find_x402_sellers: "Pass query: words to match listing URLs and descriptions, such as weather.",
+  check_8004_agent:
+    "Pass agentId: the ERC-8004 token id. Add client and feedbackIndex when the person names them.",
+  check_payment_proof:
+    "Pass payment_response, or pass network and transaction together, such as eip155:8453 and a Base transaction hash.",
+} as const;
+
 export const TOOL_TEXT = {
   check_x402_seller: {
     title: "What vet402 saw when it paid this x402 URL",
     description:
+      "Pass the x402 URL your agent is about to pay. " +
       "check_x402_seller shows what happened when vet402 paid an x402 URL: whether the payment settled, whether content came back, and the transaction where vet402 recorded one. " +
       "For WARN or BLOCK, read reason_codes. " +
       "verified_terms holds the payTo, amount and network of the last purchase where content came back, so they can be set against the terms of a 402 response. " +
@@ -65,6 +76,7 @@ export const TOOL_TEXT = {
   check_8004_agent: {
     title: "Re-read ERC-8004 feedback proofOfPayment",
     description:
+      "Pass agentId. Add client and feedbackIndex when the person names them. " +
       "check_8004_agent loads one ERC-8004 Reputation Registry feedback on Base by default (chain eip155:8453), fetches its feedbackURI JSON, re-reads proofOfPayment on chain, and returns the same verdict and checks as GET /api/v1/erc8004/check. Recipient pass comes from vet402 state (agent payTo, owner, agentWallet). Payees named inside the feedback body do not count. " +
       "Pass agentId with client to read that client's latest feedback, or with feedbackIndex to read one feedback. Pass client when more than one client left feedback at the same index. chain accepts eip155:8453 and defaults to it. verdict is verified, verified_payment_unlinked_client, mismatch, no_proof, or unreadable. " +
       "Use it when an agent's reputation cites a payment. To read a seller PAYMENT-RESPONSE directly, use check_payment_proof. " +
@@ -113,6 +125,9 @@ export const OUTPUT_TEXT = {
 /** エラーの語（isError の本文）。 */
 export const ERROR_TEXT = {
   invalid_url: "url must be an absolute https URL of up to 2048 characters.",
+  missing_x402_url:
+    "Pass url: the absolute https x402 URL your agent is about to pay, such as https://api.exa.ai/search.",
+  missing_endpoint_url: "Pass url: any https URL on your host, such as https://api.exa.ai/search.",
   invalid_method: "method must be 1 to 10 letters, such as GET or POST.",
   invalid_query: "query must be 1 to 80 characters.",
   invalid_host: "The host of url is not one vet402 can look up.",
@@ -120,7 +135,8 @@ export const ERROR_TEXT = {
   invalid_transaction: "transaction must be a hash on that chain.",
   invalid_body: "Pass payment_response, or pass network and transaction.",
   invalid_chain: "chain must be eip155:8453 when set.",
-  invalid_agent_id: "agentId must be a decimal token id.",
+  invalid_agent_id:
+    "Pass agentId: the ERC-8004 token id. Add client and feedbackIndex when the person names them. agentId must be a decimal token id.",
   missing_client_or_index: "Pass client or feedbackIndex.",
   invalid_client: "client must be a 0x-prefixed EVM address.",
   invalid_feedback_index: "feedbackIndex must be a positive integer.",
@@ -135,6 +151,6 @@ export const ERROR_TEXT = {
 export function allFixedText(): string[] {
   const out: string[] = [SERVER_INSTRUCTIONS];
   for (const t of Object.values(TOOL_TEXT)) out.push(t.title, t.description);
-  out.push(...Object.values(INPUT_TEXT), ...Object.values(OUTPUT_TEXT), ...Object.values(ERROR_TEXT));
+  out.push(...Object.values(INPUT_TEXT), ...Object.values(OUTPUT_TEXT), ...Object.values(ERROR_TEXT), ...Object.values(TOOL_EMPTY_HINT));
   return out;
 }

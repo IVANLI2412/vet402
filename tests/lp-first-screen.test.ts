@@ -111,7 +111,7 @@ test("the headline leading is 1.08", () => {
 });
 
 test("the first screen defines the record and does not say 2xx or lookups", () => {
-  assert.match(page, /Paste a URL to see the record/);
+  assert.match(page, /Paste an x402 URL to see the record/);
   assert.match(page, /score lookups a month/);
   assert.match(page, /href="\/signup"/);
   assert.match(page, /href="\/x402\/check-a-seller"/);
@@ -184,11 +184,11 @@ test("the purchase card does not fade in from off-screen", () => {
   assert.doesNotMatch(css, /translateY/);
 });
 
-test("CC BY links to the license, and the shared footer is used on home", () => {
+test("CC BY links to the license, and the home page uses its own footer", () => {
   assert.match(page, /href="https:\/\/creativecommons.org\/licenses\/by\/4.0\/"/);
-  assert.doesNotMatch(page, /FOOT_MAIN/);
-  assert.match(chrome, /<SiteFooter pathname=/);
-  assert.match(readFileSync("src/components/site/SiteFooter.tsx", "utf8"), /label: "Sellers", href: "\/sellers"/);
+  assert.match(page, /const FOOT_MAIN/);
+  assert.match(chrome, /isHome \? null : <SiteFooter/);
+  assert.match(chrome, /isHome \? null : <SiteHeader/);
 });
 
 test("footer type, link underlines, and the quiet button border stay grey", () => {

@@ -51,7 +51,7 @@ test("PasteCheck: record update note on record and same-host outcomes", () => {
     /The record updates after each purchase\. Open it to get an email when it changes\./,
   );
   assert.match(src, /aria-live="polite"/);
-  assert.match(src, /placeholder="https:\/\/api\.example\.com\/quote"/);
+  assert.match(src, /placeholder=\{EXAMPLE_X402_URL\}/);
   assert.doesNotMatch(src, /\/v1\/quote"/);
 });
 

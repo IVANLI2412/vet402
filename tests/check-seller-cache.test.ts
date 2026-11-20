@@ -1,6 +1,7 @@
 // M5a: /api/v1/check の checkSeller 読み取りを 60 秒サーバキャッシュする（2026-11-18）。
 import { afterEach, test } from "node:test";
 import assert from "node:assert/strict";
+import { verdictNextStep } from "@/lib/decision/verdict-next-step";
 import { readFileSync } from "node:fs";
 import { NextRequest } from "next/server";
 import { privateKeyToAccount } from "viem/accounts";
@@ -128,6 +129,7 @@ function staleAfterFirstFill(staleReadAt: string) {
         method_url: "https://vet402.com/docs/methodology",
         as_of: "2026-11-18T09:00:00.000Z",
         truncated: false,
+        next_action: null,
       });
       return { out: payload, cacheReadAt: staleReadAt };
     };
@@ -248,6 +250,7 @@ test("stale refresh failure returns 503 without stale body", async () => {
       method_url: "https://vet402.com/docs/methodology",
       as_of: "2026-11-18T09:00:00.000Z",
       truncated: false,
+      next_action: verdictNextStep("ALLOW"),
     }),
     cacheReadAt: new Date(Date.now() - (CHECK_SELLER_CACHE_SECONDS + 30) * 1000).toISOString(),
   };
@@ -298,6 +301,7 @@ test("spending_halted change is visible after cacheReadAt ages out", async () =>
           method_url: "https://vet402.com/docs/methodology",
           as_of: asOf,
           truncated: false,
+          next_action: verdictNextStep("ALLOW"),
         }),
         cacheReadAt: staleAt,
       };
@@ -569,6 +573,7 @@ test("checkSellerFreezeForCache round-trips output", () => {
     method_url: "https://vet402.com/docs/methodology",
     as_of: "2026-11-18T10:00:00.000Z",
     truncated: false,
+    next_action: verdictNextStep("ALLOW"),
   };
   const frozen = checkSellerFreezeForCache(sample);
   assert.deepEqual(frozen, sample);

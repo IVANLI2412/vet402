@@ -105,10 +105,9 @@ test("C-1: one in-main link to check-a-seller in the hero text column", () => {
   const hero = page.slice(heroStart, heroEnd);
   const h1 = hero.indexOf("<h1");
   const link = hero.indexOf('href="/x402/check-a-seller"', h1);
-  const actions = hero.indexOf('className={s.actions}', h1);
-  assert.ok(link > h1 && link < actions);
-  assert.match(hero, /Check a seller[\s\S]*?<\/Link>\. vet402/);
-  assert.doesNotMatch(hero, /<\/Link>\s+\./);
+  const paste = hero.indexOf("<PasteCheck", h1);
+  assert.ok(link > h1 && link < paste);
+  assert.match(hero, /Check a seller[\s\S]*?<\/Link>\s*\{?"\. vet402/);
 });
 
 test("C-1b: hero lede renders Check a seller immediately before the period (no space before .)", async () => {
@@ -120,12 +119,12 @@ test("C-1b: hero lede renders Check a seller immediately before the period (no s
       "p",
       null,
       createElement(Link, { href: "/x402/check-a-seller" }, "Check a seller"),
-      ". vet402 pays x402 sellers with its own money and publishes what came back. Paste a URL to see the record.",
+      ". vet402 pays x402 sellers with its own money and publishes what came back. Paste an x402 URL to see the record. No key.",
     ),
   );
   assert.match(html, />Check a seller<\/a>\./);
   assert.doesNotMatch(html, />Check a seller<\/a>\s+\./);
-  assert.match(read("src/app/page.tsx"), /Check a seller[\s\S]*?<\/Link>\. vet402/);
+  assert.match(read("src/app/page.tsx"), /Check a seller[\s\S]*?<\/Link>\s*\{?"\. vet402/);
 });
 
 test("E-1: SiteHeader has five entries, full-width mobile panel, and menu a11y hooks", () => {
@@ -142,9 +141,8 @@ test("E-1: SiteHeader has five entries, full-width mobile panel, and menu a11y h
   assert.match(header, /relative px-4/);
   assert.match(header, /onKeyDown=\{onEscape\}/);
   assert.match(header, /firstLink\?\.focus\(\)/);
-  assert.match(read("src/components/site/SiteChrome.tsx"), /<SiteHeader \/>/);
-  assert.doesNotMatch(read("src/components/site/SiteChrome.tsx"), /isHome \? null : <SiteHeader/);
-  assert.doesNotMatch(read("src/app/page.tsx"), /<header className=\{s\.wrap\}/);
+  assert.match(read("src/components/site/SiteChrome.tsx"), /isHome \? null : <SiteHeader/);
+  assert.match(read("src/app/page.tsx"), /<header className=\{s\.wrap\}/);
 });
 
 test("E-1b: 375px width uses late hero rules so H1, primary button, and URL field stay reachable", () => {

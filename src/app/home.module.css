@@ -150,6 +150,12 @@
 .nav a:hover {
   color: var(--lp-ink);
 }
+@media (min-width: 768px) {
+  .nav {
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+}
 
 /* ---- first screen ---- */
 .hero {
@@ -219,6 +225,14 @@
 .actionLink:hover {
   color: var(--lp-ink);
   text-decoration-color: currentColor;
+}
+.actionsSecondary {
+  margin-top: 20px;
+  font-size: 0.9375rem;
+}
+.actionsSecondary .actionLink {
+  font-weight: 500;
+  color: var(--lp-ink-4);
 }
 .heroNote {
   grid-area: note;
@@ -894,6 +908,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
+}
+.pasteNextStep {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.9375rem;
+  color: var(--lp-ink-2);
 }
 .pasteVerdictMarkAllow {
   display: inline-block;

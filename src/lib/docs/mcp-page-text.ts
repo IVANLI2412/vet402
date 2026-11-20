@@ -2,6 +2,7 @@
 // /docs/mcp の固定英文（2026-10-28）。tests/mcp-plain-english.test.ts が検査する。
 // ============================================================
 import { DELIVERY_FEED_PAGE_SIZE } from "@/lib/delivery/sellers-feed";
+import { MCP_DOCS_TOOL_APPROVAL, MCP_DOCS_TRY_IN_CHAT_INTRO, MCP_TRY_IN_CHAT } from "@/lib/docs/mcp-try-in-chat";
 
 export const MCP_DOCS_INTRO =
   "The hosted MCP server at https://vet402.com/mcp returns what vet402 recorded when it paid x402 listings: when each attempt happened, which chain it used, whether content came back, and the transaction hash where vet402 recorded one. " +
@@ -71,6 +72,9 @@ export function allMcpDocsFixedText(): string[] {
     MCP_DOCS_FEED_INTRO,
     MCP_DOCS_FEED_STALENESS,
     MCP_DOCS_FEED_FILTERS,
+    MCP_DOCS_TRY_IN_CHAT_INTRO,
+    MCP_DOCS_TOOL_APPROVAL,
+    ...MCP_TRY_IN_CHAT.flatMap((e) => [e.prompt, e.publicPageLabel]),
     ...MCP_DOCS_FEED_FIELDS.map((f) => f.meaning),
     "Public observatory record for this listing.",
   ];

@@ -393,7 +393,7 @@ test("rendered reason copy and REASON_TEXT have no semicolons", async () => {
   });
   await submit(CHECK_URL);
   const fixed = [
-    "Paste a full https URL, for example https://api.example.com/v1/quote.",
+    "Paste a full https URL, for example https://api.exa.ai/search.",
     "That is not an https URL vet402 can look up.",
     "Too many checks from this network. Try again in a minute.",
     "vet402 could not read its records just now. Try again shortly.",

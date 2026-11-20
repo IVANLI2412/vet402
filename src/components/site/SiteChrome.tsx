@@ -71,11 +71,11 @@ export function SiteChrome({
         </a>
       ) : null}
       <StatusBanner variant={isHome ? "quiet" : "strip"} />
-      <SiteHeader />
+      {isHome ? null : <SiteHeader />}
       <div id="main-content" ref={mainRef} tabIndex={-1} className="min-w-0 flex-1">
         {children}
       </div>
-      <SiteFooter pathname={pathname ?? ""} />
+      {isHome ? null : <SiteFooter pathname={pathname ?? ""} />}
     </>
   );
 }

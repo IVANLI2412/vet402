@@ -41,7 +41,7 @@ export type ConnectChoice = {
 
 import { keylessDecisionPerMinute } from "@/lib/api/keyless-limits";
 
-const SAMPLE_URL = "https://api.example.com/v1/quote";
+const SAMPLE_URL = "https://api.exa.ai/search";
 const KEYLESS_DECISION = keylessDecisionPerMinute();
 
 const keylessCheck = beforePaySnippets(SAMPLE_URL);

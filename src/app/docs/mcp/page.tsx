@@ -32,6 +32,8 @@ import {
   MCP_SELLER_PER_MIN,
 } from "@/lib/mcp/public-limits";
 import { TOOL_TEXT } from "@/lib/mcp/text";
+import { MCP_DOCS_TOOL_APPROVAL } from "@/lib/docs/mcp-try-in-chat";
+import { TryInChat } from "@/components/docs/TryInChat";
 import { pageMetadata, breadcrumbJsonLd, webApiJsonLd } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/util/json-ld";
 import { buildMonth } from "@/lib/build-month";
@@ -47,6 +49,7 @@ export const metadata: Metadata = pageMetadata({
 
 const TOC: TocItem[] = [
   { href: "#connect", label: "Connect" },
+  { href: "#try-in-chat", label: "Try in chat" },
   { href: "#tools", label: "Tools" },
   { href: "#feed", label: "Delivery feed" },
   { href: "#limits", label: "Limits" },
@@ -129,7 +132,10 @@ export default async function McpDocsPage() {
           <p className="text-[0.84375rem] text-brand">
             Any MCP client that speaks Streamable HTTP can use the same URL.
           </p>
+          <p className="text-[0.84375rem] text-brand">{MCP_DOCS_TOOL_APPROVAL}</p>
         </section>
+
+        <TryInChat />
 
         <section id="tools" className="scroll-mt-32 space-y-4">
           <h2 className="sec-head">Tools</h2>
@@ -170,8 +176,8 @@ export default async function McpDocsPage() {
           <CodeBlock
             label="Example check_x402_seller input"
             code={`{
-  "url": "https://api.example.com/v1/data",
-  "method": "GET"
+  "url": "https://api.exa.ai/search",
+  "method": "POST"
 }`}
           />
           <CodeBlock

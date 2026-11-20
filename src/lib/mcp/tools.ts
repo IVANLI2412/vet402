@@ -41,6 +41,7 @@ import {
   checkSellerOutput,
   findSellersInput,
   findSellersOutput,
+  isHttpsAbsoluteUrl,
   SELLER_TEXT_MAX_CHARS,
   type CheckEndpointOutput,
   type CheckSellerOutput,
@@ -54,8 +55,10 @@ import {
   OUTPUT_TEXT,
   recordUrlOf,
   sellerUrlOf,
+  TOOL_EMPTY_HINT,
   TOOL_TEXT,
 } from "./text";
+import { verdictNextStep } from "@/lib/decision/verdict-next-step";
 
 export const TOOL_NAMES = {
   checkSeller: "check_x402_seller",
@@ -154,6 +157,34 @@ function hostnameOf(url: string): string | null {
 // ① check_x402_seller
 // ------------------------------------------------------------
 
+export function emptyCheckSellerHint(asOf: string): CheckSellerOutput {
+  return {
+    evidence_age: null,
+    canonical_url: null,
+    method: null,
+    not_in_catalog: true,
+    recommendation: null,
+    reason_codes: [],
+    reasons: [],
+    delivery: null,
+    l0_status: null,
+    verified_terms: null,
+    spending_halted: null,
+    refunds: null,
+    freshness: null,
+    l1_purchases: [],
+    same_host_listings: [],
+    listing_sources: listingSources(),
+    note: TOOL_EMPTY_HINT.check_x402_seller,
+    record_url: null,
+    method_url: METHOD_URL,
+    diagnose_url: null,
+    as_of: asOf,
+    truncated: false,
+    next_action: null,
+  };
+}
+
 export async function checkSeller(deps: CheckSellerDeps, input: { url: string; method?: string }): Promise<CheckSellerOutput> {
   const now = (deps.now ?? (() => new Date()))();
   const method = input.method ? input.method.toUpperCase() : undefined;
@@ -200,6 +231,7 @@ export async function checkSeller(deps: CheckSellerDeps, input: { url: string; m
         diagnose_url: diagnoseUrlFor(input.url),
         as_of: now.toISOString(),
         truncated: false,
+        next_action: null,
       },
       ["same_host_listings"],
     );
@@ -261,6 +293,7 @@ export async function checkSeller(deps: CheckSellerDeps, input: { url: string; m
     // 判定は 5 分キャッシュされる。キャッシュから返した文書に「今」を付けない（判定を作った時刻）。
     as_of: decision.scoredAt,
     truncated: false,
+    next_action: verdictNextStep(decision.recommendation),
   };
   fitBudget(out, ["reasons"]);
   if (Buffer.byteLength(JSON.stringify(out), "utf8") > MAX_STRUCTURED_BYTES) {
@@ -446,8 +479,23 @@ export async function checkEndpoint(deps: McpDeps, input: { url: string }): Prom
 // ② find_x402_sellers
 // ------------------------------------------------------------
 
-export async function findSellers(deps: McpDeps, input: { query: string; limit?: number }): Promise<FindSellersOutput | "invalid_query"> {
-  const query = input.query.trim();
+export async function findSellers(
+  deps: McpDeps,
+  input: { query?: string; limit?: number },
+): Promise<FindSellersOutput | "invalid_query"> {
+  const query = (input.query ?? "").trim();
+  if (input.query === undefined) {
+    return {
+      query: "",
+      sellers: [],
+      untested: [],
+      note: TOOL_EMPTY_HINT.find_x402_sellers,
+      method_url: METHOD_URL,
+      as_of: (deps.now?.() ?? new Date()).toISOString(),
+      truncated: false,
+    };
+  }
+  if (!query) return "invalid_query";
   const like = searchLikePattern(query);
   if (!like) return "invalid_query";
   const limit = Math.min(Math.max(input.limit ?? 5, 1), 10);
@@ -501,8 +549,11 @@ const ERC8004_INPUT_ERRORS = new Set<Erc8004CheckError>([
 
 export async function check8004Agent(
   deps: McpDeps,
-  input: { chain?: string; agentId: string; client?: string; feedbackIndex?: string },
+  input: { chain?: string; agentId?: string; client?: string; feedbackIndex?: string },
 ): Promise<Erc8004CheckResult | { error: Erc8004CheckError }> {
+  if (!input.agentId?.trim()) {
+    return { error: "invalid_agent_id" };
+  }
   const run = deps.erc8004Check ?? ((body, extra) => getErc8004CheckCached(body, extra));
   return run(
     {
@@ -561,7 +612,13 @@ export function registerVet402Tools(server: McpServer, deps: McpDeps, state: Mcp
       outputSchema: checkSellerOutput,
       annotations: { title: TOOL_TEXT.check_x402_seller.title, ...ANNOTATIONS },
     },
-    async (args) => guarded(state, TOOL_NAMES.checkSeller, async () => ok(await checkSeller(deps, args))),
+    async (args) =>
+      guarded(state, TOOL_NAMES.checkSeller, async () => {
+        const now = (deps.now ?? (() => new Date()))();
+        if (!args.url?.trim()) return ok(emptyCheckSellerHint(now.toISOString()));
+        if (!isHttpsAbsoluteUrl(args.url)) return fail("invalid_url");
+        return ok(await checkSeller(deps, { url: args.url, method: args.method }));
+      }),
   );
   server.registerTool(
     TOOL_NAMES.checkEndpoint,
@@ -574,7 +631,11 @@ export function registerVet402Tools(server: McpServer, deps: McpDeps, state: Mcp
     },
     async (args) =>
       guarded(state, TOOL_NAMES.checkEndpoint, async () => {
-        const out = await checkEndpoint(deps, args);
+        if (!args.url?.trim()) {
+          return fail("missing_endpoint_url");
+        }
+        if (!isHttpsAbsoluteUrl(args.url)) return fail("invalid_url");
+        const out = await checkEndpoint(deps, { url: args.url });
         return out === "invalid_host" ? fail("invalid_host") : ok(out);
       }),
   );
@@ -611,7 +672,10 @@ export function registerVet402Tools(server: McpServer, deps: McpDeps, state: Mcp
     },
     async (args) =>
       guarded(state, TOOL_NAMES.check8004, async () => {
-        const out = await check8004Agent(deps, args);
+        if (!args.agentId?.trim()) {
+          return fail("invalid_agent_id");
+        }
+        const out = await check8004Agent(deps, { ...args, agentId: args.agentId });
         if ("error" in out) {
           if (ERC8004_INPUT_ERRORS.has(out.error)) return fail(out.error as keyof typeof ERROR_TEXT);
           return fail("invalid_agent_id");

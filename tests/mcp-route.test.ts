@@ -143,17 +143,26 @@ test("#7（入力）② の query は 80 字まで。超えたら入力エラー
     assert.equal(result.isError, true);
     assert.match(result.content[0].text, /invalid_query/);
   }
+  const hint = await post(call("find_x402_sellers", {}), V2025);
+  const hintBody = hint.json.result as { isError?: boolean; structuredContent?: { note?: string } };
+  assert.notEqual(hintBody.isError, true);
+  assert.match(String(hintBody.structuredContent?.note ?? ""), /weather/);
   const lim = await post(call("find_x402_sellers", { query: "weather", limit: 11 }), V2025);
   assert.equal((lim.json.result as { isError?: boolean }).isError, true, "limit は 10 まで");
 });
 
-test("#8 GET と DELETE は 405", async () => {
+test("#8 GET と DELETE は 405（JSON クライアント）。GET + Accept text/html は短い案内頁", async () => {
   const { GET, DELETE } = await route();
-  for (const h of [GET, DELETE]) {
-    const res = await h();
-    assert.equal(res.status, 405);
-    assert.equal(res.headers.get("allow"), "POST");
-  }
+  const { NextRequest } = await import("next/server");
+  const plain = await GET(new NextRequest("http://localhost/api/mcp"));
+  assert.equal(plain.status, 405);
+  assert.equal(plain.headers.get("allow"), "POST");
+  const html = await GET(new NextRequest("http://localhost/api/mcp", { headers: { Accept: "text/html" } }));
+  assert.equal(html.status, 200);
+  assert.match(await html.text(), /docs\/mcp/);
+  const res = await DELETE();
+  assert.equal(res.status, 405);
+  assert.equal(res.headers.get("allow"), "POST");
 });
 
 test("#9 Origin が他サイトなら 403。Origin 無し・自サイトは通る。CORS のヘッダーは付けない", async () => {
@@ -214,7 +223,9 @@ test("#12 MCP_ENABLED=false は全部の要求に 503 mcp_disabled", async () =>
     assert.equal(r.res.status, 503);
     assert.equal(r.json.error, "mcp_disabled");
     const { GET, DELETE } = await route();
-    for (const h of [GET, DELETE]) assert.equal((await h()).status, 503);
+    const { NextRequest } = await import("next/server");
+    assert.equal((await GET(new NextRequest("http://localhost/api/mcp"))).status, 503);
+    assert.equal((await DELETE()).status, 503);
   } finally {
     delete process.env.MCP_ENABLED;
   }

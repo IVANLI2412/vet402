@@ -106,10 +106,41 @@ test("MCP check_8004_agent は verified を返す", async () => {
   assert.equal(out.verdict, "verified");
 });
 
-test("MCP check_8004_agent — agentId 欠落はツール入力で弾く", async () => {
-  const { check8004AgentInput } = await import("@/lib/mcp/schemas");
-  const parsed = check8004AgentInput.safeParse({ client: CLIENT });
-  assert.equal(parsed.success, false);
+test("MCP check_8004_agent — agentId 欠落は呼び出しで invalid_agent_id", async () => {
+  const { POST } = await import("@/app/api/mcp/route");
+  const { NextRequest } = await import("next/server");
+  const V2025 = "2025-06-18";
+  const send = async (body: unknown) => {
+    const res = await POST(
+      new NextRequest("http://localhost:3000/api/mcp", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          accept: "application/json, text/event-stream",
+          "mcp-protocol-version": V2025,
+          "x-real-ip": "192.0.2.5",
+        },
+        body: JSON.stringify(body),
+      }),
+    );
+    const text = await res.text();
+    const line = text.split("\n").find((l) => l.startsWith("data:"));
+    return JSON.parse(line ? line.slice(5) : text) as { result: { isError?: boolean; content: { text: string }[] } };
+  };
+  await send({
+    jsonrpc: "2.0",
+    id: 1,
+    method: "initialize",
+    params: { protocolVersion: V2025, capabilities: {}, clientInfo: { name: "t", version: "1.0.0" } },
+  });
+  const r = await send({
+    jsonrpc: "2.0",
+    id: 2,
+    method: "tools/call",
+    params: { name: "check_8004_agent", arguments: { client: CLIENT } },
+  });
+  assert.equal(r.result.isError, true);
+  assert.match(r.result.content[0].text, /invalid_agent_id/);
 });
 
 test("MCP check_8004_agent — unreadable", async () => {

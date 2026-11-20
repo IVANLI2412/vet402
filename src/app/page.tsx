@@ -4,6 +4,7 @@ import { Inter } from "next/font/google";
 import { fragmentMono, martianMono } from "./fonts";
 import TrackView from "@/components/site/TrackView";
 import TrackedLink from "@/components/site/TrackedLink";
+import OutboundAnchor from "@/components/site/OutboundAnchor";
 import { HomeLivenessNote } from "@/components/site/StatusBanner";
 import { PricingSection } from "@/components/site/PricingSection";
 import { BILLING_PLANS, isStripeConfigured } from "@/lib/billing/plans";
@@ -78,6 +79,24 @@ const ENTRY_CARDS = [
     event: "entry_after_pay" as const,
     linkLabel: "Observatory",
   },
+] as const;
+
+const FOOT_MAIN = [
+  { label: "Docs", href: "/docs/api" },
+  { label: "Sellers", href: "/sellers" },
+  { label: "Observatory", href: "/observatory" },
+  { label: "Connect", href: "/connect" },
+  { label: "What is x402", href: "/x402" },
+  { label: "Blog", href: "/blog" },
+  { label: "GitHub", href: "https://github.com/kzmttkc/vet402" },
+  { label: "X", href: "https://x.com/vet402_com" },
+] as const;
+
+const FOOT_LEGAL = [
+  { label: "Terms", href: "/legal/terms" },
+  { label: "Privacy", href: "/legal/privacy" },
+  { label: "Legal notice", href: "/legal/notice" },
+  { label: "The memo", href: "/memo" },
 ] as const;
 
 export default async function Home() {
@@ -184,6 +203,26 @@ export default async function Home() {
         }}
       />
 
+      <header className={s.wrap}>
+        <div className={s.bar}>
+          <Link href="/" className={s.mark} aria-label="vet402 home">
+            <span>vet</span>
+            <span>402</span>
+          </Link>
+          <nav aria-label="Main navigation" className={s.nav}>
+            <TrackedLink href="/connect" event="nav_click" props={{ label: "Connect", position: "lp_bar" }}>
+              Connect
+            </TrackedLink>
+            <TrackedLink href="/docs/mcp" event="nav_click" props={{ label: "Docs", position: "lp_bar" }}>
+              MCP
+            </TrackedLink>
+            <TrackedLink href="/observatory" event="nav_click" props={{ label: "Observatory", position: "lp_bar" }}>
+              Observatory
+            </TrackedLink>
+          </nav>
+        </div>
+      </header>
+
       <main className={s.wrap}>
         <section aria-labelledby="lp-title" className={s.hero}>
           <div className={s.heroText}>
@@ -193,18 +232,19 @@ export default async function Home() {
             <p className={s.lede}>
               <Link href="/x402/check-a-seller" className={s.inlineLink}>
                 Check a seller
-              </Link>. vet402 pays x402 sellers with its own money and publishes what came back. Paste a URL to see the record.
+              </Link>
+              {". vet402 pays x402 sellers with its own money and publishes what came back. Paste an x402 URL to see the record. No key."}
             </p>
-            <div className={s.actions}>
+            <PasteCheck cls={s} />
+            <div className={`${s.actions} ${s.actionsSecondary}`}>
               <TrackedLink
-                href="/docs/api#quickstart"
+                href="/connect"
                 event="lp_cta_click"
                 props={{ position: "hero_buyer" }}
-                className={s.btn}
+                className={s.actionLink}
               >
-                Add to an agent that pays
+                Connect MCP or SDK
               </TrackedLink>
-              {/* 貼り付けの Check が買い手の最初の一歩。トップの主な相手は買い手で、売り手入口は同じ行の文字リンクに残す（クリック数は手元に無い）。 */}
               <TrackedLink
                 href="/docs/api#packages"
                 event="lp_cta_click"
@@ -214,7 +254,6 @@ export default async function Home() {
                 Add to an API you sell
               </TrackedLink>
             </div>
-            <PasteCheck cls={s} />
           </div>
 
           <div className={s.heroNote}>
@@ -257,9 +296,9 @@ export default async function Home() {
               </dl>
               <p className={s.readAt}>
                 Read from the {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
-                <a href="/api/v1/observatory/state" className={s.inlineLink}>
-                  state API
-                </a>{" "}
+                <Link href="/observatory/state" className={s.inlineLink}>
+                  public state page
+                </Link>{" "}
                 at{" "}
                 <time dateTime={readAt}>
                   {ledger.readDate} {ledger.readTime} UTC
@@ -372,6 +411,31 @@ export default async function Home() {
         </p>
         <PricingSection className={s.section} titleId="home-pricing" />
       </main>
+
+      <footer className={s.wrap}>
+        <div className={s.foot}>
+          {[FOOT_MAIN, FOOT_LEGAL].map((links, row) => (
+            <ul key={row} className={row ? `${s.footLinks} ${s.footLegal}` : s.footLinks}>
+              {links.map((f) =>
+                f.href.startsWith("http") ? (
+                  <li key={f.href}>
+                    <OutboundAnchor href={f.href} rel="noopener">
+                      {f.label}
+                    </OutboundAnchor>
+                  </li>
+                ) : (
+                  <li key={f.href}>
+                    <Link href={f.href}>{f.label}</Link>
+                  </li>
+                ),
+              )}
+            </ul>
+          ))}
+          <p className={s.footNote}>
+            vet402 is run by KIZUNA Creation. Figures on this page are measurements, shown with the time they were read.
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }

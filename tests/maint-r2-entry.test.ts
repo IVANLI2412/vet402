@@ -32,7 +32,7 @@ test("E-1: docs Packages explains that vet402 bundles @vet402/sdk and @vet402/mi
 });
 
 test("E-2: docs MCP section leads with hosted vet402.com/mcp and documents 0.3.1 URL input", () => {
-  const sec = file("src/app/docs/api/page.tsx").split("MCP: let an agent ask")[1]?.slice(0, 4500) ?? "";
+  const sec = file("src/app/docs/api/page.tsx").split("Hosted MCP (reads records)")[1]?.slice(0, 4500) ?? "";
   const hosted = sec.indexOf("vet402.com/mcp");
   const npx = sec.indexOf("@vet402/mcp-server");
   assert.ok(hosted >= 0 && npx >= 0 && hosted < npx, "hosted MCP must appear before local npx package");

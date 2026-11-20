@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import TrackView from "@/components/site/TrackView";
 import ConnectChooser from "@/components/connect/ConnectChooser";
+import { TryInChatConnect } from "@/components/connect/TryInChatConnect";
 import MonoCode from "@/components/connect/MonoCode";
 import {
   CONNECT_CHOICES,
@@ -71,6 +72,8 @@ export default function ConnectPage() {
           <p className={styles.intro}>{CONNECT_MCP.intro}</p>
           <MonoCode code={CONNECT_MCP.code} label="MCP config without a key" />
         </section>
+
+        <TryInChatConnect />
 
         <ConnectChooser choices={CONNECT_CHOICES} signupHref={CONNECT_SIGNUP_HREF} />
 

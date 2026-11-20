@@ -33,7 +33,12 @@ const urlInput = (describe: string) =>
     .describe(describe);
 
 export const checkSellerInput = z.object({
-  url: urlInput(INPUT_TEXT.url),
+  url: z
+    .string()
+    .max(MAX_URL_CHARS)
+    .optional()
+    .refine((v) => v === undefined || v === "" || isHttpsAbsoluteUrl(v), "invalid_url")
+    .describe(INPUT_TEXT.url),
   method: z
     .string()
     .regex(/^[A-Za-z]{1,10}$/, "invalid_method")
@@ -42,17 +47,22 @@ export const checkSellerInput = z.object({
 });
 
 export const checkEndpointInput = z.object({
-  url: urlInput(INPUT_TEXT.sellerUrl),
+  url: z
+    .string()
+    .max(MAX_URL_CHARS)
+    .optional()
+    .refine((v) => v === undefined || v === "" || isHttpsAbsoluteUrl(v), "invalid_url")
+    .describe(INPUT_TEXT.sellerUrl),
 });
 
 export const findSellersInput = z.object({
-  query: z.string().min(1, "invalid_query").max(MAX_QUERY_CHARS, "invalid_query").describe(INPUT_TEXT.query),
+  query: z.string().max(MAX_QUERY_CHARS, "invalid_query").optional().describe(INPUT_TEXT.query),
   limit: z.number().int().min(1).max(10).optional().describe(INPUT_TEXT.limit),
 });
 
 export const check8004AgentInput = z.object({
   chain: z.string().max(64).optional().describe(INPUT_TEXT.erc8004_chain),
-  agentId: z.string().min(1, "invalid_agent_id").max(78, "invalid_agent_id").describe(INPUT_TEXT.erc8004_agent_id),
+  agentId: z.string().max(78, "invalid_agent_id").optional().describe(INPUT_TEXT.erc8004_agent_id),
   client: z.string().max(42).optional().describe(INPUT_TEXT.erc8004_client),
   feedbackIndex: z
     .union([z.string().max(40), z.number().int().nonnegative()])
@@ -183,6 +193,7 @@ export const checkSellerOutput = z
     method_url: z.string(),
     as_of: iso,
     truncated: z.boolean(),
+    next_action: z.string().nullable(),
   })
   .strict();
 
@@ -262,6 +273,7 @@ const sellerTextFields = {
 export const findSellersOutput = z
   .object({
     query: z.string(),
+    note: z.string().nullable().optional(),
     sellers: z.array(
       z
         .object({

@@ -21,6 +21,7 @@ import { DECISION_RULES_VERSION } from "@/lib/decision/rules";
 import { REASON_CODES, EFFECT_LABEL, type SellerCanFix } from "@/lib/decision/reason-codes";
 import { DELIVERY_VALUE_DEFINITIONS } from "@/lib/observatory/delivery-values";
 import { DELIVERY_CSV_BODY_BYTES_NOTE, DELIVERY_CSV_COLUMNS, DELIVERY_CSV_HEADER_NOTES, DELIVERY_CSV_WHOSE_PURCHASES } from "@/lib/observatory/delivery-export";
+import { MCP_DOCS_CONNECT_CURSOR } from "@/lib/docs/mcp-page-text";
 
 // 2026-09-29.3（監査 6 周目）: 売り手の側で直せるかの語（表の列）。
 const SELLER_FIX_LABEL: Record<SellerCanFix, string> = { yes: "Yes", partly: "Partly", no: "No", "n/a": "—" };
@@ -997,8 +998,8 @@ export default async function ApiDocsPage() {
       <section id="quickstart" className="scroll-mt-32 space-y-3">
         <h2 className="sec-head">Quickstart</h2>
         <p className="text-[0.84375rem] text-brand">
-          The first four need no account, no key and no signature &mdash; paste them into a
-          terminal as they are. The first one is the integration itself: a URL in, a check answer out.
+          For a buyer agent, start with one of these two. Both read vet402 records, need no account, no key, and no
+          signature. Paste them as they are.
         </p>
 
         <div>
@@ -1007,10 +1008,10 @@ export default async function ApiDocsPage() {
           </p>
           <CodeBlock
             label="curl: what vet402 recorded when it paid this URL"
-            code={`curl "${SITE_URL}/api/v1/check?url=${encodeURIComponent("https://api.exa.ai/search")}"`}
+            code={`curl "${SITE_URL}/api/v1/check?url=${encodeURIComponent("https://api.exa.ai/search")}&method=POST"`}
           />
           <TryItPanel
-            path={`/api/v1/check?url=${encodeURIComponent("https://api.exa.ai/search")}`}
+            path={`/api/v1/check?url=${encodeURIComponent("https://api.exa.ai/search")}&method=POST`}
             label="GET /api/v1/check?url=…"
           />
           <p className="mt-1 text-[0.84375rem] text-brand-lift">
@@ -1018,14 +1019,41 @@ export default async function ApiDocsPage() {
             <code>recommendation</code>, <code>evidence_age</code>, <code>delivery</code>, the five latest purchases, and{" "}
             <code>verified_terms</code>. Optional <code>method=</code> narrows GET or POST like{" "}
             <code>/api/v1/resolve</code>. {keylessResolvePerMinute()} requests per minute per IP, shared with{" "}
-            <code>/api/v1/resolve</code>. {KEYLESS_READ_STOP}
+            <code>/api/v1/resolve</code>. {KEYLESS_READ_STOP} This listing is POST on{" "}
+            <code className="text-brand-deep">https://api.exa.ai/search</code>.
           </p>
         </div>
+
+        <div>
+          <p className="mb-1 text-xs font-medium uppercase tracking-wide text-brand-lift">
+            2 &mdash; Connect hosted MCP in your agent (no key)
+          </p>
+          <CodeBlock label="Cursor mcp.json" code={MCP_DOCS_CONNECT_CURSOR} />
+          <p className="mt-1 text-[0.84375rem] text-brand-lift">
+            Same URL for Claude Code, Claude Desktop, and any MCP client that speaks Streamable HTTP. Setup and example
+            chat prompts live on{" "}
+            <Link href="/docs/mcp" className="doc-link">
+              /docs/mcp
+            </Link>{" "}
+            and{" "}
+            <Link href="/connect" className="doc-link">
+              /connect
+            </Link>
+            .
+          </p>
+        </div>
+      </section>
+
+      <section id="more-keyless-reads" className="scroll-mt-32 space-y-3">
+        <h2 className="sec-head">More keyless reads</h2>
+        <p className="text-[0.84375rem] text-brand">
+          After the two quickstart paths above, these curls read the same public records without a key.
+        </p>
 
         {/* resolve → decision stays in quickstart after check (2026-11-16 pmf85 r6). */}
         <div>
           <p className="mb-1 text-xs font-medium uppercase tracking-wide text-brand-lift">
-            2 &mdash; Should my agent pay this URL? Resolve it, then ask (no key)
+            Resolve a URL, then read the decision (no key)
           </p>
           <CodeBlock
             label="curl: resolve a URL to its resource_id, then read the decision"
@@ -1374,7 +1402,7 @@ app.use("/api/paid", createExpressGate({
             install 一行でしか触れず、設定ブロック・tool 名・mcpServers JSON が
             無かった（SDK/middleware は完備）。MCP 経由の実装者はここで手が
             止まる。設定は packages/mcp-server/README.md の実物をそのまま写す。 */}
-        <h3 className="text-[1.0625rem] font-semibold text-brand-deep">MCP: let an agent ask before it pays</h3>
+        <h3 className="text-[1.0625rem] font-semibold text-brand-deep">Hosted MCP (reads records)</h3>
         <p className="text-[0.84375rem] text-brand">
           For read-only checks before paying, point the MCP client at the hosted server at{" "}
           <a href="/docs/mcp" className="doc-link">
@@ -1386,9 +1414,11 @@ app.use("/api/paid", createExpressGate({
           </Link>{" "}
           and <Link href="/connect" className="doc-link">/connect</Link>.
         </p>
+        <h3 className="text-[1.0625rem] font-semibold text-brand-deep">Local @vet402/mcp-server (can sign and pay)</h3>
         <p className="text-[0.84375rem] text-brand">
-          <code>@vet402/mcp-server</code> is a separate local package for score tools and optional payment. The client
-          launches it with <code>npx</code>. Add this to the client config (
+          <code>@vet402/mcp-server</code> runs on your machine. With a payer key configured,{" "}
+          <code>pay_if_trusted</code> can sign and pay when checks pass. The client launches it with <code>npx</code>.
+          Add this to the client config (
           <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> on macOS,{" "}
           <code>%APPDATA%\Claude\claude_desktop_config.json</code> on Windows) and restart:
         </p>
