@@ -145,6 +145,7 @@ For a POST, pass the method, headers and body as the second argument, the same w
 ### `createVet402Fetch`
 
 A function with the same call shape as `fetch`. Each call runs `pay()` for that URL. Options are the same as `pay()`.
+On `failed` it throws `Vet402PayFailedError` (with `receipt.retry`); read [Before retrying a `failed` payment](#before-retrying-a-failed-payment) before calling the wrapper again.
 
 ```typescript
 import { createVet402Fetch, MAX_REQUEST_BODY_BYTES } from "@vet402/sdk";

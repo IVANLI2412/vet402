@@ -217,6 +217,8 @@ export type PayIfTrustedResult = {
      * `payOrRefuse` に到達する前に止まったときは null。
      */
     decision_record: PayDecisionRecord | null;
+    /** EIP-3009 validBefore (unix seconds) when FAILED with a live authorization. */
+    validBefore?: string | null;
 };
 /** 判定を引き、全部の関門を通ったときにだけ signer へ到達する。 */
 export declare function payIfTrusted(input: PayIfTrustedInput): Promise<PayIfTrustedResult>;

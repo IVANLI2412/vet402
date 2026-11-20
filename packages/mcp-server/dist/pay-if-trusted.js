@@ -82,6 +82,7 @@
 import { DEFAULT_API_URL, decisionQueryString } from "./vouch-client.js";
 import { refusalReasonCodes } from "./decision.js";
 import { MCP_USER_AGENT } from "./version.js";
+import { clearLiveAuthorization, hasLiveAuthorization, rememberLiveAuthorization } from "./pending-payment.js";
 /** Solana の base58 アドレス。SDK の `payOrRefuse` がレールを決めるのと同じ形（0x でなければこれ）。 */
 export const SOLANA_PAYEE_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 /**
@@ -319,6 +320,10 @@ async function payIfTrustedCore(input, notes) {
     if (typeof input.payee !== "string" || typeof input.resource !== "string" || typeof input.amountUsd !== "number") {
         return refuse(m, [...serverWords, "payment_target_unknown"], `${m.recommendation ?? "absent"}, but pay_if_trusted was not told what to pay: pass resource, payee and amountUsd to execute the payment.`);
     }
+    if (typeof input.resource === "string" && hasLiveAuthorization(input.resource)) {
+        return refuse(m, [...serverWords, "evidence_unavailable"], "Do not pay again yet: a prior authorization for this resource is still live until validBefore. " +
+            "Reconcile the nonce with the chain or wait for validBefore before signing again.");
+    }
     // --- 5. ここから先だけが支払い。実装は ALLOW ブランチ内の動的 import（第3層）---
     // payee の形でレールが決まる（SDK と同じ規則）。base58 なら Solana の署名者だけを渡し、EVM の signer には触らない。
     // 署名者の**有無**だけを見る（`=== undefined` は Proxy の get を起こさない）。
@@ -364,22 +369,30 @@ async function payIfTrustedCore(input, notes) {
         };
     }
     if (paid.status === "failed") {
+        const validBefore = paid.receipt?.retry?.authorization?.validBefore ?? null;
+        if (typeof input.resource === "string" && validBefore !== null) {
+            rememberLiveAuthorization(input.resource, Number(validBefore), paid.nonce ?? "");
+        }
         // §4 E18: 署名は実在する。隠さない——認可は validBefore まで生きた金で、
         // 遅れて決済され得る。何に署名したか（nonce）が残らないと後から照合できない。
         return {
             decision: "FAILED",
             safe_to_pay: false,
             refuse_reasons: merged,
-            summary: "Signed, but the seller did not settle. The authorization is live until validBefore — reconcile with the nonce below.",
+            summary: "Settlement is unknown. The authorization stays live until validBefore — do not call pay_if_trusted again " +
+                `for this resource until then (validBefore=${validBefore ?? "unknown"}). Reconcile with the nonce below.`,
             signed: paid.signed,
             attested: false,
             txHash: paid.txHash,
             nonce: paid.nonce,
+            validBefore,
             settlement: null,
             measurement: m,
             decision_record: paid.decision,
         };
     }
+    if (typeof input.resource === "string")
+        clearLiveAuthorization(input.resource);
     return {
         decision: "PAID",
         safe_to_pay: true,
