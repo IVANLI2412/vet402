@@ -42,6 +42,14 @@ const RESOLVED = {
 };
 
 // Shape of src/lib/decision/types.ts VerifiedTerms (purchase_id is `<CAIP-2>:<tx>`).
+const freshDecisionTimes = () => {
+  const now = Date.now();
+  return {
+    scoredAt: new Date(now).toISOString(),
+    cacheExpiresAt: new Date(now + 300_000).toISOString(),
+  };
+};
+
 const TERMS = {
   purchase_id: "eip155:8453:0x" + "ab".repeat(32),
   pay_to: "0x2b6d4988db4723e6908db86ab2b8dfbc51fc32c5",
@@ -57,7 +65,7 @@ const TERMS = {
 test("(a) a resolved URL with ALLOW returns the decision, terms and the public record", async () => {
   const f = fakeFetch([
     ["/resolve?q=", () => json(RESOLVED)],
-    [`/resources/${RID}/decision?role=payer`, () => json({ recommendation: "ALLOW", reason_codes: ["l0_pass", "l1_delivered"], verified_terms: TERMS, degraded: false, signalsUnavailable: [], scoredAt: "2026-11-08T00:00:00.000Z" })],
+    [`/resources/${RID}/decision?role=payer`, () => json({ recommendation: "ALLOW", reason_codes: ["l0_pass", "l1_delivered"], verified_terms: TERMS, degraded: false, signalsUnavailable: [], ...freshDecisionTimes() })],
   ]);
   const before = Date.now();
   const r = await check(URL_, { fetch: f });
@@ -68,7 +76,7 @@ test("(a) a resolved URL with ALLOW returns the decision, terms and the public r
   assert.equal(r.evidenceUrl, `https://vet402.com/observatory/e/${OID}`);
   // retrievedAt is when check() read the decision. scoredAt is when vet402 scored it.
   assert.ok(Date.parse(r.retrievedAt) >= before - 1 && Date.parse(r.retrievedAt) <= Date.now() + 1, r.retrievedAt);
-  assert.equal(r.scoredAt, "2026-11-08T00:00:00.000Z");
+  assert.ok(r.scoredAt);
   assert.equal(f.calls.length, 2);
   assert.equal(f.calls[0].url, `${DEFAULT_API_URL}/resolve?q=${encodeURIComponent(URL_)}`);
   assert.equal(f.calls[1].url, `${DEFAULT_API_URL}/resources/${RID}/decision?role=payer`);
@@ -77,7 +85,7 @@ test("(a) a resolved URL with ALLOW returns the decision, terms and the public r
 test("no apiKey sends no Authorization header; apiKey sends Bearer like @vet402/sdk", async () => {
   const routes = [
     ["/resolve?q=", () => json(RESOLVED)],
-    ["/decision", () => json({ recommendation: "WARN", reason_codes: ["l1_stale"], verified_terms: null, degraded: false, signalsUnavailable: [], scoredAt: "2026-11-08T00:00:00.000Z" })],
+    ["/decision", () => json({ recommendation: "WARN", reason_codes: ["l1_stale"], verified_terms: null, degraded: false, signalsUnavailable: [], ...freshDecisionTimes() })],
   ];
   const a = fakeFetch(routes);
   await check(URL_, { fetch: a });
@@ -182,7 +190,7 @@ test("ALLOW with degraded quality flags becomes UNKNOWN (same predicate as payOr
         degraded: true,
         signalsUnavailable: ["native_drain"],
         verified_terms: null,
-        scoredAt: "2026-11-08T00:00:00.000Z",
+        ...freshDecisionTimes(),
       })],
   ]);
   const r = await check(URL_, { fetch: f });

@@ -12,17 +12,21 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { PAY_REFUSE_REASONS, payOrRefuse } from "../dist/index.js";
+import { allowlistFetch, decisionFreshness, defaultVerifiedTerms } from "./_pay-or-refuse-harness.mjs";
 
 const PAYEE = "0x36038e1d712c5e39f35952164ec58ec2b96caee7";
 const USDC = "0x833589fCD6eDb6E08f4c7C32D4f71b54bdA02913";
 const RESOURCE = "https://kronossignals.com/api/v1/price/btc";
 const b64 = (o) => btoa(JSON.stringify(o));
 const accept = (amount) => ({ scheme: "exact", network: "eip155:8453", amount, asset: USDC, payTo: PAYEE, extra: { assetTransferMethod: "eip3009" } });
-const decision = {
+const DECISION = "/decision";
+const decisionBody = () => ({
   recommendation: "ALLOW", reason_codes: ["l0_pass", "l1_delivered"],
   facts: { l0: { status: "pass" }, l1: { n_delivered: 3, n_attempts: 3 } },
   evidence: [], degraded: false, rules_version: "2026-09-02.1",
-};
+  verified_terms: defaultVerifiedTerms(PAYEE),
+  ...decisionFreshness(),
+});
 
 function watchedAccount() {
   const accessed = [];
@@ -34,22 +38,32 @@ function watchedAccount() {
 }
 
 function harness(amount) {
-  const calls = [];
   const paid = [];
-  const fetch = async (url, init) => {
-    const u = String(url);
-    calls.push(u);
-    if (u.includes("/decision")) return { ok: true, status: 200, json: async () => decision, headers: new Map() };
-    if (u.includes("kronos")) {
-      const h = init?.headers ?? {};
-      const raw = h["PAYMENT-SIGNATURE"] ?? h["payment-signature"];
-      if (!raw) return { ok: false, status: 402, json: async () => ({}), headers: new Map([["payment-required", b64({ x402Version: 2, accepts: [accept(amount)] })]]) };
-      paid.push(JSON.parse(atob(raw)));
-      return { ok: true, status: 200, json: async () => ({ data: "ok" }), headers: new Map([["PAYMENT-RESPONSE", b64({ success: true, transaction: "0xtx", network: "eip155:8453" })]]) };
+  const kronos = (url, init) => {
+    const h = init?.headers ?? {};
+    const raw = h["PAYMENT-SIGNATURE"] ?? h["payment-signature"];
+    if (!raw) {
+      return {
+        ok: false,
+        status: 402,
+        headers: { "payment-required": b64({ x402Version: 2, accepts: [accept(amount)] }) },
+        body: {},
+      };
     }
-    return { ok: true, status: 200, json: async () => ({ ok: true }), headers: new Map() };
+    paid.push(JSON.parse(atob(raw)));
+    return {
+      ok: true,
+      status: 200,
+      headers: { "payment-response": b64({ success: true, transaction: "0xtx", network: "eip155:8453" }) },
+      body: { data: "ok" },
+    };
   };
-  return { calls, paid, fetch, sellerCalls: () => calls.filter((u) => u.includes("kronos")) };
+  const f = allowlistFetch([DECISION, "kronos", "payments/x402"], {
+    [DECISION]: { status: 200, body: decisionBody() },
+    kronos,
+    "payments/x402": { status: 200, body: { ok: true } },
+  });
+  return { calls: f.calls, paid, fetch: f.fetch, sellerCalls: () => f.calls.filter((u) => u.includes("kronos")) };
 }
 
 const base = { payee: PAYEE, resource: RESOURCE };

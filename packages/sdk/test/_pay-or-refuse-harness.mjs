@@ -39,16 +39,56 @@ export function resolveStub(over = {}) {
   };
 }
 
+/** /resolve が掲載に結べないとき（カタログ外の候補）。 */
+export function resolveUnlistedStub(over = {}) {
+  return {
+    status: 200,
+    body: {
+      query: { kind: "url", value: "https://example.test/" },
+      endpoints: [],
+      not_found: { reason: "not_in_catalog", note: "test" },
+      disclaimer: "test",
+      ...over,
+    },
+  };
+}
+
+export function notFoundUncatalogued(over = {}) {
+  return {
+    status: 404,
+    body: { error: "not_found", host_known: false, ...over },
+  };
+}
+
+function decisionResponse(responses) {
+  const key = Object.keys(responses).find((k) => k.includes("/decision") || k === "/decision");
+  return key ? responses[key] : undefined;
+}
+
+function wantsUncataloguedResolve(responses) {
+  const d = decisionResponse(responses);
+  return (
+    d?.status === 404 &&
+    d?.body?.error === "not_found" &&
+    d?.body?.host_known === false
+  );
+}
+
 /**
  * Allowlist fetch with implicit /resolve when /decision (or other vet402 paths) are allowed.
  */
 export function allowlistFetch(allowed, responses = {}) {
   const calls = [];
+  const needResolve = allowed.some((a) => a.includes("/decision"));
+  const hasResolve = allowed.some((a) => a.includes("/resolve")) || Object.keys(responses).some((k) => k.includes("/resolve"));
   const withResolve =
-    allowed.some((a) => a.includes("/resolve")) || !allowed.some((a) => a.includes("/decision"))
+    !needResolve || hasResolve
       ? responses
-      : { "/resolve": resolveStub(), ...responses };
-  const expanded = allowed.some((a) => a.includes("/resolve")) ? allowed : ["/resolve", ...allowed];
+      : {
+          "/resolve": wantsUncataloguedResolve(responses) ? resolveUnlistedStub() : resolveStub(),
+          ...responses,
+        };
+  const expanded = hasResolve || !needResolve ? allowed : ["/resolve", ...allowed];
   return {
     calls,
     fetch: async (url, init) => {
@@ -68,4 +108,21 @@ export function allowlistFetch(allowed, responses = {}) {
       };
     },
   };
+}
+
+/** Stub missing /resolve on an existing test fetch. */
+export function withAutoResolve(fetchImpl, options = {}) {
+  if (fetchImpl.__vet402ResolveWrapped) return fetchImpl;
+  const unlisted = options.unlisted === true;
+  const wrapped = async (input, init) => {
+    const u = String(input instanceof Request ? input.url : input);
+    if (u.includes("/resolve?q=")) {
+      const stub = unlisted ? resolveUnlistedStub() : resolveStub();
+      const body = JSON.stringify(stub.body);
+      return new Response(body, { status: 200, headers: { "content-type": "application/json" } });
+    }
+    return fetchImpl(input, init);
+  };
+  wrapped.__vet402ResolveWrapped = true;
+  return wrapped;
 }

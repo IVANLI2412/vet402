@@ -20,14 +20,37 @@ const challenge = (accepts) => new Response("{}", {
   status: 402,
   headers: { "payment-required": b64({ x402Version: 2, resource: { url: URL_A }, accepts }) },
 });
+const now = () => new Date().toISOString();
 const verdict = (recommendation, over = {}) => ({
   subject: { type: "resource", id: "a".repeat(64) }, role: "payer", recommendation, reason_codes: ["l0_pass"],
   facts: { l0: { status: "pass" }, l1: { n_delivered: 3, n_attempts: 3 }, l2: { status: "undeclared" } },
-  evidence: [], degraded: false, policy: "allow_only", rules_version: "test", ...over,
+  evidence: [], degraded: false, policy: "allow_only", rules_version: "test",
+  scoredAt: now(), cacheExpiresAt: new Date(Date.now() + 300_000).toISOString(),
+  verified_terms: {
+    pay_to: PAY_TO, asset: USDC, amount: "10000", network: "eip155:8453", scheme: "exact",
+    decimals: 6, protocol: "x402", purchase_id: null, verified_at: now(),
+  },
+  ...over,
 });
 const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { "content-type": "application/json" } });
 
-function harness({ decision = () => json(200, verdict("ALLOW")), offers = () => [offer()], score = () => json(200, {}) } = {}) {
+const resolveListed = () => {
+  const id = createHash("sha256").update(`GET ${URL_A}`).digest("hex");
+  return json(200, { resource: { resource_id: id, payee_id: `eip155:8453:${PAY_TO}` } });
+};
+const resolveUnlisted = () => json(200, {
+  query: { kind: "url", value: URL_A },
+  endpoints: [],
+  not_found: { reason: "not_in_catalog", note: "test" },
+  disclaimer: "test",
+});
+
+function harness({
+  decision = () => json(200, verdict("ALLOW")),
+  resolve = resolveListed,
+  offers = () => [offer()],
+  score = () => json(200, {}),
+} = {}) {
   const seen = { seller: [], decisions: [], scores: 0, signatures: 0 };
   const account = {
     address: "0xDB62BD202914609830fA656F87996b91be3Aa673",
@@ -35,6 +58,7 @@ function harness({ decision = () => json(200, verdict("ALLOW")), offers = () => 
   };
   const fetchImpl = async (input, init = {}) => {
     const url = String(input);
+    if (url.includes("/resolve?q=")) return resolve(url, init);
     if (url.startsWith(`${API}/resources/`)) { seen.decisions.push(url); return decision(url); }
     if (url.startsWith(`${API}/payees/`)) { seen.scores += 1; return score(url); }
     if (url.startsWith(`${API}/`)) return json(200, {});
@@ -104,7 +128,10 @@ for (const [name, decision, reason] of [
 }
 
 test("a URL with no record is refused by default and the payee score is never read", async () => {
-  const h = harness({ decision: () => json(404, { error: "not_found" }) });
+  const h = harness({
+    resolve: resolveUnlisted,
+    decision: () => json(404, { error: "not_found", host_known: false }),
+  });
   const r = await pay(URL_A, undefined, { account: h.account, fetch: h.fetchImpl });
   assert.equal(r.status, "refused");
   assert.equal(h.seen.scores, 0);
@@ -113,7 +140,11 @@ test("a URL with no record is refused by default and the payee score is never re
 });
 
 test("allowUnknown only opens the payee score path, and a failed score still refuses", async () => {
-  const h = harness({ decision: () => json(404, { error: "not_found" }), score: () => json(500, {}) });
+  const h = harness({
+    resolve: resolveUnlisted,
+    decision: () => json(404, { error: "not_found", host_known: false }),
+    score: () => json(500, {}),
+  });
   const r = await pay(URL_A, undefined, { account: h.account, fetch: h.fetchImpl, allowUnknown: true });
   assert.equal(h.seen.scores, 1);
   assert.equal(r.status, "refused");
@@ -122,15 +153,15 @@ test("allowUnknown only opens the payee score path, and a failed score still ref
 
 test("allowUnknown pays only when the payee score says ALLOW", async () => {
   const score = (recommendation) => () => json(200, { address: PAY_TO, score: 74, recommendation, dataDepth: "moderate", degraded: false, signalsUnavailable: [] });
-  const none = () => json(404, { error: "not_found" });
+  const none = () => json(404, { error: "not_found", host_known: false });
 
-  const allowed = harness({ decision: none, score: score("ALLOW") });
+  const allowed = harness({ resolve: resolveUnlisted, decision: none, score: score("ALLOW") });
   const paid = await pay(URL_A, undefined, { account: allowed.account, fetch: allowed.fetchImpl, allowUnknown: true });
   assert.equal(paid.status, "paid");
   assert.equal(allowed.seen.signatures, 1);
 
   for (const word of ["WARN", "BLOCK"]) {
-    const h = harness({ decision: none, score: score(word) });
+    const h = harness({ resolve: resolveUnlisted, decision: none, score: score(word) });
     const r = await pay(URL_A, undefined, { account: h.account, fetch: h.fetchImpl, allowUnknown: true });
     assert.equal(r.status, "refused");
     assert.equal(h.seen.signatures, 0);
