@@ -54,7 +54,11 @@ export const check8004AgentInput = z.object({
   chain: z.string().max(64).optional().describe(INPUT_TEXT.erc8004_chain),
   agentId: z.string().min(1, "invalid_agent_id").max(78, "invalid_agent_id").describe(INPUT_TEXT.erc8004_agent_id),
   client: z.string().max(42).optional().describe(INPUT_TEXT.erc8004_client),
-  feedbackIndex: z.string().max(40).optional().describe(INPUT_TEXT.erc8004_feedback_index),
+  feedbackIndex: z
+    .union([z.string().max(40), z.number().int().nonnegative()])
+    .optional()
+    .transform((v) => (v === undefined ? undefined : String(v)))
+    .describe(INPUT_TEXT.erc8004_feedback_index),
 });
 
 export const checkPaymentProofInput = z.object({
