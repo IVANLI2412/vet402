@@ -160,6 +160,8 @@ export default async function ImpactPage() {
               its own retrievedAt.
             </>
           )}{" "}
+          {/* API route, not a page: a plain anchor avoids an RSC prefetch that answers 400. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/api/v1/observatory/state" className="underline">
             /api/v1/observatory/state
           </a>
@@ -290,6 +292,8 @@ export default async function ImpactPage() {
                   , which also leaves out the attempts held by vet402).
                 </>
               )}{" "}
+              {/* API route, not a page: a plain anchor avoids an RSC prefetch that answers 400. */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a href="/api/v1/observatory/decisions" className="underline">
                 /decisions
               </a>
@@ -334,6 +338,8 @@ export default async function ImpactPage() {
           ) : (
             "The purchase ledger is a daily hash chain. Anchoring begins with the first anchored day."
           )}{" "}
+          {/* API route, not a page: a plain anchor avoids an RSC prefetch that answers 400. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/api/v1/observatory/anchors" className="underline">
             /anchors
           </a>

@@ -285,7 +285,7 @@ export default async function ObservatoryMethodologyPage() {
           parameter (<code>/v1/entreprise/:siren</code>, <code>/items/{"{id}"}</code>,{" "}
           <code>/files/*</code>). vet402 does not know the real value, so no request is sent. The
           probe is recorded as <code>unverified</code> with this reason, and the endpoint is
-          never purchased from, a 4xx from a request vet402 could not have formed correctly is vet402's
+          never purchased from, a 4xx from a request vet402 could not have formed correctly is vet402&apos;s
           limitation, not the seller&apos;s failure. Since 2026-09-17 a path segment with a
           modifier (<code>/airline/:rest*</code>) counts as well.
         </p>
@@ -320,7 +320,7 @@ export default async function ObservatoryMethodologyPage() {
           {(L0_BODY_CAP_BYTES / 1024).toLocaleString("en-US")}&nbsp;KB of the <code>402</code> body.
           Before that it read 4,000 bytes, so an x402 v1 envelope longer than that (v1 carries the
           envelope in the body, not in a header) could not be parsed and was recorded as <code>accepts_invalid</code>: a
-          measuring error on vet402's side, not the seller&apos;s. Those rows are kept and marked on the
+          measuring error on vet402&apos;s side, not the seller&apos;s. Those rows are kept and marked on the
           endpoint&apos;s page; the next probe replaces the published verdict.
         </p>
         {/* 2026-09-29 監査 6 周目: 旧規則の行に乗った公開 fail を、次のプローブ任せにせず先に測り直す（l0-rule-change.ts）。 */}
@@ -379,7 +379,7 @@ export default async function ObservatoryMethodologyPage() {
           vet402 carries no credential of the seller&apos;s. What JSON body a <code>POST</code> expects
           is a different matter: a listing that carries the Bazaar discovery extension declares it
           as <code>extensions.bazaar.info.input.body</code>, and the same declaration rides on the{" "}
-          <code>402</code> the endpoint answers vet402's unpaid request with. Since 2026-09-17, when that
+          <code>402</code> the endpoint answers vet402&apos;s unpaid request with. Since 2026-09-17, when that
           402 declares a JSON object or array of at most 16&nbsp;KB, the paid <code>POST</code>{" "}
           sends that body as declared, without editing it, and only to the seller&apos;s own
           origin (a redirect that would carry it to another origin is not followed; the row keeps
@@ -406,9 +406,9 @@ export default async function ObservatoryMethodologyPage() {
           with a 4xx other than <code>402</code> and no settlement receipt, which is what a seller
           that checks the request before settling it returns. Before that change the seller that
           declined to charge for a request vet402 got wrong was published in the harsher bucket. A{" "}
-          <code>402</code> is different: it says the seller did not accept vet402's payment, and it
+          <code>402</code> is different: it says the seller did not accept vet402&apos;s payment, and it
           stays counted, with one exception vet402 caused ourselves. From 2026-09-13 00:00 to
-          2026-09-15 23:49 UTC vet402's Base payer wallet had run out of USDC, sellers answered vet402's
+          2026-09-15 23:49 UTC vet402&apos;s Base payer wallet had run out of USDC, sellers answered vet402&apos;s
           unfunded payments with <code>402</code> (and some with a <code>5xx</code>, which during
           that window vet402 cannot separate from a seller failing on an empty payment), and those
           rows are held as{" "}
@@ -513,25 +513,25 @@ export default async function ObservatoryMethodologyPage() {
           not sent</em>: both facts stand, and it is counted against neither side. A paid request that answered{" "}
           <code>2xx</code> while the seller named a settlement transaction, although its receipt did not say success,
           awaits on-chain verification like any other receipt instead of reading as a failure. A <code>2xx</code> or{" "}
-          <code>4xx</code> with no receipt, for which vet402's payer&apos;s transfer of exactly the price to the listing&apos;s
-          address landed in the window, is linked to that transfer even when vet402's index did not hold it (see below).
+          <code>4xx</code> with no receipt, for which vet402&apos;s payer&apos;s transfer of exactly the price to the listing&apos;s
+          address landed in the window, is linked to that transfer even when vet402&apos;s index did not hold it (see below).
           When the export&apos;s <code>held_reason</code> and the page name different causes for the same row (for
-          example <code>unsettled_4xx</code> in the export, vet402's wallet holding less than the price on the page), the
+          example <code>unsettled_4xx</code> in the export, vet402&apos;s wallet holding less than the price on the page), the
           row says both.
         </p>
         <p className="doc-p">
-          <em>vet402&apos;s side</em>: the row shows the cause was vet402's or a limit of vet402's. The payer
+          <em>vet402&apos;s side</em>: the row shows the cause was vet402&apos;s or a limit of vet402&apos;s. The payer
           wallet vet402 pays from had run out of USDC (<code>payer_unfunded</code>, 2026-09-13 to 2026-09-15), or held
           less than the price by the rebuilt balance (for example on 2026-09-12 18:02 UTC); a paid POST
           was refused with <code>400</code>, <code>415</code> or <code>422</code> before{" "}
           {utcSecondsLabel(DECLARED_BODY_SENT_SINCE)}, when vet402 sent an empty JSON body although the listing declares one; a paid request on
           Base was refused with <code>400</code> or <code>422</code> before {BASE_DECLARED_QUERY_SINCE_LABEL}, when vet402
-          did not add the query the listing declares; or vet402's own limits and errors.{" "}
+          did not add the query the listing declares; or vet402&apos;s own limits and errors.{" "}
           {queryUnsentUntilSentence({ capitalize: true })}, a signed paid request that the seller refused with{" "}
-          <code>400</code> or <code>422</code>, with no record of the query vet402 sent, is on vet402's side when the listing
-          declares a query. A row at or after that time on its chain, with no record of the query, is not on vet402's side
+          <code>400</code> or <code>422</code>, with no record of the query vet402 sent, is on vet402&apos;s side when the listing
+          declares a query. A row at or after that time on its chain, with no record of the query, is not on vet402&apos;s side
           for this reason. &ldquo;Declares&rdquo;
-          is read from the same place vet402's request is built from: the example values in the
+          is read from the same place vet402&apos;s request is built from: the example values in the
           listing&apos;s <code>extensions.bazaar.info.input</code>, as well as the names its schema
           marks required. <em>Not sorted</em>: a failed purchase that cannot show (b) to (e); a failure at a
           listing whose declared input is an example domain (<code>example.com</code>, <code>.org</code>,{" "}
@@ -577,7 +577,7 @@ export default async function ObservatoryMethodologyPage() {
           answer to the paid request, and records the purchase from that answer; it does not wait
           on-chain at that point. A paid request on Celo waits{" "}
           {(L1_CELO_PAID_TIMEOUT_MS / 1000).toString()} seconds, since {L1_CELO_PAID_TIMEOUT_SINCE}, because some Celo facilitators answer only after the on-chain receipt. A paid request on XRPL waits{" "}
-          {(L1_XRPL_PAID_TIMEOUT_MS / 1000).toString()} seconds, since {L1_XRPL_PAID_TIMEOUT_SINCE}, because some sellers answer only after the ledger settlement is confirmed. A transfer that lands later is found by vet402's index of on-chain
+          {(L1_XRPL_PAID_TIMEOUT_MS / 1000).toString()} seconds, since {L1_XRPL_PAID_TIMEOUT_SINCE}, because some sellers answer only after the ledger settlement is confirmed. A transfer that lands later is found by vet402&apos;s index of on-chain
           settlements if it falls between {LATE_SETTLEMENT_BACKDATE_MINUTES.toString()} minutes
           before and {LATE_SETTLEMENT_WINDOW_MINUTES.toString()} minutes after the attempt. The index reads transfers
           to the receiving addresses in the catalog as it goes, so a transfer to an address that joined the catalog
@@ -605,7 +605,7 @@ export default async function ObservatoryMethodologyPage() {
           schema&apos;s <code>required</code>, <code>enum</code>, <code>default</code> and{" "}
           <code>description</code> are not read for one, so a name the schema marks as required and
           the declaration leaves out goes unsent. A value that is not a string, a finite number or a
-          boolean; an empty name; more than vet402's caps ({DECLARED_QUERY_MAX_PARAMS} names,{" "}
+          boolean; an empty name; more than vet402&apos;s caps ({DECLARED_QUERY_MAX_PARAMS} names,{" "}
           {DECLARED_QUERY_MAX_BYTES / 1024}&nbsp;KB of appended query,{" "}
           {DECLARED_URL_MAX_BYTES / 1024}&nbsp;KB of URL); two declared names that collide; a host or
           a path that would move, any one of these and the declaration goes unused whole. A name the
@@ -645,7 +645,7 @@ export default async function ObservatoryMethodologyPage() {
           declares the same names and values. It covers the appended pairs alone, not the listed
           URL, the body, or which endpoint was bought, so two rows on different endpoints can
           carry one hash. It is not a way of hiding the query, the names and values are the
-          seller&apos;s own, and the <code>402</code> that answered vet402's unpaid request is where they
+          seller&apos;s own, and the <code>402</code> that answered vet402&apos;s unpaid request is where they
           were read from. The row does not carry the string; that <code>402</code> is where to read
           it. The unpaid request
           goes to the URL the catalog lists, because the declaration arrives with the{" "}
@@ -660,7 +660,7 @@ export default async function ObservatoryMethodologyPage() {
         </h2>
         <p className="doc-p">
           A single failing probe is never published as <code>fail</code>: transient network
-          conditions, including vet402's, are indistinguishable from a dead endpoint in one sample.
+          conditions, including vet402&apos;s, are indistinguishable from a dead endpoint in one sample.
           The register shows <code>fail</code> only after{" "}
           <strong>{MIN_CONSECUTIVE_FAILS_TO_PUBLISH} consecutive failing probes</strong>; until
           then the published state is <code>unverified</code>. Every underlying probe, including
@@ -717,7 +717,7 @@ export default async function ObservatoryMethodologyPage() {
           (30-day payer and call counts reported by the catalog). Endpoints with no purchase row of any
           status go before endpoints vet402 has attempted before; within each group, ties on demand go to
           the one that has waited longest (no row yet: earliest in the catalog; attempted before: longest
-          since vet402's last attempt of any status), then the lower internal id. Each purchase sends an unpaid request first to
+          since vet402&apos;s last attempt of any status), then the lower internal id. Each purchase sends an unpaid request first to
           read the <code>402</code> challenge,
           then select a payment option and refuse to proceed unless every one of these holds:
           scheme <code>exact</code>, a network whose payer lane is switched on for that run (Base
@@ -742,7 +742,7 @@ export default async function ObservatoryMethodologyPage() {
           {UNPROVEN_PURCHASE_CAP_USD_DEFAULT.toFixed(2)}, and sellers without a track record share $
           {UNPROVEN_DAILY_CAP_USD_DEFAULT} per UTC day, inside the ${DAILY_BUDGET_USD} budget for that
           day. A listing above that price, or one whose declared price cannot be read, is not bought for now
-          and gets no row: this is a limit on vet402's spending, not a finding about the seller. Purchases
+          and gets no row: this is a limit on vet402&apos;s spending, not a finding about the seller. Purchases
           above $0.10 share ${OVER_DIME_DAILY_CAP_USD_DEFAULT} per UTC day, with or without a track
           record, on the same terms.
         </p>
@@ -794,7 +794,7 @@ export default async function ObservatoryMethodologyPage() {
             </span>
           ))}
           . The reason is that a settle-through record is worth more as a series than as a single
-          row, and the list was picked from independently reported demand rather than from vet402's own
+          row, and the list was picked from independently reported demand rather than from vet402&apos;s own
           ledger (internal record of 2026-08-14). vet402 is not restating that third party&apos;s
           figure here. vet402 has not re-measured it, and vet402 cannot point you at a source you could
           check. What vet402 can point at is current demand, the per-endpoint 30-day call count the
@@ -844,10 +844,10 @@ export default async function ObservatoryMethodologyPage() {
           purchase. After that one purchase, the seller is on the ordinary sweep.
         </p>
         <p className="doc-p">
-          <strong>A second try when the failure was vet402's: the retest.</strong> Since 2026-09-28, a
-          seller on Base whose most recent row failed for a reason on vet402's side is bought from once
-          more, before any census entry and inside the same limits. Three reasons count as vet402's:
-          vet402's payer wallet had run out of USDC (the rows held as <code>payer_unfunded</code>); a
+          <strong>A second try when the failure was vet402&apos;s: the retest.</strong> Since 2026-09-28, a
+          seller on Base whose most recent row failed for a reason on vet402&apos;s side is bought from once
+          more, before any census entry and inside the same limits. Three reasons count as vet402&apos;s:
+          vet402&apos;s payer wallet had run out of USDC (the rows held as <code>payer_unfunded</code>); a
           paid POST was refused with HTTP <code>400</code>, <code>415</code> or <code>422</code>{" "}
           before vet402 began sending the request body the seller declares, while the seller&apos;s
           current listing does declare one; or, on Base, a paid request was refused with{" "}
@@ -855,7 +855,7 @@ export default async function ObservatoryMethodologyPage() {
           parameters the seller declares there (2026-09-27), while the current listing declares
           query parameters (example values, or required names). Such a refusal from a listing
           that declares no body, or no query parameter, is
-          not treated as vet402's, and neither is a settled row or any failure the seller&apos;s own
+          not treated as vet402&apos;s, and neither is a settled row or any failure the seller&apos;s own
           answer explains. When the failure was the missing body or query, vet402 buys that same
           listing again, as long as it can still be
           bought; otherwise, and for an empty wallet, the listing is chosen as in the census: one per
@@ -889,7 +889,7 @@ export default async function ObservatoryMethodologyPage() {
           {REQUIRED_CONFIRMATIONS.toString()} confirmations; on
           Solana it means the transaction is <code>finalized</code>, succeeded, and the
           USDC token-balance deltas in it show the payee&apos;s wallet receiving at least the
-          declared amount while vet402's payer&apos;s wallet loses it, read from balances rather than
+          declared amount while vet402&apos;s payer&apos;s wallet loses it, read from balances rather than
           from instructions, and only after the RPC&apos;s own genesis hash confirms vet402 is reading
           the cluster the purchase declared. <strong>settle_claimed</strong>, the seller returned a settlement
           receipt with a well-formed transaction id, and vet402 has not re-read it on-chain yet.{" "}
@@ -900,7 +900,7 @@ export default async function ObservatoryMethodologyPage() {
           <strong>settle_failed</strong>, no successful paid response came back at all.{" "}
           <strong>inconclusive</strong>, the paid request answered <code>4xx</code> (settled, or
           refused with no settlement receipt and not a <code>402</code>), or it answered{" "}
-          <code>402</code> or <code>5xx</code> while vet402's own payer wallet was unfunded, so the judgement is held rather
+          <code>402</code> or <code>5xx</code> while vet402&apos;s own payer wallet was unfunded, so the judgement is held rather
           than counted against the seller (§2, the same principle as <code>path_template</code>);
           the row still publishes, it is simply out of the denominator for <code>delivered</code>{" "}
           and does not count toward a <code>BLOCK</code>. Every attempt, including
@@ -914,7 +914,7 @@ export default async function ObservatoryMethodologyPage() {
           on, nothing new is signed. So a decision document carries{" "}
           <code>spending_halted</code> beside its facts, and{" "}
           <code>facts.l1.last_attempt_at</code> says when vet402 last looked, a halted week and a
-          quiet week are otherwise the same picture. When the gap is vet402's to explain,{" "}
+          quiet week are otherwise the same picture. When the gap is vet402&apos;s to explain,{" "}
           <code>not_attempted_reason</code> names it: <code>spending_halted</code>, or{" "}
           <code>no_eligible_accept</code> when the wall offered nothing machine-payable. vet402 does
           not write its own halt into the seller&apos;s record. The other ways an attempt
@@ -925,15 +925,15 @@ export default async function ObservatoryMethodologyPage() {
         <p className="doc-p">
           <strong>l1_inconclusive</strong>, since 2026-09-08, the neighbouring case: vet402 did
           sign, but each paid attempt is held as <code>inconclusive</code> (§2): a{" "}
-          <code>4xx</code> vet402 attributes to vet402's own request shape, or a <code>402</code> or{" "}
-          <code>5xx</code> while vet402's
+          <code>4xx</code> vet402 attributes to vet402&apos;s own request shape, or a <code>402</code> or{" "}
+          <code>5xx</code> while vet402&apos;s
           own payer wallet was unfunded, so there is no paid response to judge. Those rows are
           counted in <code>facts.l1.n_attempts</code> (and in <code>n_settled</code> when the
           payment settled), the same set the per-endpoint purchases route reports, and
           disclosed as <code>n_inconclusive</code>; the decision rules read conclusive
           attempts as <code>n_attempts − n_inconclusive</code>, so they do not count toward a
           BLOCK. Before that date the same rows were left out of <code>n_attempts</code>, and a
-          seller with ten settled purchases was published as <code>l1_not_attempted</code>,           a gap in vet402's measurement, not evidence against the seller, and now named as such.
+          seller with ten settled purchases was published as <code>l1_not_attempted</code>,           a gap in vet402&apos;s measurement, not evidence against the seller, and now named as such.
         </p>
         <p className="doc-p">
           <strong>settled comes at two evidence strengths, and both counts are published.</strong>{" "}
@@ -979,13 +979,13 @@ export default async function ObservatoryMethodologyPage() {
           seller named it: the paid response carried a settlement receipt, and vet402 re-reads the
           transaction it pointed to. Some sellers settle and return no receipt, the paid
           request times out or answers an error, and the transfer lands anyway. Since
-          2026-09-04 vet402's own index of on-chain settlements looks for that transfer: from vet402's
+          2026-09-04 vet402&apos;s own index of on-chain settlements looks for that transfer: from vet402&apos;s
           payer, to the endpoint&apos;s payee, for the exact amount, between{" "}
           {LATE_SETTLEMENT_BACKDATE_MINUTES.toString()} minutes before the attempt and{" "}
           {LATE_SETTLEMENT_WINDOW_MINUTES.toString()} minutes after it, and not already tied to
           another purchase. Since 2026-09-19 it is attached to a row only when that row is its
           single candidate, and on XRPL only when it is the hash of the blob vet402 signed. Since
-          2026-09-29, when two or more of vet402's rows on an EVM chain are candidates for the same
+          2026-09-29, when two or more of vet402&apos;s rows on an EVM chain are candidates for the same
           transfer (the same payee and price a few seconds apart), vet402 reads the transaction&apos;s
           receipt and attach it to the one row whose signed authorization nonce it consumed, and
           to none if no single row matches. The row
@@ -997,13 +997,13 @@ export default async function ObservatoryMethodologyPage() {
           {l1Tiers && l1Tiers.settled > 0 ? (
             <>
               At the current reading, {l1Tiers.settledLateLinked.toLocaleString()} of{" "}
-              {l1Tiers.settled.toLocaleString()} settled rows carry a transaction vet402's index
+              {l1Tiers.settled.toLocaleString()} settled rows carry a transaction vet402&apos;s index
               attached.{" "}
             </>
           ) : null}
-          When the re-read rejects a transaction vet402's index attached, the row goes back to what
+          When the re-read rejects a transaction vet402&apos;s index attached, the row goes back to what
           it was before, and the seller is not marked <code>settle_claim_refuted</code> for a
-          match that was vet402's.
+          match that was vet402&apos;s.
         </p>
         {/* 2026-09-29 敵対的監査 4 周目: spent_units は tx の無い行にも価格と同じ額が入り、「動いた額」と読まれていた。 */}
         <p className="doc-p">
@@ -1250,6 +1250,8 @@ export default async function ObservatoryMethodologyPage() {
         </h3>
         <p className="doc-p">
           The <code>erc8004</code> object in the{" "}
+          {/* API route, not a page: a plain anchor avoids an RSC prefetch that answers 400. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/api/v1/observatory/state" className="underline">
             state API
           </a>{" "}
@@ -1479,7 +1481,7 @@ export default async function ObservatoryMethodologyPage() {
           <strong>Where a piece of evidence came from.</strong> Each row in an{" "}
           <code>evidence[]</code> array names its own source, because a decision document can
           carry observations from two different ledgers.{" "}
-          <code>evidence.source=vet402</code> is vet402's own record: a probe vet402 ran, a purchase vet402
+          <code>evidence.source=vet402</code> is vet402&apos;s own record: a probe vet402 ran, a purchase vet402
           paid for, a schema check on what came back. <code>evidence.source=subgraph</code> is
           The Graph&rsquo;s x402 subgraph, read by the caller with their own Graph Gateway API
           key rather than proxied through vet402; that row carries the <code>subgraphId</code>, the{" "}
@@ -1488,7 +1490,7 @@ export default async function ObservatoryMethodologyPage() {
           static snapshot. A caller can ask for <code>evidence.source=both</code> and be refused
           if either source cannot be read , but no single row wears that label, because the
           two sources count different things and adding them would produce a number that means
-          nothing. vet402's engine and the subgraph can disagree about the same wallet. The rows stay
+          nothing. vet402&apos;s engine and the subgraph can disagree about the same wallet. The rows stay
           apart so a reader sees the disagreement instead of an average of it.
         </p>
 
@@ -1497,15 +1499,15 @@ export default async function ObservatoryMethodologyPage() {
         <p className="doc-p">
           <strong>The caller&apos;s rule, applied next to vet402&apos;s.</strong> A decision can also carry a{" "}
           <code>caller_policy</code> block when the caller names what the 402 asks (
-          <code>amount_usd</code>), a ceiling (<code>max_per_tx_usd</code>) or a floor on vet402's
+          <code>amount_usd</code>), a ceiling (<code>max_per_tx_usd</code>) or a floor on vet402&apos;s
           delivered L1 purchases (<code>min_l1_deliveries</code>). The server applies that rule in
           the same order and the same words as the <code>payOrRefuse</code> SDK:{" "}
           <code>price_above_ceiling</code> when the price is above the ceiling,{" "}
           <code>evidence_unavailable</code> when the decision is degraded,{" "}
-          <code>payee_recommendation_block</code> when vet402's recommendation is BLOCK,{" "}
+          <code>payee_recommendation_block</code> when vet402&apos;s recommendation is BLOCK,{" "}
           <code>payee_recommendation_not_allow</code> when it is a WARN and the caller did not waive
           it (<code>require_vet402_allow</code> defaults to true, as in the SDK; waiving needs a floor
-          in its place), and <code>insufficient_delivery_evidence</code> when vet402's ledger has fewer
+          in its place), and <code>insufficient_delivery_evidence</code> when vet402&apos;s ledger has fewer
           deliveries than the floor. The block sits beside <code>recommendation</code> and never
           rewrites it: a WARN stays a WARN, and a floor never lifts a BLOCK. What the server did not check is listed in{" "}
           <code>not_evaluated</code> , always the subgraph floor, because The Graph is read

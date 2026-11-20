@@ -87,6 +87,8 @@ export default async function StablecoinPaymentsPage() {
             chain pages
           </Link>{" "}
           and{" "}
+          {/* API route, not a page: a plain anchor avoids an RSC prefetch that answers 400. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/api/v1/observatory/state" className="doc-link">
             /api/v1/observatory/state
           </a>

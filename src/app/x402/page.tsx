@@ -300,6 +300,8 @@ export default async function X402PillarPage() {
                 Full state of x402
               </Link>
               ,{" "}
+              {/* API route, not a page: a plain anchor avoids an RSC prefetch that answers 400. */}
+              {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
               <a href="/api/v1/observatory/state" className="doc-link">
                 State API (JSON)
               </a>
@@ -323,6 +325,8 @@ export default async function X402PillarPage() {
         ) : (
           <p className="doc-p">
             Live figures are unavailable right now. The state API is at{" "}
+            {/* API route, not a page: a plain anchor avoids an RSC prefetch that answers 400. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a href="/api/v1/observatory/state" className="doc-link">
               /api/v1/observatory/state
             </a>

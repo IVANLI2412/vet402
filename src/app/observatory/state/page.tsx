@@ -333,6 +333,8 @@ export default async function ObservatoryStatePage() {
           {historyCoverage.lastRollupAt ? ` (${historyCoverage.lastRollupAt})` : ""}. The coverage
           share states its own read time in section 5.           The shared read behind the state aggregate is reused for up to {PUBLIC_READ_REVALIDATE}{" "}
           seconds. The JSON at{" "}
+          {/* API route, not a page: a plain anchor avoids an RSC prefetch that answers 400. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/api/v1/observatory/state" className="doc-link">
             /api/v1/observatory/state
           </a>{" "}

@@ -155,6 +155,8 @@ export default async function ChainGuidePage({ params }: { params: Promise<Param
           <span>Where to read on</span>
         </h2>
         <p className="doc-p">
+          {/* API route, not a page: a plain anchor avoids an RSC prefetch that answers 400. */}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
           <a href="/api/v1/observatory/state" className="doc-link">
             /api/v1/observatory/state
           </a>{" "}

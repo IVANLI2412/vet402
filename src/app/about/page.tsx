@@ -174,6 +174,8 @@ export default async function AboutPage() {
           <h2 className="sec-head">Data and code</h2>
           <p>
             The measurements are open data under CC BY 4.0 and the code is MIT. Read the{" "}
+            {/* API route, not a page: a plain anchor avoids an RSC prefetch that answers 400. */}
+            {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
             <a href="/api/v1/observatory/state" className="doc-link">
               state API
             </a>

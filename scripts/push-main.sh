@@ -164,6 +164,20 @@ else
   fail typecheck "$S" "tsc --noEmit exit $TC, $NERR error(s) — not pushing (same step CI runs first)"
 fi
 
+# ---------------------------------------------------------------- 3d. lint
+# 2026-11-20: CI's "typecheck + unit tests" job runs `npm run lint` right after tsc.
+# da31ea63 passed every local stage and went red on lint in CI (55 errors). Same step here.
+S=$(date +%s)
+echo "lint: npm run lint --quiet ..."
+if npm run lint -- --quiet >"$LOGDIR/lint.log" 2>&1; then
+  echo "ok    lint: eslint clean"
+  record lint 0 "$S"
+else
+  LT=$?
+  grep -E '^\s+[0-9]+:[0-9]+\s+error' "$LOGDIR/lint.log" | head -20 | sed 's/^/  | /'
+  fail lint "$S" "eslint exit $LT — not pushing (same step CI runs after tsc)"
+fi
+
 if [ "$FULL" -eq 1 ]; then
   S=$(date +%s)
   echo "root: npm test (TEST_DATABASE_URL unset) ..."
