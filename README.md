@@ -8,7 +8,7 @@
 
 ## Chains vet402 buys on
 
-vet402 pays x402 sellers on ten chains with its own funds and publishes every attempt. Counts below were read from https://vet402.com/api/v1/observatory/state at 2026-10-23 09:10 UTC (whole ledger). Avalanche C-Chain started on 2026-10-26, after that read, so it has no row here; its count is in `l1.byChain` of the same URL. They grow daily, so read the live page for current numbers.
+vet402 pays x402 sellers on the chains below with its own funds and publishes every attempt. Counts were read from https://vet402.com/api/v1/observatory/state at 2026-10-23 09:10 UTC (whole ledger). At that read vet402 had purchase activity on ten chains. Avalanche C-Chain started on 2026-10-26, after that read, so it has no row here. Robinhood Chain and any chain added later may also be missing from the table. For counts not in the table, read live `l1.byChain` at the same URL.
 
 | Chain | Network id | Asset paid | Paid attempts | Settled | Settled and answered 2xx |
 |---|---|---|---:|---:|---:|
