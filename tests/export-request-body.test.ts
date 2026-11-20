@@ -394,6 +394,10 @@ test("confirmed_units: settled の行だけが spent_units を持ち、他は 0"
   for (const file of ["docs/openapi.yaml", "public/llms.txt", "src/app/observatory/methodology/page.tsx"]) {
     const text = read(file).replace(/\s+/g, " ");
     assert.ok(text.includes("spent_units"), `${file} が spent_units を説明していない`);
-    assert.match(text, /not (an amount|units)? ?shown to have moved|not that we showed none happened/, `${file} が「署名額であって動いた額ではない」を書いていない`);
+    assert.match(
+      text,
+      /not (an amount|units)? ?shown to have moved|not that (we|vet402) showed none happened/,
+      `${file} が「署名額であって動いた額ではない」を書いていない`,
+    );
   }
 });
