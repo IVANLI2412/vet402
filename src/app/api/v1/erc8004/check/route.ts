@@ -1,5 +1,6 @@
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { NextRequest, NextResponse } from "next/server";
+import { rejectUnknownQuery } from "@/lib/api/export-guard";
 import { publicRateLimit } from "@/lib/api/public-route";
 import { ERROR_TEXT } from "@/lib/mcp/text";
 import { ERC8004_CHECK_CACHE_SECONDS, erc8004CheckCacheMaxAgeSeconds, getErc8004CheckCached } from "@/lib/erc8004-check/cache";
@@ -13,6 +14,9 @@ export const maxDuration = 30;
 export async function GET(request: NextRequest) {
   const gate = await publicRateLimit(request, "erc8004-check", RL_LIMIT, RL_WINDOW_MS);
   if (!gate.ok) return gate.response;
+
+  const badQuery = rejectUnknownQuery(request.nextUrl.searchParams, ["chain", "agentId", "client", "feedbackIndex"], gate.headers);
+  if (badQuery) return badQuery;
 
   const chain = request.nextUrl.searchParams.get("chain");
   const agentId = request.nextUrl.searchParams.get("agentId");
@@ -60,7 +64,6 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(result, {
     status: 200,
     headers: {
-      ...gate.headers,
       ...gate.cacheHeaders,
       "Cache-Control": `public, max-age=60, s-maxage=${sMaxAge}, stale-while-revalidate=300`,
     },
