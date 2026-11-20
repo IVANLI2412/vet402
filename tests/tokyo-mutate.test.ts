@@ -93,7 +93,15 @@ function envGraph(entries: string[]): Graph {
 
 // NODE_TEST_CONTEXT と TEST_DATABASE_URL は @/lib/db/client の「試験の中から本番の DB に届かせない」関門が読む（2026-11-11）。
 // どちらも秘密ではなく、本番の Vercel では空。
-const ALLOWED_ENV = ["DATABASE_URL", "NODE_TEST_CONTEXT", "TEST_DATABASE_URL", "TOKYO_JUDGE_BUTTON_DISABLED", "TOKYO_OPERATOR_PRIVATE_KEY", "TOKYO_SEPOLIA_RPC_URL"];
+const ALLOWED_ENV = [
+  "API_KEY_PEPPER",
+  "DATABASE_URL",
+  "NODE_TEST_CONTEXT",
+  "TEST_DATABASE_URL",
+  "TOKYO_JUDGE_BUTTON_DISABLED",
+  "TOKYO_OPERATOR_PRIVATE_KEY",
+  "TOKYO_SEPOLIA_RPC_URL",
+];
 const ALLOWED_LIB = ["@/lib/cron/lease", "@/lib/db/client", "@/lib/util/log"];
 
 function filesUnder(dir: string, pick: (p: string) => boolean): string[] {
@@ -747,7 +755,7 @@ test("ページと verify に鍵も署名器も無い（§3.7.1 の grep と同�
   assert.deepEqual(g.unresolved, []);
   assert.ok(!g.files.some((f) => /_lib\/(deps|env|button|revert|store)\.ts$/.test(f)), g.files.join(", "));
   // NODE_TEST_CONTEXT と TEST_DATABASE_URL は @/lib/db/client の試験用の関門（2026-11-11・秘密ではない）
-  assert.deepEqual([...g.env].sort(), ["DATABASE_URL", "NODE_TEST_CONTEXT", "TEST_DATABASE_URL", "TOKYO_SEPOLIA_RPC_URL"]);
+  assert.deepEqual([...g.env].sort(), ["API_KEY_PEPPER", "DATABASE_URL", "NODE_TEST_CONTEXT", "TEST_DATABASE_URL", "TOKYO_SEPOLIA_RPC_URL"]);
 });
 
 test("/tokyo と /api/tokyo から Intercepta を呼ばない・表示しない（§3.10-4）", () => {
