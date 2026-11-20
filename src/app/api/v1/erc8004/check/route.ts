@@ -1,11 +1,8 @@
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { NextRequest, NextResponse } from "next/server";
 import { publicRateLimit } from "@/lib/api/public-route";
-import {
-  ERC8004_CHECK_CACHE_SECONDS,
-  ERC8004_CHECK_LOG_TIMEOUT_CACHE_SECONDS,
-  getErc8004CheckCached,
-} from "@/lib/erc8004-check/cache";
+import { ERROR_TEXT } from "@/lib/mcp/text";
+import { ERC8004_CHECK_CACHE_SECONDS, erc8004CheckCacheMaxAgeSeconds, getErc8004CheckCached } from "@/lib/erc8004-check/cache";
 
 const RL_LIMIT = 30;
 const RL_WINDOW_MS = 60_000;
@@ -45,8 +42,9 @@ export async function GET(request: NextRequest) {
             result.error === "ambiguous_feedback_index"
           ? 400
           : 400;
+    const message = result.error in ERROR_TEXT ? ERROR_TEXT[result.error as keyof typeof ERROR_TEXT] : undefined;
     return NextResponse.json(
-      { error: result.error },
+      message ? { error: result.error, message } : { error: result.error },
       {
         status,
         headers: {
@@ -57,10 +55,7 @@ export async function GET(request: NextRequest) {
     );
   }
 
-  const sMaxAge =
-    result.verdict === "unreadable" && result.unreadable_reason === "feedback_log_not_found_in_time"
-      ? ERC8004_CHECK_LOG_TIMEOUT_CACHE_SECONDS
-      : ERC8004_CHECK_CACHE_SECONDS;
+  const sMaxAge = erc8004CheckCacheMaxAgeSeconds(result);
 
   return NextResponse.json(result, {
     status: 200,
