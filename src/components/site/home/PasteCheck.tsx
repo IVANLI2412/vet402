@@ -455,7 +455,7 @@ export function PasteCheck({
               if (inputInvalid) setInputInvalid(false);
             }}
           />
-          <button type="submit" className={`${s.btn} ${s.pasteGo}`}>
+          <button type="submit" className={`${s.btn} ${s.pasteGo}`} aria-busy={phase === "loading" ? true : undefined}>
             Check
           </button>
         </div>
@@ -465,7 +465,7 @@ export function PasteCheck({
         <>
           <div className={s.pasteLive} aria-live="polite">
             {phase === "loading" ? (
-              <p className={s.pasteStatus}>Checking</p>
+              <p className="sr-only">Checking</p>
             ) : hint ? (
               <p id={HINT_ID} className={s.pasteHintId}>
                 {hint}

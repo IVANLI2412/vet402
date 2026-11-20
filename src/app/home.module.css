@@ -363,7 +363,7 @@
     width: 100%;
   }
   .pasteInput {
-    font-size: 0.875rem;
+    font-size: 0.8125rem;
   }
 }
 @media (max-width: 640px) {
@@ -387,6 +387,10 @@
   padding: 9px 0;
   border-bottom: 1px solid var(--lp-rule-soft);
   font-size: 0.9375rem;
+}
+.recordRows .pasteVerdict .pasteNextStep {
+  grid-column: 1 / -1;
+  margin-top: 6px;
 }
 .nowrap {
   white-space: nowrap;
@@ -828,7 +832,9 @@
   font-size: 0.875rem;
 }
 .footLegal a {
-  min-height: 36px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
   color: var(--lp-ink-4);
 }
 .footNote {

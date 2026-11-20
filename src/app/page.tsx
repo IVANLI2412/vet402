@@ -1,3 +1,4 @@
+import type { Viewport } from "next";
 import { headers } from "next/headers";
 import Link from "next/link";
 import { Inter } from "next/font/google";
@@ -23,6 +24,13 @@ export const metadata = pageMetadata({
     "vet402 pays x402 sellers with its own money and publishes what came back. Paste a URL to see the record. Settlement assets include USDC.",
   path: "/",
 });
+
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#090909" },
+  ],
+};
 
 /* vet402 front page, DIRECTION CONTRACT (2026-11-08, owner 11/07 23:41 and 23:49)
 
