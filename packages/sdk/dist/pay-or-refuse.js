@@ -55,7 +55,7 @@ import { readSubgraphReceipts, X402_BASE_SUBGRAPH_ID } from "./subgraph-evidence
 // 判定語と「測れたか」の欄の読み方。2つの金の経路で1つの規則を共有する（`./verdict-shape.js`）。
 import { isBlockVerdict, isDecimalUnits, isPlainObject, isUnknownVerdict, scoreQualityDefect } from "./verdict-shape.js";
 import { DEFAULT_MAX_SCORE_AGE_MS } from "./spend-guard.js";
-import { keccak256Bytes } from "./atst-codec.js";
+import { keccak256Bytes } from "./keccak256.js";
 // 支払いチェーンの定数表（Tokyo B3）。import を持たない定数だけのモジュールなので静的 import でよい。
 import { CHAIN_PROFILES, profileFor } from "./chain-profile.js";
 // vet402 の API へ名乗る User-Agent（0.7.1）。import を持たない定数だけのモジュールなので静的 import でよい。
@@ -740,7 +740,7 @@ async function decideAndPay(input, facts) {
     // --- 3. /decision ---
     let resourceId = input.resourceId;
     let resourceUnlisted = false;
-    if (typeof input.resource === "string" && resourceId === undefined) {
+    if (typeof input.resource === "string") {
         let resolved = null;
         let resolvedOk = false;
         try {
@@ -825,13 +825,19 @@ async function decideAndPay(input, facts) {
             }
             if (response.status === 404 && isPlainObject(body) && body.error === "not_found") {
                 const hostKnown = body.host_known;
-                if (hostKnown === true) {
+                const hostSellers = body.host_sellers;
+                if (hostKnown === true && resourceUnlisted && typeof hostSellers === "number" && hostSellers > 1) {
+                    uncatalogued = true;
+                }
+                else if (hostKnown === true) {
                     return refuse(["resource_unresolved_host_known", "evidence_unavailable"], "decision");
                 }
-                if (hostKnown !== false || !resourceUnlisted) {
+                else if (hostKnown !== false || !resourceUnlisted) {
                     return refuse(["evidence_unavailable"], "decision");
                 }
-                uncatalogued = true;
+                else {
+                    uncatalogued = true;
+                }
             }
             else if (!response.ok) {
                 // G5/G6: 「届かない」は 500-599 だけ。3xx・4xx（404 を含む・例外なし）は届いて悪い答えが返ったので免除しない。

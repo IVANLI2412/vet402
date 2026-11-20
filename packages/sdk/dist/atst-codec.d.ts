@@ -17,8 +17,7 @@ export type EnvelopeDecodeError = {
 };
 export declare function bytesToHex(b: Uint8Array): `0x${string}`;
 export declare function hexToBytes(h: string): Uint8Array;
-/** keccak256 (Ethereum's, i.e. pre-FIPS padding 0x01). */
-export declare function keccak256Bytes(data: Uint8Array): Uint8Array;
+export { keccak256Bytes } from "./keccak256.js";
 /**
  * Canonical payload bytes. The signature covers keccak256 of exactly these bytes (draft line 66).
  * - ensip29-draft: { n, a, k, v, t }
