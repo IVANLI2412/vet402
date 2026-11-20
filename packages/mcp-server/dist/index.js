@@ -8,12 +8,13 @@ import { sanitizeToolError } from "./tool-errors.js";
 import { payIfTrusted } from "./pay-if-trusted.js";
 import { payerConfiguredFor, resolveSvmPayer, UNCONFIGURED_SVM_SIGNER } from "./payer.js";
 import { resolveMaxPerTxUsd, ceilingNotes, MAX_PER_TX_USD_ENV, DEFAULT_MAX_PER_TX_USD } from "./ceiling.js";
+import { chargeSessionSpend, mergePolicyFromEnv, policyFromEnv, sessionCapUsd } from "./policy-env.js";
 import { decideFromScore, decideFromFailure, refusalReasonCodes } from "./decision.js";
 import { resourceDecision, verifiedTermsNote } from "./resource-decision.js";
 import { attestX402Payment, fetchAgentScore, fetchDiagnose, fetchPayeeScore, fetchWalletScore, } from "./vouch-client.js";
 const server = new McpServer({
     name: "vouch-trust",
-    version: "0.3.1",
+    version: "0.3.2",
 });
 /**
  * 2026-08-23 監査: MCP は判定を**型で**返す。
@@ -310,6 +311,7 @@ async function main() {
     server.tool("diagnose_x402_url", [
         "Read one unpaid 402 for a URL before anyone pays it. No key and no wallet.",
         "vet402 fetches the URL once and returns verdict ALLOW, WARN, or BLOCK, the cheapest payable accept, and one fix line per check.",
+        "ALLOW here means the live 402 looks payable, not that your agent should pay without vet402's payer decision.",
         "This tool does not pay and does not sign. A transport failure is an error, not a fourth verdict word.",
         "Pass url (https) and an optional method of GET or POST.",
     ].join("\n"), {
@@ -438,7 +440,15 @@ async function main() {
             const timeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 10_000;
             // 注入する fetch は必ず期限付き。ハングした上流はツール呼び出しを永久に返さず、
             // 返らない呼び出しはモデルが fail-closed に扱えない（vouch-client.ts と同じ規律）。
-            const boundedFetch = (url, init) => fetch(url, { ...init, signal: init?.signal ?? AbortSignal.timeout(timeoutMs) });
+            const apiRoot = (process.env.VOUCH_API_URL ?? "https://vet402.com/api/v1").replace(/\/$/, "");
+            const boundedFetch = (url, init) => {
+                const target = String(url);
+                const isVet402 = target.startsWith(apiRoot) || target.includes("/api/v1/");
+                if (!isVet402) {
+                    return fetch(url, init);
+                }
+                return fetch(url, { ...init, signal: init?.signal ?? AbortSignal.timeout(timeoutMs) });
+            };
             const signer = await resolvePayer();
             // Solana の署名者（base58 の payee 用）。鍵と RPC は env だけから。ツール入力には存在しない。
             const svmPayer = await resolveSvmPayer(process.env.VOUCH_SOLANA_PAYER_SECRET_KEY, process.env.SOLANA_RPC_URL);
@@ -451,6 +461,24 @@ async function main() {
             // 比べられる唯一の上限であり、これまでその値はツール入力（＝モデルの出力）だった。
             // env の天井で切り下げてから渡す。詳しくは ./ceiling.ts。
             const ceiling = resolveMaxPerTxUsd(maxPerTxUsd, process.env[MAX_PER_TX_USD_ENV]);
+            const envPolicy = policyFromEnv(process.env);
+            const effectivePolicy = mergePolicyFromEnv(envPolicy, policy);
+            if (typeof amountUsd === "number" && !chargeSessionSpend(amountUsd, sessionCapUsd(process.env.VOUCH_SESSION_MAX_USD))) {
+                return {
+                    content: [
+                        {
+                            type: "text",
+                            text: JSON.stringify({
+                                decision: "REFUSE",
+                                safe_to_pay: false,
+                                refuse_reasons: ["price_above_ceiling"],
+                                summary: `Session cumulative cap exceeded (env ${sessionCapUsd(process.env.VOUCH_SESSION_MAX_USD)} USD). ` +
+                                    "Waiver and floors are controlled by the server env, not tool input.",
+                            }, null, 2),
+                        },
+                    ],
+                };
+            }
             const result = await payIfTrusted({
                 resourceId,
                 signer: signer ?? UNCONFIGURED_SIGNER,
@@ -458,8 +486,7 @@ async function main() {
                 fetch: boundedFetch,
                 apiUrl: process.env.VOUCH_API_URL,
                 apiKey,
-                // 呼び手の規則はそのまま通す。鍵は env からで、ツール入力には存在しない。
-                policy,
+                policy: effectivePolicy,
                 onUnresolved,
                 graphApiKey: process.env.GRAPH_API_KEY,
                 // payer が無いなら支払い先を**渡さない**。渡さなければ ALLOW でも第5段へ進めない。
