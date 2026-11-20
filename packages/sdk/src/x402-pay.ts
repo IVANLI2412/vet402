@@ -323,13 +323,18 @@ export function parseSettlementResponse(headers: unknown): X402Settlement | null
  */
 /** Same rule as `pay()`: payment retries must target https sellers only. */
 export function assertHttpsSellerResource(resource: string): void {
-  let protocol: string;
+  let url: URL;
   try {
-    protocol = new URL(resource).protocol;
+    url = new URL(resource);
   } catch {
     throw new Error("invalid_url: the seller URL must use https");
   }
-  if (protocol !== "https:") throw new Error("invalid_url: the seller URL must use https");
+  if (url.protocol === "https:") return;
+  // A loopback http seller (a local test server) cannot be reached from another machine,
+  // and redirect: "error" still stops the signed retry from following to any other origin.
+  const loopback = url.hostname === "127.0.0.1" || url.hostname === "localhost" || url.hostname === "[::1]";
+  if (url.protocol === "http:" && loopback) return;
+  throw new Error("invalid_url: the seller URL must use https");
 }
 
 export function settlementConfirmed(settlement: X402Settlement | null, responseStatus: number | null): boolean {
