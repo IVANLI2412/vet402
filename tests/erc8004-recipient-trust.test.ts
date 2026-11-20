@@ -20,6 +20,7 @@ test("self-declared payee in feedback JSON does not pass recipient check", () =>
       to_matches_agent_payTo_or_wallet: recipient,
       amount: "pass",
       token: "pass",
+      block_time: "pass",
       from_matches_client: triFromMatchesClient(CLIENT, CLIENT),
     },
     true,

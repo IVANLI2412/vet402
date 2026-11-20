@@ -113,6 +113,7 @@ const sampleObservatoryStats: ObservatoryStats = {
   activeEndpoints: 80,
   delistedEndpoints: 20,
   publishedFail: 5,
+  publishedFailProbeOlderThan30d: 0,
   withdrawnFail: 0,
   publishedPass: 70,
   publishedPassActive: 65,
