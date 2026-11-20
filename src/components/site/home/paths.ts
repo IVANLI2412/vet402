@@ -10,7 +10,7 @@ export const DEV_INSTALL = "npm install vet402";
 
 export const DEV_CODE = `import { check } from "vet402"
 
-const r = await check("https://api.exa.ai/search")
+const r = await check("https://llm.gedx402.com/v1/chat/code")
 // pay with payOrRefuse from vet402/buyer when r.recommendation is "ALLOW"`;
 
 export const DEV_NOTE = `No key needed up to ${keylessDecisionPerMinute()} requests a minute.`;

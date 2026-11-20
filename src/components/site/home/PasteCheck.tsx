@@ -4,8 +4,10 @@ import Link from "next/link";
 import { useCallback, useRef, useState } from "react";
 import { track } from "@/lib/analytics";
 import { reasonTextOf } from "@/lib/decision/reason-text";
-import { verdictNextStep } from "@/lib/decision/verdict-next-step";
-import { beforePaySnippets } from "@/lib/find/snippets";
+import { NO_RECORD_NEXT, verdictNextStep } from "@/lib/decision/verdict-next-step";
+import { mcpCheckPromptForUrl } from "@/lib/docs/mcp-first-prompts";
+import { beforePaySnippets, BEFORE_PAY_MCP_LINE } from "@/lib/find/snippets";
+import { HOME_PASTE_EXAMPLE_URL } from "@/lib/site/paste-example-url";
 import { isPublicExplorerTxUrl } from "@/lib/observatory/chains";
 
 type CheckBody = {
@@ -119,7 +121,8 @@ function filterAlternativesByPath(alts: FindAlt[], raw: string): FindAlt[] {
 
 const DIAGNOSE_EXTRA_ENCODE = new Set(["!", "'", "(", ")", "*"]);
 
-const EXAMPLE_X402_URL = "https://api.exa.ai/search";
+const EXAMPLE_X402_URL = HOME_PASTE_EXAMPLE_URL;
+const HINT_ID = "lp-paste-hint";
 
 function deliveredRate(alt: FindAlt): number | null {
   if (alt.paid_attempts_30d <= 0) return null;
@@ -259,6 +262,8 @@ export function PasteCheck({
   const [findSettled, setFindSettled] = useState(false);
   const [codeTab, setCodeTab] = useState<"ts" | "curl" | "mcp">("ts");
   const [copied, setCopied] = useState(false);
+  const [mcpCopied, setMcpCopied] = useState(false);
+  const [inputInvalid, setInputInvalid] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
   const [submittedUrl, setSubmittedUrl] = useState("");
 
@@ -271,6 +276,7 @@ export function PasteCheck({
         parsed = new URL(v);
       } catch {
         setPhase("result");
+        setInputInvalid(true);
         setHint(`Paste a full https URL, for example ${EXAMPLE_X402_URL}.`);
         setCheck(null);
         setCheckErr(null);
@@ -281,6 +287,7 @@ export function PasteCheck({
       }
       if (parsed.protocol !== "https:") {
         setPhase("result");
+        setInputInvalid(true);
         setHint(`Paste a full https URL, for example ${EXAMPLE_X402_URL}.`);
         setCheck(null);
         setCheckErr(null);
@@ -290,6 +297,7 @@ export function PasteCheck({
         return;
       }
 
+      setInputInvalid(false);
       track("home_paste_submit", { r: "internal" });
 
       abortRef.current?.abort();
@@ -316,8 +324,12 @@ export function PasteCheck({
           return { err: null, body: (await res.json()) as CheckBody };
         })
         .catch(() => {
-          if (ac.signal.aborted)
-            return { err: "vet402 could not read its records just now. Try again shortly." as const, body: null };
+          if (ac.signal.aborted) {
+            return {
+              err: "The check took more than 10 seconds and was stopped. Try again." as const,
+              body: null,
+            };
+          }
           return { err: "vet402 could not read its records just now. Try again shortly." as const, body: null };
         })
         .then((checkOut) => {
@@ -399,8 +411,22 @@ export function PasteCheck({
 
   const showRecordCard = outcome === "record";
   const showAlternatives =
-    outcome === "record" || (outcome === "same_host" && sameHostAlts.length > 0);
+    (outcome === "record" && verdict !== "ALLOW") ||
+    (outcome === "same_host" && sameHostAlts.length > 0);
   const showBeforePayCode = outcome === "record" && submittedUrl;
+  const mcpPromptLine = submittedUrl ? mcpCheckPromptForUrl(submittedUrl) : "";
+
+  const fillExample = () => {
+    setUrl(EXAMPLE_X402_URL);
+    setInputInvalid(false);
+    setHint(null);
+    setPhase("idle");
+  };
+
+  const retryCheck = () => {
+    setCheckErr(null);
+    setPhase("idle");
+  };
 
   return (
     <div className={s.paste}>
@@ -422,7 +448,12 @@ export function PasteCheck({
             data-clarity-mask="true"
             placeholder={EXAMPLE_X402_URL}
             value={url}
-            onChange={(ev) => setUrl(ev.target.value)}
+            aria-invalid={inputInvalid ? true : undefined}
+            aria-describedby={hint && inputInvalid ? HINT_ID : undefined}
+            onChange={(ev) => {
+              setUrl(ev.target.value);
+              if (inputInvalid) setInputInvalid(false);
+            }}
           />
           <button type="submit" className={`${s.btn} ${s.pasteGo}`}>
             Check
@@ -436,16 +467,23 @@ export function PasteCheck({
             {phase === "loading" ? (
               <p className={s.pasteStatus}>Checking</p>
             ) : hint ? (
-              <p className={s.pasteStatus}>{hint}</p>
+              <p id={HINT_ID} className={s.pasteHintId}>
+                {hint}
+              </p>
             ) : checkErr ? (
-              <p className={s.pasteStatus}>{checkErr}</p>
+              <div className={s.pasteBlock}>
+                <p className={s.pasteStatus}>{checkErr}</p>
+                <button type="button" className={`${s.btn} ${s.pasteRetry}`} onClick={retryCheck}>
+                  Try again
+                </button>
+              </div>
             ) : verdict && check && !check.not_in_catalog ? (
               <p className="sr-only" data-testid="paste-live-verdict">
                 Verdict {verdict}
               </p>
             ) : outcome === "none" ? (
               <p className="sr-only" data-testid="paste-live-verdict">
-                vet402 has not paid this URL yet.
+                No record
               </p>
             ) : outcome === "same_host" && sameHostListings ? (
               <p className="sr-only" data-testid="paste-live-verdict">
@@ -503,10 +541,15 @@ export function PasteCheck({
               </div>
             ) : phase === "result" && outcome === "none" ? (
               <div className={s.pasteBlock} data-testid="paste-none">
-                <p>vet402 has not paid this URL yet. Run a live check:</p>
+                <p className={s.pasteStatus}>vet402 has no purchase record for this URL.</p>
+                <p>{NO_RECORD_NEXT}</p>
                 <pre className={s.pasteCode}>
                   <code>{submittedUrl ? diagnoseCurlLine(submittedUrl) : diagnoseCurlLine(url.trim())}</code>
                 </pre>
+                <p className={s.pasteBlock}>diagnose reads the 402 now. It does not pay.</p>
+                <button type="button" className={s.btn} onClick={fillExample}>
+                  Try the example URL
+                </button>
               </div>
             ) : phase === "result" && showRecordCard && check ? (
               <dl className={s.recordRows}>
@@ -566,8 +609,8 @@ export function PasteCheck({
                       <ul className={s.pasteReasons}>
                         {(check.reason_codes ?? []).slice(0, 4).map((code) => (
                           <li key={code}>
-                            <span className={s.mono}>{code}</span>
-                            {`: ${reasonLine(code, check)}`}
+                            {reasonLine(code, check)}{" "}
+                            <code className={s.mono}>{code}</code>
                           </li>
                         ))}
                       </ul>
@@ -586,6 +629,10 @@ export function PasteCheck({
                   </div>
                 ) : null}
               </dl>
+            ) : null}
+
+            {showRecordCard && check && !check.not_in_catalog ? (
+              <p className={s.pasteMeasurementFoot}>This is a measurement. It is not a guarantee.</p>
             ) : null}
 
             {showAlternatives && (
@@ -647,6 +694,34 @@ export function PasteCheck({
                     <pre>
                       <code>{activeSnippet?.code ?? ""}</code>
                     </pre>
+                    {codeTab === "mcp" && mcpPromptLine ? (
+                      <>
+                        <p className={s.pasteCodeHead}>First question</p>
+                        <pre>
+                          <code>{mcpPromptLine}</code>
+                        </pre>
+                        <button
+                          type="button"
+                          className={s.pasteCopy}
+                          onClick={() => {
+                            const text = mcpPromptLine;
+                            if (!navigator.clipboard?.writeText) return;
+                            void navigator.clipboard.writeText(text).then(
+                              () => {
+                                setMcpCopied(true);
+                                setTimeout(() => setMcpCopied(false), 2000);
+                              },
+                              () => {},
+                            );
+                          }}
+                        >
+                          {mcpCopied ? "Copied" : "Copy prompt"}
+                        </button>
+                        <p className={s.pasteBlock}>
+                          Connect: <code className={s.mono}>{BEFORE_PAY_MCP_LINE}</code>
+                        </p>
+                      </>
+                    ) : null}
                     <button type="button" className={s.pasteCopy} onClick={copyCode}>
                       {copied ? "Copied" : "Copy"}
                     </button>

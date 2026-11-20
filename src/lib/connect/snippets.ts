@@ -10,6 +10,7 @@
 // Public English: no we / our / us, no semicolons, no dashes.
 import { beforePaySnippets } from "@/lib/find/snippets";
 import { MCP_DOCS_CONNECT_CURSOR } from "@/lib/docs/mcp-page-text";
+import { HOME_PASTE_EXAMPLE_URL } from "@/lib/site/paste-example-url";
 
 export const CONNECT_LEAD = "Put vet402 between AI agents. Both sides read the same purchase records.";
 
@@ -41,7 +42,7 @@ export type ConnectChoice = {
 
 import { keylessDecisionPerMinute } from "@/lib/api/keyless-limits";
 
-const SAMPLE_URL = "https://api.exa.ai/search";
+const SAMPLE_URL = HOME_PASTE_EXAMPLE_URL;
 const KEYLESS_DECISION = keylessDecisionPerMinute();
 
 const keylessCheck = beforePaySnippets(SAMPLE_URL);
@@ -172,7 +173,7 @@ export const CONNECT_CHOICES: ConnectChoice[] = [
     label: "I buy",
     summary: "Your agent pays x402 sellers. Read what vet402 saw when it paid the same URL before your agent signs.",
     steps: [
-      `A free API key. Reads of a decision also work without one at ${KEYLESS_DECISION} requests a minute.`,
+      `Paste a URL on the home page or call GET /api/v1/check?url= with no key (${KEYLESS_DECISION} requests a minute).`,
       "Pick your stack below.",
       "Copy the snippet into your agent.",
     ],
