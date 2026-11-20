@@ -763,9 +763,9 @@ export default async function ObservatoryMethodologyPage() {
           budget is reserved.
         </p>
         <p className="doc-p">
-          <strong>Vet402 buys under vet402's own name.</strong> Every request in this pipeline , the
+          <strong>Vet402 buys under vet402&apos;s own name.</strong> Every request in this pipeline (the
           unpaid L0 probe, the unpaid read of the <code>402</code> challenge, and the paid request
-          itself , carries a <code>User-Agent</code> that says who vet402 is and links back to
+          itself) carries a <code>User-Agent</code> that says who vet402 is and links back to
           this page: <code>vet402-observatory-l0/1.0</code>, <code>vet402-observatory-l0-recheck/1.0</code>{" "}
           and <code>vet402-observatory-l1/1.0</code>, each with{" "}
           <code>(+https://vet402.com/observatory/methodology)</code>. There is no rotation, no

@@ -80,7 +80,7 @@ test("L0 / L1 の実装は vet402 を名乗る User-Agent を送る", () => {
 
 test("方法論は名乗って買うことを本文で述べている", () => {
   const prose = read("src/app/observatory/methodology/page.tsx");
-  assert.ok(prose.includes("We buy under our own name"), "名乗りの節が無い");
+  assert.ok(prose.includes("Vet402 buys under vet402&apos;s own name"), "missing buy-under-own-name section");
   assert.ok(
     prose.includes("vet402-observatory-l1/1.0"),
     "名乗っている UA を本文に出していない（読者が実装と突き合わせられない）",
