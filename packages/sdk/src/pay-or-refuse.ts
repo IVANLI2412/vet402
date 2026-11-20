@@ -706,7 +706,7 @@ function eip55AddressValid(payTo: string): boolean {
   const hasUpper = /[A-F]/.test(hex);
   const hasLower = /[a-f]/.test(hex);
   if (!hasUpper || !hasLower) return true;
-  const hash = keccak256Bytes(new TextEncoder().encode(payTo.toLowerCase()));
+  const hash = keccak256Bytes(new TextEncoder().encode(hex.toLowerCase()));
   for (let i = 0; i < 40; i++) {
     const nibble = parseInt(hex[i]!, 16);
     const hashByte = hash[Math.floor(i / 2)]!;
@@ -736,7 +736,16 @@ function matchDeclaredPayTerms(
   profile: ChainProfile,
 ): PayRefuseReason[] | null {
   if (decision === null || decision.recommendation !== "ALLOW") return null;
-  const vtRaw = (decision as { verified_terms?: unknown }).verified_terms;
+  const body = decision as DecisionResult & { verified_terms?: unknown };
+  const hasKey = Object.hasOwn(body, "verified_terms");
+  const vtRaw = body.verified_terms;
+  if (!hasKey) {
+    const payees = payeesFromFacts(decision);
+    if (payees.length > 0 && !payees.some((p) => sameAddress(p, accept.payTo))) {
+      return ["payee_mismatch"];
+    }
+    return null;
+  }
   if (vtRaw !== null && vtRaw !== undefined && isPlainObject(vtRaw)) {
     const payTo = typeof vtRaw.pay_to === "string" ? vtRaw.pay_to : null;
     const amount = typeof vtRaw.amount === "string" ? vtRaw.amount : null;
