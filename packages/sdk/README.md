@@ -383,7 +383,7 @@ from 0.6.0.
 ## Errors
 
 A non-2xx answer throws a `VouchApiError` carrying the API's machine-readable
-code and the HTTP status, so you can tell *your key is wrong* from *we are
+code and the HTTP status, so you can tell *your key is wrong* from *the service is
 having a bad day* without parsing strings:
 
 ```typescript
@@ -445,7 +445,7 @@ Privy, ...).
 > | The score came from a degraded read | `payee_score_degraded` |
 > | Partial measurement (`signalsUnavailable` non-empty) | `payee_partial_measurement` |
 > | The lookup was refused for your key (401/403) | `payee_trust_unauthenticated` |
-> | The lookup failed on our side (5xx, timeout, rate limit) | `payee_trust_unavailable` |
+> | The lookup failed on the service side (5xx, timeout, rate limit) | `payee_trust_unavailable` |
 >
 > Opt-outs: `trustPolicy: "block-only"` (WARN passes; BLOCK, degraded and
 > failed lookups still deny) or `trustPolicy: "custom"` (pre-0.2.0 behaviour —
