@@ -123,12 +123,23 @@ test("V3 先頭に高い accept: 2件目が正しくても先頭が高額なら 
 });
 
 test("V4 ALLOW なのに verified_terms も payees も無い → refused", async () => {
+  const fetch = stubFetch(null, GOOD, "10000");
+  const stubFetchExplicitNull = async (input, init) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.includes("/decision")) {
+      return new Response(
+        JSON.stringify({ ...decisionBody(null), verified_terms: null }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      );
+    }
+    return fetch(input, init);
+  };
   const r = await payOrRefuse({
     payee: GOOD,
     resource: RESOURCE,
     amountUsd: 0.01,
     account,
-    fetch: stubFetch(null, GOOD, "10000"),
+    fetch: stubFetchExplicitNull,
   });
   assert.equal(r.status, "refused");
   assert.ok(r.decision.reason_codes.includes("evidence_unavailable"));
