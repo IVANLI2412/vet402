@@ -16,6 +16,7 @@ import { ExpectedFailure, NotX402Error, PolicyError } from "../src/probe.ts";
 import { failureLines } from "../src/run.ts";
 import { createEmitter } from "../src/emit.ts";
 import { DEFAULT_MAX_PER_TX_USD } from "../../../packages/sdk/dist/index.js";
+import { handleResolveUrl, UNCATALOGUED_404_BODY } from "./_fetch-resolve.mjs";
 
 const DEMO_DIR = dirname(dirname(fileURLToPath(import.meta.url)));
 const SDK_SRC = join(DEMO_DIR, "../../packages/sdk/src/pay-or-refuse.ts");
@@ -87,8 +88,10 @@ function world(opts = {}) {
       text: async () => JSON.stringify(body),
       headers: new Map(Object.entries(headers)),
     });
+    const resolved = handleResolveUrl(u, opts);
+    if (resolved) return reply(resolved.status, resolved.body);
     if (u.includes("/decision")) {
-      const d = opts.decision ?? { status: 404, body: { error: "not_found" } };
+      const d = opts.decision ?? { status: 404, body: UNCATALOGUED_404_BODY };
       return reply(d.status, d.body);
     }
     if (u.includes("gateway.thegraph.com") && !u.includes("/api/x402/")) {

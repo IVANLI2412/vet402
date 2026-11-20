@@ -24,6 +24,12 @@ import { instrument, probeChallenge } from "../src/probe.ts";
 import { renderPayDryRun } from "../src/render.ts";
 import { createEmitter } from "../src/emit.ts";
 import { payOrRefuse } from "../../../packages/sdk/dist/index.js";
+import {
+  defaultVerifiedTerms,
+  decisionFreshness,
+  handleResolveUrl,
+  UNCATALOGUED_404_BODY,
+} from "./_fetch-resolve.mjs";
 
 const PAYER = "0xDB62BD202914609830fA656F87996b91be3Aa673";
 const PAYEE = PAY_TARGET.payee;
@@ -97,7 +103,9 @@ function makeFetch(world = {}) {
   const fetch = async (url, init) => {
     const u = String(url);
     calls.push(`${init?.method ?? "GET"} ${u}`);
-    if (u.includes("/decision")) return shaped(world.decision, reply(404, { error: "not_found" }));
+    const resolved = handleResolveUrl(u, world);
+    if (resolved) return reply(resolved.status, resolved.body);
+    if (u.includes("/decision")) return shaped(world.decision, reply(404, UNCATALOGUED_404_BODY));
     if (u.includes("gateway.thegraph.com") && !u.includes("/api/x402/")) {
       if (world.subgraph?.throw) throw new Error("boom");
       return reply(world.subgraph?.status ?? 200, world.subgraph?.body ?? SUB_OK);
@@ -233,7 +241,18 @@ async function runC(world, floor) {
 }
 
 const S = (o) => ({ status: 200, body: { payee: PAYEE, degraded: false, signalsUnavailable: [], score: 90, recommendation: "ALLOW", ...o } });
-const D = (o) => ({ status: 200, body: { recommendation: "ALLOW", degraded: false, reason_codes: [], facts: { l1: { n_delivered: 3 } }, ...o } });
+const D = (o) => ({
+  status: 200,
+  body: {
+    recommendation: "ALLOW",
+    degraded: false,
+    reason_codes: [],
+    facts: { l1: { n_delivered: 3 } },
+    ...decisionFreshness(),
+    verified_terms: defaultVerifiedTerms(PAYEE, ACCEPT.amount),
+    ...o,
+  },
+});
 const acc = (o) => [{ ...ACCEPT, ...o }];
 const SUB = (data) => ({ status: 200, body: data });
 const META = { block: { number: 50890586, timestamp: 1788570519 }, deployment: "QmX" };

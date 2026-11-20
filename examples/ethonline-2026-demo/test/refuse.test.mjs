@@ -8,6 +8,7 @@ import assert from "node:assert/strict";
 import { runRefuse, REFUSE_TARGET } from "../src/refuse.ts";
 import { createEmitter } from "../src/emit.ts";
 import { collectSecrets } from "../src/redact.ts";
+import { decisionFreshness, resolveStub } from "./_fetch-resolve.mjs";
 
 const GRAPH_KEY = "gk-0123456789abcdef0123456789abcdef";
 const VOUCH_KEY = "vk-fedcba9876543210fedcba9876543210";
@@ -28,7 +29,7 @@ const DECISION_BODY = {
   freshness: { l0: "2026-09-04 17:40:13.970619+00", l1: null, l2: null },
   evidence: [{ level: "L0", url: "https://vet402.com/observatory/e/5f824113" }],
   degraded: false,
-  scoredAt: "2026-09-05T01:06:13.414Z",
+  ...decisionFreshness(),
 };
 
 const SUBGRAPH_BODY = {
@@ -60,6 +61,10 @@ function stubFetch() {
       text: async () => JSON.stringify(body),
       headers: new Map(),
     });
+  if (u.includes("/resolve?q=")) {
+      const stub = resolveStub();
+      return reply(200, stub.body);
+    }
     if (u.includes("/decision")) return reply(200, DECISION_BODY);
     if (u.includes("gateway.thegraph.com")) return reply(200, SUBGRAPH_BODY);
     throw new Error(`unexpected call in refuse path: ${u}`);

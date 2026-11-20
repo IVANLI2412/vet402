@@ -9,6 +9,7 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { runPay, PAY_TARGET, SDK_AUTHORIZATION_WINDOW_SECONDS } from "../src/pay.ts";
 import { createEmitter } from "../src/emit.ts";
+import { handleResolveUrl, UNCATALOGUED_404_BODY } from "./_fetch-resolve.mjs";
 
 const PAYER = "0xDB62BD202914609830fA656F87996b91be3Aa673";
 
@@ -64,7 +65,9 @@ function allowingFetch(opts = {}) {
       text: async () => JSON.stringify(body),
       headers: new Map(Object.entries(headers)),
     });
-    if (u.includes("/decision")) return reply(404, { error: "not_found" });
+    const resolved = handleResolveUrl(u, opts);
+    if (resolved) return reply(resolved.status, resolved.body);
+    if (u.includes("/decision")) return reply(404, UNCATALOGUED_404_BODY);
     if (u.includes("gateway.thegraph.com") && !u.includes("/api/x402/")) {
       return reply(200, {
         data: {
