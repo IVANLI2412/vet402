@@ -32,6 +32,9 @@ export type CheckFound = {
     retrievedAt: string;
     /** When vet402 scored it. */
     scoredAt: string;
+    /** Copied from the payer decision when vet402 marks a degraded or partial read. */
+    degraded?: boolean;
+    signalsUnavailable?: string[];
 };
 export type CheckUnknown = {
     recommendation: "UNKNOWN";

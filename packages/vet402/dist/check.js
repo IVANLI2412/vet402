@@ -5,6 +5,19 @@
 //   GET /api/v1/resources/{resourceId}/decision?role=payer (key-less at 60/min per IP)
 // No payment code here.
 import { createVouchClient, DEFAULT_API_URL, VouchApiError } from "@vet402/sdk";
+/** Same predicate as `@vet402/sdk` `scoreQualityDefect`. Keep in sync with packages/sdk/src/verdict-shape.ts. */
+function scoreQualityDefect(score) {
+    if (score === null || typeof score !== "object")
+        return "degraded";
+    if (typeof score.degraded !== "boolean" || score.degraded === true)
+        return "degraded";
+    const signals = score.signalsUnavailable;
+    if (signals === undefined)
+        return null;
+    if (!Array.isArray(signals))
+        return "unreadable";
+    return signals.length > 0 ? "partial" : null;
+}
 export { DEFAULT_API_URL };
 /** Public page of one record. Same form as the hosted MCP server's record_url. */
 export const RECORD_URL_BASE = "https://vet402.com/observatory/e/";
@@ -35,7 +48,16 @@ export async function check(url, opts = {}) {
     });
     if (decision === null)
         return { recommendation: "UNKNOWN", reason: "not_found" };
-    const terms = decision.verified_terms ?? null;
+    const body = decision;
+    const terms = body.verified_terms ?? null;
+    const degradedFlag = body.degraded === true;
+    const signals = body.signalsUnavailable;
+    const signalsUnavailable = Array.isArray(signals) ? [...signals] : undefined;
+    const defect = scoreQualityDefect({ degraded: body.degraded, signalsUnavailable: signals });
+    if (decision.recommendation === "ALLOW" && defect !== null) {
+        const reason = defect === "partial" || defect === "unreadable" ? "partial" : "degraded";
+        return { recommendation: "UNKNOWN", reason };
+    }
     return {
         recommendation: decision.recommendation,
         reasonCodes: [...(decision.reason_codes ?? [])],
@@ -44,6 +66,7 @@ export async function check(url, opts = {}) {
         evidenceUrl: `${RECORD_URL_BASE}${resource.observatory_id}`,
         retrievedAt: new Date().toISOString(),
         scoredAt: decision.scoredAt,
+        ...(degradedFlag || signalsUnavailable !== undefined ? { degraded: degradedFlag, signalsUnavailable } : {}),
     };
 }
 // API answers (VouchApiError) pass through as the server's own code. A caller

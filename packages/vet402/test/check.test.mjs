@@ -57,7 +57,7 @@ const TERMS = {
 test("(a) a resolved URL with ALLOW returns the decision, terms and the public record", async () => {
   const f = fakeFetch([
     ["/resolve?q=", () => json(RESOLVED)],
-    [`/resources/${RID}/decision?role=payer`, () => json({ recommendation: "ALLOW", reason_codes: ["l0_pass", "l1_delivered"], verified_terms: TERMS, scoredAt: "2026-11-08T00:00:00.000Z" })],
+    [`/resources/${RID}/decision?role=payer`, () => json({ recommendation: "ALLOW", reason_codes: ["l0_pass", "l1_delivered"], verified_terms: TERMS, degraded: false, signalsUnavailable: [], scoredAt: "2026-11-08T00:00:00.000Z" })],
   ]);
   const before = Date.now();
   const r = await check(URL_, { fetch: f });
@@ -77,7 +77,7 @@ test("(a) a resolved URL with ALLOW returns the decision, terms and the public r
 test("no apiKey sends no Authorization header; apiKey sends Bearer like @vet402/sdk", async () => {
   const routes = [
     ["/resolve?q=", () => json(RESOLVED)],
-    ["/decision", () => json({ recommendation: "WARN", reason_codes: ["l1_stale"], verified_terms: null, scoredAt: "2026-11-08T00:00:00.000Z" })],
+    ["/decision", () => json({ recommendation: "WARN", reason_codes: ["l1_stale"], verified_terms: null, degraded: false, signalsUnavailable: [], scoredAt: "2026-11-08T00:00:00.000Z" })],
   ];
   const a = fakeFetch(routes);
   await check(URL_, { fetch: a });
@@ -170,6 +170,24 @@ test("a non-404 API error from decision is passed through as the server's code",
     assert.equal(err.status, 429);
     return true;
   });
+});
+
+test("ALLOW with degraded quality flags becomes UNKNOWN (same predicate as payOrRefuse)", async () => {
+  const f = fakeFetch([
+    ["/resolve?q=", () => json(RESOLVED)],
+    [`/resources/${RID}/decision?role=payer`, () =>
+      json({
+        recommendation: "ALLOW",
+        reason_codes: ["l0_pass"],
+        degraded: true,
+        signalsUnavailable: ["native_drain"],
+        verified_terms: null,
+        scoredAt: "2026-11-08T00:00:00.000Z",
+      })],
+  ]);
+  const r = await check(URL_, { fetch: f });
+  assert.equal(r.recommendation, "UNKNOWN");
+  assert.equal(r.reason, "degraded");
 });
 
 test("an empty url is a caller error before any request", async () => {

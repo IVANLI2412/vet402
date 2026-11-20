@@ -6,6 +6,18 @@
 // No payment code here.
 import { createVouchClient, DEFAULT_API_URL, VouchApiError, type DecisionRecommendation } from "@vet402/sdk";
 
+/** Same predicate as `@vet402/sdk` `scoreQualityDefect`. Keep in sync with packages/sdk/src/verdict-shape.ts. */
+function scoreQualityDefect(
+  score: { degraded?: unknown; signalsUnavailable?: unknown } | null | undefined,
+): "degraded" | "unreadable" | "partial" | null {
+  if (score === null || typeof score !== "object") return "degraded";
+  if (typeof score.degraded !== "boolean" || score.degraded === true) return "degraded";
+  const signals = score.signalsUnavailable;
+  if (signals === undefined) return null;
+  if (!Array.isArray(signals)) return "unreadable";
+  return signals.length > 0 ? "partial" : null;
+}
+
 export { DEFAULT_API_URL };
 
 /** Public page of one record. Same form as the hosted MCP server's record_url. */
@@ -43,6 +55,9 @@ export type CheckFound = {
   retrievedAt: string;
   /** When vet402 scored it. */
   scoredAt: string;
+  /** Copied from the payer decision when vet402 marks a degraded or partial read. */
+  degraded?: boolean;
+  signalsUnavailable?: string[];
 };
 
 export type CheckUnknown = {
@@ -76,7 +91,16 @@ export async function check(url: string, opts: CheckOptions = {}): Promise<Check
     throw err;
   });
   if (decision === null) return { recommendation: "UNKNOWN", reason: "not_found" };
-  const terms = (decision as { verified_terms?: VerifiedTerms | null }).verified_terms ?? null;
+  const body = decision as { degraded?: unknown; signalsUnavailable?: unknown; verified_terms?: VerifiedTerms | null };
+  const terms = body.verified_terms ?? null;
+  const degradedFlag = body.degraded === true;
+  const signals = body.signalsUnavailable;
+  const signalsUnavailable = Array.isArray(signals) ? [...signals] : undefined;
+  const defect = scoreQualityDefect({ degraded: body.degraded, signalsUnavailable: signals });
+  if (decision.recommendation === "ALLOW" && defect !== null) {
+    const reason = defect === "partial" || defect === "unreadable" ? "partial" : "degraded";
+    return { recommendation: "UNKNOWN", reason };
+  }
   return {
     recommendation: decision.recommendation,
     reasonCodes: [...(decision.reason_codes ?? [])],
@@ -85,6 +109,7 @@ export async function check(url: string, opts: CheckOptions = {}): Promise<Check
     evidenceUrl: `${RECORD_URL_BASE}${resource.observatory_id}`,
     retrievedAt: new Date().toISOString(),
     scoredAt: decision.scoredAt,
+    ...(degradedFlag || signalsUnavailable !== undefined ? { degraded: degradedFlag, signalsUnavailable } : {}),
   };
 }
 
