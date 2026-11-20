@@ -45,7 +45,7 @@ import type { OtherChainAttempt } from "@/lib/sellers/board";
  * 数字は props からだけ出す。文中に件数を書かない。
  */
 
-export const SELLERS_PAGE_SIZE = 50;
+export const SELLERS_PAGE_SIZE = 20;
 export const SELLER_LISTINGS_PAGE_SIZE = 50;
 
 function fmtUtc(iso: string | null): string {

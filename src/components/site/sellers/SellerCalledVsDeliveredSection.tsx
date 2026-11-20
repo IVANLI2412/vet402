@@ -18,28 +18,35 @@ export default async function SellerCalledVsDeliveredSection({ host }: { host: s
   return (
     <section className="mx-auto mt-8 max-w-[70ch]">
       <h2 className="doc-subtitle">Called and delivered</h2>
+      <p className="doc-note mt-2">
+        vet402 purchase results are the primary figures. Bazaar call counts come from Coinbase&apos;s CDP Bazaar and are
+        not checked by vet402.
+      </p>
       <div className="mt-4 grid gap-6 sm:grid-cols-2">
         <div className="border-t border-brand-deep pt-3">
-          <h3 className="doc-caption">Calls in the last 30 days, counted by the CDP Bazaar (Coinbase)</h3>
-          {hasBazaar ? (
-            <p className="mt-2 text-[1.75rem] tabular-nums text-brand-deep">
-              {b.calls30d!.toLocaleString("en-US")}
+          <h3 className="doc-caption">Delivered rate, from purchases vet402 paid for and checked (all chains, last 30 days)</h3>
+          {v.settled > 0 && v.deliveredPct !== null ? (
+            <p className="mt-2 text-[1.75rem] tabular-nums text-brand-deep">{v.deliveredPct}%</p>
+          ) : null}
+          {v.settled > 0 ? (
+            <p className="mt-2 text-[1.0625rem] tabular-nums text-brand-deep">
+              {v.delivered.toLocaleString("en-US")} delivered of {v.settled.toLocaleString("en-US")} settled
             </p>
           ) : null}
-          {lines.bazaar.map((line) => (
+          {lines.vet402.map((line) => (
             <p key={line} className="doc-note mt-2">
               {line}
             </p>
           ))}
         </div>
         <div className="border-t border-brand-deep pt-3">
-          <h3 className="doc-caption">
-            Delivered rate, from purchases vet402 paid for and checked (all chains, last 30 days)
-          </h3>
-          {v.settled > 0 && v.deliveredPct !== null ? (
-            <p className="mt-2 text-[1.75rem] tabular-nums text-brand-deep">{v.deliveredPct}%</p>
+          <h3 className="doc-caption">Calls in the last 30 days, counted by the CDP Bazaar (Coinbase)</h3>
+          {hasBazaar ? (
+            <p className="mt-2 text-[1.0625rem] tabular-nums text-brand">
+              {b.calls30d!.toLocaleString("en-US")}
+            </p>
           ) : null}
-          {lines.vet402.map((line) => (
+          {lines.bazaar.map((line) => (
             <p key={line} className="doc-note mt-2">
               {line}
             </p>
