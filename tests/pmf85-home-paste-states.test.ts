@@ -261,7 +261,7 @@ test("B-1: none state shows diagnose curl", async () => {
   });
   await submit("https://unknown.example/v1/none");
   const text = dom.window.document.body.textContent ?? "";
-  assert.match(text, /vet402 has not paid this URL yet/);
+  assert.match(text, /vet402 has no purchase record for this URL\./);
   assert.match(text, /api\/v1\/diagnose\?url=/);
   unmount();
 });

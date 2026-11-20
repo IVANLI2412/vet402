@@ -54,7 +54,7 @@ test("A-2/G-1: home H1, sub, connect lead, and no safe/safely on key surfaces", 
   assert.match(page, /Know if an x402 seller delivers before your agent pays\./);
   assert.match(
     page,
-    /vet402 pays x402 sellers with its own money and publishes what came back\. Paste a URL to see the record\./,
+    /vet402 pays x402 sellers with its own money and publishes what came back\. Paste a URL to see the record\.[\s\S]*These are measurements, not a guarantee\./,
   );
   assert.match(read("src/lib/connect/snippets.ts"), /Both sides read the same purchase records\./);
   assert.doesNotMatch(read("src/app/signup/layout.tsx"), SAFE_RE);
@@ -90,41 +90,24 @@ test("A-1b: pricing surfaces name the monthly quota score lookups", () => {
   }
 });
 
-test("item 3: not a guarantee sits before PricingSection on home", () => {
-  const page = read("src/app/page.tsx");
-  const disc = page.indexOf("not a guarantee");
-  const price = page.indexOf("<PricingSection");
-  assert.ok(disc >= 0 && price >= 0 && disc < price);
-  assert.match(read("src/components/site/PricingSection.tsx"), /id="pricing"/);
-});
-
-test("C-1: one in-main link to check-a-seller in the hero text column", () => {
+test("item 3: hero lede states not a guarantee without a link in the hero column", () => {
   const page = read("src/app/page.tsx");
   const heroStart = page.indexOf('className={s.heroText}');
-  const heroEnd = page.indexOf('className={s.heroNote}', heroStart);
+  const heroEnd = page.indexOf("</div>", page.indexOf("<PasteCheck", heroStart));
   const hero = page.slice(heroStart, heroEnd);
-  const h1 = hero.indexOf("<h1");
-  const link = hero.indexOf('href="/x402/check-a-seller"', h1);
-  const paste = hero.indexOf("<PasteCheck", h1);
-  assert.ok(link > h1 && link < paste);
-  assert.match(hero, /Check a seller[\s\S]*?<\/Link>\s*\{?"\. vet402/);
+  assert.match(hero, /not a guarantee/);
+  assert.doesNotMatch(hero, /href="\/x402\/check-a-seller"/);
 });
 
-test("C-1b: hero lede renders Check a seller immediately before the period (no space before .)", async () => {
-  const { createElement } = await import("react");
-  const { renderToStaticMarkup } = await import("react-dom/server");
-  const Link = (await import("next/link")).default;
-  const html = renderToStaticMarkup(
-    createElement(
-      "p",
-      null,
-      createElement(Link, { href: "/x402/check-a-seller" }, "Check a seller"),
-      ". vet402 pays x402 sellers with its own money and publishes what came back. Paste an x402 URL to see the record. No key.",
-    ),
-  );
-  assert.match(html, />Check a seller<\/a>\./);
-  assert.doesNotMatch(html, />Check a seller<\/a>\s+\./);
-  assert.match(read("src/app/page.tsx"), /Check a seller[\s\S]*?<\/Link>\s*\{?"\. vet402/);
+test("C-1: hero text column has no marketing link before PasteCheck", () => {
+  const page = read("src/app/page.tsx");
+  const heroStart = page.indexOf('className={s.heroText}');
+  const heroEnd = page.indexOf("</div>", page.indexOf("<PasteCheck", heroStart));
+  const hero = page.slice(heroStart, heroEnd);
+  const h1 = hero.indexOf("<h1");
+  const paste = hero.indexOf("<PasteCheck", h1);
+  assert.ok(paste > h1);
+  assert.doesNotMatch(hero, /<Link href=/);
 });
 
 test("E-1: SiteHeader has five entries, full-width mobile panel, and menu a11y hooks", () => {
@@ -166,13 +149,11 @@ test("E-2: 404 h1 names 404, not Status report", () => {
   assert.doesNotMatch(nf, /Status report/);
 });
 
-test("E-3: home has a single pricing section in page source", () => {
+test("E-3: home links to /pricing instead of embedding PricingSection", () => {
   const page = read("src/app/page.tsx");
-  assert.equal((page.match(/<PricingSection/g) ?? []).length, 1);
+  assert.doesNotMatch(page, /<PricingSection/);
+  assert.match(page, /href="\/pricing"/);
   assert.doesNotMatch(page, /Pro is \$\{BILLING_PLANS\.pro\.monthlyUsd\} a month/);
-  const pricingIdx = page.indexOf("<PricingSection");
-  const before = page.slice(0, pricingIdx);
-  assert.doesNotMatch(before, /\$49|\$199/);
 });
 
 test("E-4: TableScroll omits the hint row when column count is zero", () => {
@@ -225,7 +206,7 @@ test("B-1: PasteCheck same-host and none states in source", () => {
   assert.match(paste, /home_paste_submit/);
   assert.match(paste, /home_result_state/);
   assert.match(paste, /home_snippet_copy/);
-  assert.match(paste, /vet402 has not paid this URL yet\. Run a live check:/);
+  assert.match(paste, /vet402 has no purchase record for this URL\./);
   assert.match(paste, /\/api\/v1\/diagnose\?url=/);
   assert.match(paste, /pathSegments/);
 });

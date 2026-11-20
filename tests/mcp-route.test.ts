@@ -151,15 +151,15 @@ test("#7（入力）② の query は 80 字まで。超えたら入力エラー
   assert.equal((lim.json.result as { isError?: boolean }).isError, true, "limit は 10 まで");
 });
 
-test("#8 GET と DELETE は 405（JSON クライアント）。GET + Accept text/html は短い案内頁", async () => {
+test("#8 GET と DELETE は 405（JSON クライアント）。GET + Accept text/html は /docs/mcp へ 303", async () => {
   const { GET, DELETE } = await route();
   const { NextRequest } = await import("next/server");
   const plain = await GET(new NextRequest("http://localhost/api/mcp"));
   assert.equal(plain.status, 405);
   assert.equal(plain.headers.get("allow"), "POST");
   const html = await GET(new NextRequest("http://localhost/api/mcp", { headers: { Accept: "text/html" } }));
-  assert.equal(html.status, 200);
-  assert.match(await html.text(), /docs\/mcp/);
+  assert.equal(html.status, 303);
+  assert.match(html.headers.get("location") ?? "", /\/docs\/mcp/);
   const res = await DELETE();
   assert.equal(res.status, 405);
   assert.equal(res.headers.get("allow"), "POST");

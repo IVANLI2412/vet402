@@ -76,7 +76,7 @@ test("the first screen stacks text, counts, then the card, and the card meets th
   assert.match(css, /grid-area:\s*facts/);
   assert.match(css, /grid-area:\s*note/);
   const mobile = css.slice(css.indexOf("@media (max-width: 960px)"));
-  assert.match(mobile, /"text"\s*"note"\s*"facts"\s*"card"/);
+  assert.match(mobile, /"text"\s*"card"\s*"facts"/);
   assert.match(mobile, /padding:\s*24px 0 0/);
   assert.match(mobile, /\.actions\s*\{[^}]*margin-top:\s*20px/);
   assert.match(css, /\.record\s*\{[^}]*margin:\s*7px 0 0/s);
@@ -88,7 +88,7 @@ test("the first screen stacks text, counts, then the card, and the card meets th
   const textAt = page.indexOf("s.heroText");
   const factsAt = page.indexOf("s.heroFacts");
   const cardAt = page.indexOf("s.record");
-  assert.ok(textAt < factsAt && factsAt < cardAt, "source order is text, counts, card");
+  assert.ok(textAt < cardAt && cardAt < factsAt, "source order is text, card, counts");
 });
 
 test("a one-call seller row names the sample, and the day phrase does not wrap", () => {
@@ -111,17 +111,17 @@ test("the headline leading is 1.08", () => {
 });
 
 test("the first screen defines the record and does not say 2xx or lookups", () => {
-  assert.match(page, /Paste an x402 URL to see the record/);
+  assert.match(page, /Paste a URL to see the record/);
   assert.match(page, /score lookups a month/);
-  assert.match(page, /href="\/signup"/);
-  assert.match(page, /href="\/x402\/check-a-seller"/);
+  assert.match(page, /href="\/pricing"/);
+  assert.match(page, /href="#lp-paste-url"/);
   assert.equal(cardDeliveredLabel({ held: false, delivered: true, httpStatus: 200 }), "Yes");
   assert.equal(cardDeliveredLabel({ held: false, delivered: false, httpStatus: 500 }), "No");
   assert.equal(cardDeliveredLabel({ held: true, delivered: false, httpStatus: 400 }), "held, inconclusive");
   const card = page.slice(page.indexOf("lp-record"), page.indexOf("lp-entries"));
   assert.match(card, /cardDeliveredLabel\(receipt\)/);
   assert.doesNotMatch(card, /yes, 2xx|lookups a month/);
-  const lede = page.slice(page.indexOf("s.lede"), page.indexOf("s.actions"));
+  const lede = page.slice(page.indexOf("s.lede"), page.indexOf("<PasteCheck"));
   assert.doesNotMatch(lede, /—|–|;|\b(we|our)\b/);
 });
 
@@ -165,7 +165,7 @@ test("the machine-readable description matches the page metadata, and paid price
     /description:\n {4}"vet402 pays x402 sellers with its own money and publishes what came back\. Paste a URL to see the record\. Settlement assets include USDC\.",/,
   );
   assert.doesNotMatch(page, /Pro is \$\{BILLING_PLANS\.pro\.monthlyUsd\} a month/);
-  assert.equal((page.match(/<PricingSection/g) ?? []).length, 1);
+  assert.doesNotMatch(page, /<PricingSection/);
   assert.match(page, /isStripeConfigured\(\)/);
   assert.match(page, /price: "49"/);
   assert.match(page, /price: "199"/);
@@ -174,7 +174,7 @@ test("the machine-readable description matches the page metadata, and paid price
 test("a missing purchase card leaves one text column", () => {
   const hero = css.slice(css.indexOf(".hero {"), css.indexOf(".hero:has(.record)"));
   assert.match(hero, /minmax\(0,\s*40rem\)/);
-  assert.match(hero, /"text"\s*"note"\s*"facts"/);
+  assert.match(hero, /"text"\s*"facts"/);
   assert.match(css, /\.hero:has\(\.record\)\s*\{[^}]*minmax\(0,\s*1fr\) minmax\(0,\s*440px\)/);
 });
 

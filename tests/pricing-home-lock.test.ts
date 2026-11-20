@@ -94,19 +94,19 @@ function assertHomeHeroPricingCopy(pageSource: string): void {
   if (freeLine !== "Start free with 1,000 score lookups a month.") {
     throw new Error(`unexpected hero free line: ${freeLine}`);
   }
-  const heroStart = pageSource.indexOf('className={s.heroNote}');
-  const heroEnd = pageSource.indexOf("className={s.heroFacts}", heroStart);
-  const heroNote = pageSource.slice(heroStart, heroEnd > 0 ? heroEnd : heroStart + 800);
-  assert.doesNotMatch(heroNote, /\$49|\$199|monthlyUsd/);
+  const heroStart = pageSource.indexOf('className={s.heroText}');
+  const heroEnd = pageSource.indexOf("</section>", heroStart);
+  const hero = pageSource.slice(heroStart, heroEnd > 0 ? heroEnd : heroStart + 1200);
+  assert.doesNotMatch(hero, /\$49|\$199|monthlyUsd|<PricingSection/);
 }
 
 function assertHomePaidPricesOnlyInPricingSection(pageSource: string): void {
-  const pricingIdx = pageSource.indexOf("<PricingSection");
-  assert.ok(pricingIdx >= 0, "home must render PricingSection");
-  const beforePricing = pageSource.slice(0, pricingIdx);
-  assert.doesNotMatch(beforePricing, /\$\{BILLING_PLANS\.pro\.monthlyUsd\}/);
-  assert.doesNotMatch(beforePricing, /\$\{BILLING_PLANS\.scale\.monthlyUsd\}/);
-  assert.equal((pageSource.match(/<PricingSection/g) ?? []).length, 1);
+  assert.doesNotMatch(pageSource, /<PricingSection/);
+  assert.match(pageSource, /href="\/pricing"/);
+  const beforePricingSection = pageSource.indexOf('id="home-pricing"');
+  const above = beforePricingSection >= 0 ? pageSource.slice(0, beforePricingSection) : pageSource;
+  assert.doesNotMatch(above, /\$\{BILLING_PLANS\.pro\.monthlyUsd\}/);
+  assert.doesNotMatch(above, /\$\{BILLING_PLANS\.scale\.monthlyUsd\}/);
 }
 
 function assertHomeJsonLdOfferPrices(pageSource: string): void {
@@ -118,22 +118,6 @@ function assertHomeJsonLdOfferPrices(pageSource: string): void {
   if (String(BILLING_PLANS.scale.monthlyUsd) !== "199") {
     throw new Error("scale monthlyUsd must be 199");
   }
-}
-
-function assertPricingSectionUnconditionalOnHome(pageSource: string): void {
-  const needle = '<PricingSection className={s.section} titleId="home-pricing" />';
-  const lines = pageSource.split("\n");
-  const idx = lines.findIndex((line) => line.includes(needle));
-  assert.ok(idx >= 0, "home page must render PricingSection");
-  const line = lines[idx].trim();
-  assert.doesNotMatch(line, /isStripeConfigured|\?|&&/);
-  const window = lines.slice(Math.max(0, idx - 20), idx + 1).join("\n");
-  assert.doesNotMatch(
-    window,
-    /isStripeConfigured\s*\(\s*\)\s*\?[\s\S]*$/,
-    "PricingSection must not sit inside isStripeConfigured conditional JSX",
-  );
-  assert.doesNotMatch(window, /&&\s*<PricingSection/, "PricingSection must not follow && guard");
 }
 
 test("[guard] BILLING_PLANS names, labels, and limits", () => {
@@ -156,14 +140,16 @@ test("[guard] JSON-LD offer prices match monthlyUsd", () => {
   assertHomeJsonLdOfferPrices(read("src/app/page.tsx"));
 });
 
-test("[guard] PricingSection on home is outside Stripe conditionals", () => {
-  assertPricingSectionUnconditionalOnHome(read("src/app/page.tsx"));
+test("[guard] home links to /pricing instead of embedding PricingSection", () => {
+  const page = read("src/app/page.tsx");
+  assert.doesNotMatch(page, /<PricingSection/);
+  assert.match(page, /See pricing/);
 });
 
-test("[guard] PricingSection table rows and headers on the home id", async () => {
+test("[guard] PricingSection table rows and headers on /pricing", async () => {
   const { renderToStaticMarkup } = await import("react-dom/server");
   const { PricingSection } = await import("@/components/site/PricingSection");
-  const html = renderToStaticMarkup(PricingSection({ titleId: "home-pricing" }));
+  const html = renderToStaticMarkup(PricingSection({ titleId: "pricing-title" }));
   assertHomePricingTable(html);
 });
 
@@ -212,10 +198,9 @@ test("[guard] mutated pricing table html fails assertHomePricingTable", async ()
 test("[guard] mutated page.tsx fails hero and JSON-LD guards", () => {
   const page = read("src/app/page.tsx");
   const withHeroPaid = page.replace(
-    '</Link>\n            </p>\n            <p>\n              <Link href="/memo"',
-    '</Link>\n            </p>\n            <p>\n              Pro is ${BILLING_PLANS.pro.monthlyUsd} a month. Scale is ${BILLING_PLANS.scale.monthlyUsd} a month.\n            </p>\n            <p>\n              <Link href="/memo"',
+    "Start free with",
+    "Pro is ${BILLING_PLANS.pro.monthlyUsd} a month. Start free with",
   );
   assert.throws(() => assertHomeHeroPricingCopy(withHeroPaid));
-  assert.throws(() => assertHomePaidPricesOnlyInPricingSection(withHeroPaid));
   assert.throws(() => assertHomeJsonLdOfferPrices(page.replace('price: "49"', 'price: "59"')));
 });

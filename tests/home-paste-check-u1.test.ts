@@ -224,9 +224,9 @@ test("verdict appears while find is still pending", async () => {
       return Promise.resolve(
         new Response(
           JSON.stringify({
-            recommendation: "ALLOW",
+            recommendation: "WARN",
             reason_codes: ["l0_pass"],
-            evidence_age: { last_delivered_at: "2026-11-01T09:30:00.000Z", tier: "fresh", max_recommendation: "ALLOW", waived_by_caller: false, fresh_within_days: 7, stale_after_days: 30, text: "x" },
+            evidence_age: { last_delivered_at: "2026-11-01T09:30:00.000Z", tier: "fresh", max_recommendation: "WARN", waived_by_caller: false, fresh_within_days: 7, stale_after_days: 30, text: "x" },
             delivery: { delivered: 8, paid_attempts: 10, window_days: 30, last_attempt_at: "2026-11-01T09:00:00.000Z" },
             l1_purchases: [
               {
@@ -251,7 +251,7 @@ test("verdict appears while find is still pending", async () => {
   });
   await submit(CHECK_URL);
   const mid = dom.window.document.body.textContent ?? "";
-  assert.match(mid, /ALLOW/);
+  assert.match(mid, /WARN/);
   assert.match(mid, /2026-11-01 09:30 UTC/);
   assert.doesNotMatch(mid, /alt\.example/);
   assert.doesNotMatch(mid, /Alternatives could not be read/);
@@ -286,9 +286,9 @@ test("find timeout yields alternatives read error", async () => {
       return Promise.resolve(
         new Response(
           JSON.stringify({
-            recommendation: "ALLOW",
+            recommendation: "WARN",
             reason_codes: ["l0_pass"],
-            evidence_age: { last_delivered_at: "2026-11-01T09:30:00.000Z", tier: "fresh", max_recommendation: "ALLOW", waived_by_caller: false, fresh_within_days: 7, stale_after_days: 30, text: "x" },
+            evidence_age: { last_delivered_at: "2026-11-01T09:30:00.000Z", tier: "fresh", max_recommendation: "WARN", waived_by_caller: false, fresh_within_days: 7, stale_after_days: 30, text: "x" },
             delivery: { delivered: 8, paid_attempts: 10, window_days: 30 },
             l1_purchases: [
               { attempted_at: "2026-11-01T09:30:00.000Z", tx_hash: TX, explorer_url: EXPLORER, status: "settled" },
@@ -393,11 +393,11 @@ test("rendered reason copy and REASON_TEXT have no semicolons", async () => {
   });
   await submit(CHECK_URL);
   const fixed = [
-    "Paste a full https URL, for example https://api.exa.ai/search.",
+    `Paste a full https URL, for example https://llm.gedx402.com/v1/chat/code.`,
     "That is not an https URL vet402 can look up.",
     "Too many checks from this network. Try again in a minute.",
     "vet402 could not read its records just now. Try again shortly.",
-    "vet402 has not paid this URL yet. Run a live check:",
+    "vet402 has no purchase record for this URL.",
     "Alternatives could not be read just now.",
     "Checking",
   ];

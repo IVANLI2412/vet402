@@ -53,11 +53,11 @@ test("abstract copy is unchanged", () => {
   );
 });
 
-test("DESIGN.md records the 2026-09-02 hero decision instead of the old freeze", () => {
+test("DESIGN.md records paste-first home (2026-11-21) instead of the old freeze", () => {
   const design = read("DESIGN.md");
   assert.ok(!design.includes("“Read the methodology” / “Verify a payee now”) are not to be redesigned"));
-  assert.match(design, /Open the observatory/);
-  assert.match(design, /2026-09-02/);
+  assert.match(design, /paste-and-check only/);
+  assert.match(design, /2026-11-21/);
 });
 
 test("§4 action links render as 44px secondary buttons with their events intact", () => {

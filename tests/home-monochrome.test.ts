@@ -22,15 +22,17 @@ test("every colour in the front page stylesheet is a neutral grey (R = G = B)", 
   assert.doesNotMatch(css, /hsl\(|oklch\(|color-mix\(/);
 });
 
-test("the first screen has two ways in, one for each side", () => {
-  const hero = page.slice(page.indexOf('className={s.hero}'), page.indexOf("lp-record"));
-  const ctas = [...hero.matchAll(/position: "hero_(\w+)"/g)].map((m) => m[1]);
+test("buyer and seller links sit below the fold, not in the hero", () => {
+  const hero = page.slice(page.indexOf('className={s.hero}'), page.indexOf("</section>", page.indexOf("<PasteCheck")));
+  assert.doesNotMatch(hero, /position: "hero_buyer"/);
+  const below = page.slice(page.indexOf('id="lp-use-vet402"'));
+  const ctas = [...below.matchAll(/position: "hero_(\w+)"/g)].map((m) => m[1]);
   assert.deepEqual(ctas, ["buyer", "seller"]);
   assert.equal((page.match(/<h1\b/g) ?? []).length, 1);
 });
 
 test("the counts carry the time of the state read, and the old document stays at /memo", () => {
   assert.match(page, /<time dateTime=\{readAt\}>/);
-  assert.match(page, /href="\/memo"/);
+  assert.match(page, /href: "\/memo"/);
   assert.match(readFileSync("src/app/memo/page.tsx", "utf8"), /path: "\/memo"/);
 });

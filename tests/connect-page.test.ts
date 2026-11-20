@@ -43,7 +43,11 @@ test("three choices: I buy / I sell / Both", () => {
 test("each choice starts in three steps: key, stack, one line", () => {
   for (const c of CONNECT_CHOICES) {
     assert.equal(c.steps.length, 3, c.id);
-    assert.match(c.steps[0], /API key/i, c.id);
+    if (c.id === "buy") {
+      assert.match(c.steps[0], /GET \/api\/v1\/check|Paste a URL/i, c.id);
+    } else {
+      assert.match(c.steps[0], /API key/i, c.id);
+    }
     assert.match(c.steps[1], /stack/i, c.id);
     assert.match(c.steps[2], /copy/i, c.id);
   }

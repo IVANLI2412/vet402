@@ -21,7 +21,7 @@ test("desktop header names the observatory as a primary path", () => {
   const start = header.indexOf("const NAV_ITEMS");
   const itemsBlock = header.slice(start, header.indexOf("];", start) + 2);
   assert.ok(itemsBlock.includes('href: "/observatory"'), "Observatory belongs in the 5-item header");
-  assert.ok(itemsBlock.includes('href: "/x402/check-a-seller"'));
+  assert.ok(itemsBlock.includes('href: "/#lp-paste-url"'));
   assert.ok(!itemsBlock.includes('href: "/accuracy"'), "Accuracy stays off the five-item header");
 });
 

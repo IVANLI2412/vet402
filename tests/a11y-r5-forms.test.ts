@@ -68,7 +68,7 @@ test("SiteHeader: モバイルはボタンと aria-expanded で開き、5 項目
   assert.doesNotMatch(src, /aria-label=\{mobileOpen/);
   assert.doesNotMatch(src, /hidden=\{!mobileOpen\}/);
   assert.match(src, /onKeyDown=\{onEscape\}/);
-  assert.match(src, /href: "\/x402\/check-a-seller"/);
+  assert.match(src, /href: "\/#lp-paste-url"/);
   assert.match(src, /href: "\/observatory"/);
   assert.match(src, /href: "\/docs\/api"/);
   assert.match(src, /ariaCurrent=\{currentNav/);

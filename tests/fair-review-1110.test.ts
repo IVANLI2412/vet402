@@ -553,22 +553,16 @@ test("[guard] 公平-3 3.9-3: 料金の数は BILLING_PLANS と getPlanLimit で
   assert.equal(getPlanLimit("scale"), 500_000);
 });
 
-test("[fix] 公平-3 3.9-3: ホームの料金の表はメモの付録の見出しを持ち込まず、強制していない特典を書かない", async () => {
+test("[fix] 公平-3 3.9-3: ホームは料金表を埋め込まず /pricing へ送り、表本体はメモ付録の体裁のまま", async () => {
   const page = read("src/app/page.tsx");
-  assert.match(page, /<PricingSection className=\{s\.section\} titleId="home-pricing" \/>/);
-  assert.match(page, /^import \{ PricingSection \} from "@\/components\/site\/PricingSection";$/m, "the home page imports the pricing section");
-  const mainOpen = page.indexOf("<main");
-  const mainClose = page.indexOf("</main>");
-  const at = page.indexOf('<PricingSection className={s.section} titleId="home-pricing" />');
-  assert.ok(mainOpen >= 0 && mainOpen < at && at < mainClose, "the pricing section renders inside the home page <main>");
+  assert.doesNotMatch(page, /<PricingSection/);
+  assert.match(page, /href="\/pricing"/);
   const { renderToStaticMarkup } = await import("react-dom/server");
   const { PricingSection } = await import("@/components/site/PricingSection");
-  const home = renderToStaticMarkup(PricingSection({ titleId: "home-pricing" }));
-  assert.doesNotMatch(home, /Access tiers|>A\.</, "メモの付録の見出しがホームに出ている");
-  assert.match(home, /id="home-pricing"/);
-  assert.match(home, /aria-labelledby="home-pricing"/);
-  assert.doesNotMatch(home, /score history|priority support|highest rate limit/);
-  for (const n of ["1,000", "50,000", "500,000", "$49", "$199"]) assert.ok(home.includes(n), `${n} が表に無い`);
+  const tiers = renderToStaticMarkup(PricingSection({ titleId: "pricing-title" }));
+  assert.doesNotMatch(tiers, /Access tiers|>A\./, "メモの付録の見出しが料金表に混ざっていない");
+  assert.doesNotMatch(tiers, /score history|priority support|highest rate limit/);
+  for (const n of ["1,000", "50,000", "500,000", "$49", "$199"]) assert.ok(tiers.includes(n), `${n} が表に無い`);
   const memo = renderToStaticMarkup(PricingSection({ number: "A.", title: "Access tiers" }));
   assert.match(memo, /A\./);
   assert.match(memo, /Access tiers/);

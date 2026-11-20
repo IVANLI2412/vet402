@@ -4,7 +4,8 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 /** オーナー承認なしに main 直下の section を増やしてはいけない上限 */
-const HOME_MAIN_SECTION_MAX = 2;
+/** FIX UX2: hero, entry cards, use vet402, pricing teaser (below the fold). */
+const HOME_MAIN_SECTION_MAX = 4;
 
 /** オーナー承認なしにエントリカードを増やしてはいけない上限 */
 const HOME_ENTRY_CARD_MAX = 3;
