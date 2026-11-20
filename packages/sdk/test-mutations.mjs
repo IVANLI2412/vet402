@@ -213,9 +213,9 @@ const MUTATIONS = [
     what: "/decision 404 を ALLOW 判定に化かす（受取人スコアを引かない）",
     rule: "I23 カタログ外は payTo と受取人スコアで判定する",
     file: PAY,
-    find: "      uncatalogued = true;",
+    find: "      } else {\n        uncatalogued = true;\n      }",
     replace:
-      '      decision = { recommendation: "ALLOW", reason_codes: [], evidence: [] } as unknown as DecisionResult; /* MUTANT */',
+      '      } else {\n        decision = { recommendation: "ALLOW", reason_codes: [], evidence: [] } as unknown as DecisionResult; /* MUTANT */\n      }',
   },
   // ---- 402 の照合（B）----
   {
@@ -471,8 +471,9 @@ const MUTATIONS = [
     what: "vet402 の API 用のヘッダ（User-Agent・Authorization）を売り手への 402 の取得にも付ける",
     rule: "U5 売り手への要求は 0.7.0 の形のまま（名乗らない・鍵を渡さない）",
     file: PAY,
-    find: "    const response = await fetchFn(input.resource, { method });",
-    replace: "    const response = await fetchFn(input.resource, { method, headers }); /* MUTANT */",
+    find: "    const response = await fetchFn(input.resource, { method, redirect: \"error\" });",
+    replace:
+      "    const response = await fetchFn(input.resource, { method, redirect: \"error\", headers }); /* MUTANT */",
   },
 ];
 
