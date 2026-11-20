@@ -601,7 +601,7 @@ test("E18b 署名の後で再送の応答を読めず例外になっても throw
     return { ok: true, status: 200, json: async () => ({}), get headers() { throw new Error("response headers unreadable"); } };
   });
   const r = await payOrRefuse({ ...base, account, fetch: fetchFn, policy: paidPolicy });
-  assert.ok(calls.filter((u) => u.includes("kronos")).length >= 2, "402 の壁 → 署名付き再送が出ている");
+  assert.equal(calls.filter((u) => u.startsWith("https://kronossignals.com/")).length, 2, "402 の壁 → 署名付き再送の2回（/resolve の q= は売り手への呼び出しに数えない）");
   assert.equal(signed.length, 1, "署名器はちょうど1回");
   assert.equal(r.status, "failed");
   assert.equal(r.signed, true);
@@ -630,7 +630,7 @@ test("G-a 支払いは売り手への再送で行う——facilitator へは一�
   const r = await payOrRefuse({ ...base, account: w.account, fetch: f.fetch, policy: paidPolicy });
   assert.equal(r.status, "paid");
   assert.equal(f.calls.filter((u) => /facilitator|x402\.org|\/settle/.test(u)).length, 0, "facilitator へ出ていない");
-  assert.ok(f.calls.filter((u) => u.includes("kronos")).length >= 2, "売り手へ 402 取得と支払い再送が出ている");
+  assert.equal(f.calls.filter((u) => u.startsWith("https://kronossignals.com/")).length, 2, "売り手へ 402 取得＋支払い再送の2回");
 });
 
 test("G-b 再送は PAYMENT-SIGNATURE を付けた、同じ URL・同じ method（v2）", async () => {
