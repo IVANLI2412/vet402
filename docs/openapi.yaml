@@ -1046,6 +1046,12 @@ paths:
         (since 2026-09-29). With `?include=erc8004_agent`, one more column is appended:
         `erc8004_agent` (since 2026-11-17).
 
+        vet402 keeps `auth_nonce` on purchase rows for purchases it signs
+        itself (EIP-3009 / memo binding). That value is internal to the
+        ledger and is not a column in this export. `@vet402/sdk` carries an
+        authorization nonce in the payment it signs; the observatory does not
+        ingest that field from clients—it is not stored or replayed.
+
         - `amount_units` — the price the seller's 402 asked for, in vet402's
           6-decimal ledger units (the asset's base units on most chains; USD1
           on BNB Chain has 18 decimals and USDC on Stellar 7).
