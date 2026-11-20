@@ -64,6 +64,8 @@ export function transferFromSellerReceipt(input: {
   chainIdHex: string;
   receipt: SellerReceipt | null;
   txHash: string;
+  expectedPayTo?: string;
+  expectedAmount?: string;
 }): ChainTransfer | null {
   const expectedChain = chainIdFromCaip2(input.network);
   const observed = hexToBigInt(input.chainIdHex);
@@ -84,8 +86,14 @@ export function transferFromSellerReceipt(input: {
     if (!payTo || amount === null) continue;
     legs.push({ payTo, amount });
   }
-  if (legs.length !== 1) return null;
-  const leg = legs[0]!;
+  let candidates = legs;
+  if (input.expectedPayTo !== undefined && input.expectedAmount !== undefined) {
+    candidates = legs.filter(
+      (leg) => sameEvm(leg.payTo, input.expectedPayTo!) && leg.amount === input.expectedAmount,
+    );
+  }
+  if (candidates.length !== 1) return null;
+  const leg = candidates[0]!;
   const network = observed === BigInt(expectedChain) ? input.network : `eip155:${observed.toString(10)}`;
   return {
     txHash: input.txHash,
@@ -110,6 +118,8 @@ function uint256(data: string | undefined): string | null {
 export function createSellerChainReader(options: {
   network: string;
   asset: string;
+  payTo: string;
+  amount: string;
   rpc: SellerRpc;
 }): (txHash: string) => Promise<ChainTransfer | null> {
   if (chainIdFromCaip2(options.network) === null) {
@@ -123,6 +133,8 @@ export function createSellerChainReader(options: {
   }
   const network = options.network;
   const asset = options.asset;
+  const payTo = options.payTo;
+  const amount = options.amount;
   const rpc = options.rpc;
   return async (txHash: string) => {
     if (!EVM_TX.test(txHash)) return null;
@@ -138,6 +150,8 @@ export function createSellerChainReader(options: {
       chainIdHex,
       receipt: receipt as SellerReceipt | null,
       txHash,
+      expectedPayTo: payTo,
+      expectedAmount: amount,
     });
   };
 }

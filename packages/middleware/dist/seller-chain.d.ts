@@ -18,9 +18,13 @@ export declare function transferFromSellerReceipt(input: {
     chainIdHex: string;
     receipt: SellerReceipt | null;
     txHash: string;
+    expectedPayTo?: string;
+    expectedAmount?: string;
 }): ChainTransfer | null;
 export declare function createSellerChainReader(options: {
     network: string;
     asset: string;
+    payTo: string;
+    amount: string;
     rpc: SellerRpc;
 }): (txHash: string) => Promise<ChainTransfer | null>;

@@ -287,8 +287,28 @@ export function createTrustGate(config) {
                 };
             }
         }
-        if (minScore !== undefined && score !== null && score < minScore) {
-            return { action: "block", recommendation, score, address, reason: "below_min_score", degraded: false };
+        if (minScore !== undefined && (score === null || score < minScore)) {
+            return {
+                action: "block",
+                recommendation,
+                score,
+                address,
+                reason: score === null ? "score_unavailable" : "below_min_score",
+                degraded: false,
+            };
+        }
+        if (policy === "allow-only") {
+            if (recommendation !== "ALLOW") {
+                return {
+                    action: "block",
+                    recommendation,
+                    score,
+                    address,
+                    reason: recommendation === "BLOCK" ? "recommendation_block" : "recommendation_not_allow",
+                    degraded: false,
+                };
+            }
+            return { action: "allow", recommendation, score, address, reason: "ok", degraded: false };
         }
         if (blockOn.includes(recommendation)) {
             return {
@@ -296,8 +316,6 @@ export function createTrustGate(config) {
                 recommendation,
                 score,
                 address,
-                // A blocked WARN is blocked for not being ALLOW, not for being BLOCK —
-                // keep the reason honest so integrators can tell the two apart.
                 reason: recommendation === "BLOCK" ? "recommendation_block" : "recommendation_not_allow",
                 degraded: false,
             };
@@ -305,7 +323,10 @@ export function createTrustGate(config) {
         if (warnOn.includes(recommendation)) {
             return { action: "warn", recommendation, score, address, reason: "recommendation_warn", degraded: false };
         }
-        return { action: "allow", recommendation, score, address, reason: "ok", degraded: false };
+        if (recommendation === "ALLOW") {
+            return { action: "allow", recommendation, score, address, reason: "ok", degraded: false };
+        }
+        return { action: "block", recommendation, score, address, reason: "recommendation_not_allow", degraded: false };
     }
     /**
      * §9.3 売り手モード: 決済確認後、payer を /decision?role=payee で判定する。
@@ -349,6 +370,19 @@ export function createTrustGate(config) {
                 return { action: "block", recommendation, score, address, reason: "partial_measurement", degraded: false };
             }
         }
+        if (policy === "allow-only") {
+            if (recommendation !== "ALLOW") {
+                return {
+                    action: "block",
+                    recommendation,
+                    score,
+                    address,
+                    reason: recommendation === "BLOCK" ? "recommendation_block" : "recommendation_not_allow",
+                    degraded: false,
+                };
+            }
+            return { action: "allow", recommendation, score, address, reason: "ok", degraded: false };
+        }
         if (blockOn.includes(recommendation)) {
             return {
                 action: "block",
@@ -362,7 +396,10 @@ export function createTrustGate(config) {
         if (warnOn.includes(recommendation)) {
             return { action: "warn", recommendation, score, address, reason: "recommendation_warn", degraded: false };
         }
-        return { action: "allow", recommendation, score, address, reason: "ok", degraded: false };
+        if (recommendation === "ALLOW") {
+            return { action: "allow", recommendation, score, address, reason: "ok", degraded: false };
+        }
+        return { action: "block", recommendation, score, address, reason: "recommendation_not_allow", degraded: false };
     }
     function degraded(address, reason) {
         // fail-closed → block; fail-open → allow. Either way the decision is

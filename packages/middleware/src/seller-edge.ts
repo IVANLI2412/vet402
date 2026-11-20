@@ -62,6 +62,8 @@ export type ReplayStore = {
   has(key: string): boolean | Promise<boolean>;
   add(key: string): void | Promise<void>;
   delete(key: string): void | Promise<void>;
+  /** When implemented, atomically reserve a replay key (true if newly reserved). */
+  addIfAbsent?(key: string): boolean | Promise<boolean>;
 };
 
 export type SellerEdgeConfig = {
@@ -152,6 +154,11 @@ function memoryReplay(): ReplayStore {
     has: (key) => seen.has(key),
     add: (key) => {
       seen.add(key);
+    },
+    addIfAbsent: (key) => {
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
     },
     delete: (key) => {
       seen.delete(key);
@@ -299,7 +306,16 @@ export function createSellerEdge(config: SellerEdgeConfig): SellerEdge {
     if (chainNetwork) return bad(refuse(chainNetwork, 402, false));
 
     const replayKey = `${offer.network}\n${normalizeTx(receipt.txHash)}`;
-    if (await replay.has(replayKey)) return bad(refuse("payment_replay", 409, false));
+    let reserved = false;
+    if (typeof replay.addIfAbsent === "function") {
+      reserved = await replay.addIfAbsent(replayKey);
+    } else if (await replay.has(replayKey)) {
+      reserved = false;
+    } else {
+      await replay.add(replayKey);
+      reserved = true;
+    }
+    if (!reserved) return bad(refuse("payment_replay", 409, false));
     if (typeof request.purchaseId !== "string" || !PURCHASE_ID.test(request.purchaseId)) {
       return bad(refuse("missing_purchase_id", 400, false));
     }
@@ -374,7 +390,6 @@ export function createSellerEdge(config: SellerEdgeConfig): SellerEdge {
         samples.push(Math.max(0, clock() - t0));
         return decision.result;
       }
-      await replay.add(decision.replayKey);
       const t1 = clock();
       let produced: SellerEdgeHandlerResult;
       try {

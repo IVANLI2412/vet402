@@ -120,6 +120,8 @@ test("dist seller chain reader withholds a receipt the chain does not have", asy
   const readChain = createSellerChainReader({
     network: "eip155:84532",
     asset: "0x036CbD53842c5426634e7929541eC2318f3dCF7e",
+    payTo: OFFER.payTo,
+    amount: OFFER.amount,
     rpc: async (method) => {
       if (method === "eth_chainId") return "0x14a34";
       if (method === "eth_getTransactionReceipt") return null;

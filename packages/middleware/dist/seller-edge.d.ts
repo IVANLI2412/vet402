@@ -40,6 +40,8 @@ export type ReplayStore = {
     has(key: string): boolean | Promise<boolean>;
     add(key: string): void | Promise<void>;
     delete(key: string): void | Promise<void>;
+    /** When implemented, atomically reserve a replay key (true if newly reserved). */
+    addIfAbsent?(key: string): boolean | Promise<boolean>;
 };
 export type SellerEdgeConfig = {
     offer: SellerOffer;
