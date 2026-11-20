@@ -6,7 +6,6 @@ import TrackView from "@/components/site/TrackView";
 import TrackedLink from "@/components/site/TrackedLink";
 import OutboundAnchor from "@/components/site/OutboundAnchor";
 import { HomeLivenessNote } from "@/components/site/StatusBanner";
-import { PricingSection } from "@/components/site/PricingSection";
 import { BILLING_PLANS, isStripeConfigured } from "@/lib/billing/plans";
 import { SITE_URL } from "@/lib/site-url";
 import { isPublicExplorerTxUrl } from "@/lib/observatory/chains";
@@ -60,7 +59,7 @@ const ENTRY_CARDS = [
   {
     title: "Before you pay",
     sentence: "Check what a seller delivered before an agent signs.",
-    href: "/x402/check-a-seller",
+    href: "/#lp-paste-url",
     event: "entry_before_pay" as const,
     linkLabel: "Check a seller",
   },
@@ -82,22 +81,14 @@ const ENTRY_CARDS = [
 ] as const;
 
 const FOOT_MAIN = [
+  { label: "Methodology", href: "/observatory/methodology" },
+  { label: "State", href: "/observatory/state" },
   { label: "Docs", href: "/docs/api" },
-  { label: "Sellers", href: "/sellers" },
-  { label: "Observatory", href: "/observatory" },
-  { label: "Connect", href: "/connect" },
-  { label: "What is x402", href: "/x402" },
-  { label: "Blog", href: "/blog" },
+  { label: "The memo", href: "/memo" },
   { label: "GitHub", href: "https://github.com/kzmttkc/vet402" },
-  { label: "X", href: "https://x.com/vet402_com" },
 ] as const;
 
-const FOOT_LEGAL = [
-  { label: "Terms", href: "/legal/terms" },
-  { label: "Privacy", href: "/legal/privacy" },
-  { label: "Legal notice", href: "/legal/notice" },
-  { label: "The memo", href: "/memo" },
-] as const;
+const FOOT_LEGAL = [{ label: "Privacy", href: "/legal/privacy" }] as const;
 
 export default async function Home() {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
@@ -210,14 +201,11 @@ export default async function Home() {
             <span>402</span>
           </Link>
           <nav aria-label="Main navigation" className={s.nav}>
-            <TrackedLink href="/connect" event="nav_click" props={{ label: "Connect", position: "lp_bar" }}>
-              Connect
+            <TrackedLink href="#lp-paste-url" event="nav_click" props={{ label: "Check", position: "lp_bar" }}>
+              Check
             </TrackedLink>
-            <TrackedLink href="/docs/mcp" event="nav_click" props={{ label: "Docs", position: "lp_bar" }}>
-              MCP
-            </TrackedLink>
-            <TrackedLink href="/observatory" event="nav_click" props={{ label: "Observatory", position: "lp_bar" }}>
-              Observatory
+            <TrackedLink href="/observatory" event="nav_click" props={{ label: "Records", position: "lp_bar" }}>
+              Records
             </TrackedLink>
           </nav>
         </div>
@@ -230,53 +218,78 @@ export default async function Home() {
               Know if an x402 seller delivers before your agent pays.
             </h1>
             <p className={s.lede}>
-              <Link href="/x402/check-a-seller" className={s.inlineLink}>
-                Check a seller
-              </Link>
-              {". vet402 pays x402 sellers with its own money and publishes what came back. Paste an x402 URL to see the record. No key."}
+              vet402 pays x402 sellers with its own money and publishes what came back. Paste a URL to see the record.
+              These are measurements, not a guarantee.
             </p>
             <PasteCheck cls={s} />
-            <div className={`${s.actions} ${s.actionsSecondary}`}>
-              <TrackedLink
-                href="/connect"
-                event="lp_cta_click"
-                props={{ position: "hero_buyer" }}
-                className={s.actionLink}
-              >
-                Connect MCP or SDK
-              </TrackedLink>
-              <TrackedLink
-                href="/docs/api#packages"
-                event="lp_cta_click"
-                props={{ position: "hero_seller" }}
-                className={s.actionLink}
-              >
-                Add to an API you sell
-              </TrackedLink>
-            </div>
           </div>
 
-          <div className={s.heroNote}>
-            <p>
-              <Link href="/signup">
-                Start free with {BILLING_PLANS.free.monthlyLimit.toLocaleString("en-US")} score lookups a month.
-              </Link>
-            </p>
-            <p>
-              <Link href="/memo" className={s.inlineLink}>
-                The memo
-              </Link>
-            </p>
-          </div>
+          {receipt ? (
+            <figure className={`${s.record} ${s.rise2}`} aria-labelledby="lp-record">
+              <figcaption id="lp-record" className={s.recordHead}>
+                <span>
+                  <b>Latest purchase</b> by vet402
+                </span>
+                <time dateTime={receipt.attemptedAt}>{utc(receipt.attemptedAt, false)} UTC</time>
+              </figcaption>
+              <dl className={s.recordRows}>
+                <div>
+                  <dt>Seller</dt>
+                  <dd className={s.mono}>{receipt.url}</dd>
+                </div>
+                <div>
+                  <dt>Paid</dt>
+                  <dd>
+                    {receipt.amount} {receipt.asset} on {receipt.chain}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Transaction</dt>
+                  <dd className={s.mono}>
+                    {isPublicExplorerTxUrl(receipt.txUrl) ? (
+                      <a href={receipt.txUrl} className={s.inlineLink} rel="noopener" target="_blank">
+                        {receipt.txShort}
+                      </a>
+                    ) : (
+                      receipt.txShort
+                    )}
+                  </dd>
+                </div>
+                <div>
+                  <dt>Delivered</dt>
+                  <dd>
+                    <b>{cardDeliveredLabel(receipt)}</b>
+                    {receipt.httpStatus !== null ? <span className={s.mono}> · HTTP {receipt.httpStatus}</span> : null}
+                  </dd>
+                </div>
+                {sellerLine ? (
+                  <div>
+                    <dt>This seller</dt>
+                    <dd>
+                      {sellerLine.lead}
+                      <span className={s.nowrap}>{sellerLine.days}</span>
+                      {sellerLine.tail}
+                    </dd>
+                  </div>
+                ) : null}
+              </dl>
+              <p className={s.recordFoot}>
+                A real row from the {}
+                <a href="/api/v1/observatory/export.csv?days=1">public export</a>, not a sample. A seller check needs no
+                key.
+                {days !== null ? (
+                  <>
+                    {" "}
+                    Days running: {fmt(days)} since {FIRST_SETTLED_AT.slice(0, 10)}.
+                  </>
+                ) : null}
+              </p>
+            </figure>
+          ) : null}
 
           {ledger && readAt ? (
             <div className={s.heroFacts}>
-              <dl className={s.facts} aria-label="The public ledger in five counts">
-                <div className={s.fact}>
-                  <dt>Days running</dt>
-                  <dd>{days !== null ? fmt(days) : "n/a"}</dd>
-                  <dd className={s.factSince}>since {FIRST_SETTLED_AT.slice(0, 10)}</dd>
-                </div>
+              <dl className={s.facts} aria-label="The public ledger in four counts">
                 <div className={s.fact}>
                   <dt>Settled purchases</dt>
                   <dd>{fmt(ledger.settled)}</dd>
@@ -321,71 +334,6 @@ export default async function Home() {
               <HomeLivenessNote linkClassName={s.statusLink} />
             </p>
           )}
-
-          {receipt ? (
-            <figure className={`${s.record} ${s.rise2}`} aria-labelledby="lp-record">
-              <figcaption id="lp-record" className={s.recordHead}>
-                <span>
-                  <b>Latest purchase</b> by vet402
-                </span>
-                <time dateTime={receipt.attemptedAt}>{utc(receipt.attemptedAt, false)} UTC</time>
-              </figcaption>
-              <dl className={s.recordRows}>
-                <div>
-                  <dt>Seller</dt>
-                  <dd className={s.mono}>
-                    {receipt.host.split(".").map((part, i) => (
-                      <span key={i}>
-                        {i > 0 ? "." : ""}
-                        {i > 0 ? <wbr /> : null}
-                        {part}
-                      </span>
-                    ))}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Paid</dt>
-                  <dd>
-                    {receipt.amount} {receipt.asset} on {receipt.chain}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Transaction</dt>
-                  <dd className={s.mono}>
-                    {isPublicExplorerTxUrl(receipt.txUrl) ? (
-                      <a href={receipt.txUrl} className={s.inlineLink} rel="noopener" target="_blank">
-                        {receipt.txShort}
-                      </a>
-                    ) : (
-                      receipt.txShort
-                    )}
-                  </dd>
-                </div>
-                <div>
-                  <dt>Delivered</dt>
-                  <dd>
-                    <b>{cardDeliveredLabel(receipt)}</b>
-                    {receipt.httpStatus !== null ? <span className={s.mono}> · HTTP {receipt.httpStatus}</span> : null}
-                  </dd>
-                </div>
-                {sellerLine ? (
-                  <div>
-                    <dt>This seller</dt>
-                    <dd>
-                      {sellerLine.lead}
-                      <span className={s.nowrap}>{sellerLine.days}</span>
-                      {sellerLine.tail}
-                    </dd>
-                  </div>
-                ) : null}
-              </dl>
-              <p className={s.recordFoot}>
-                A real row from the {}
-                <a href="/api/v1/observatory/export.csv?days=1">public export</a>, not a sample. A seller check needs no
-                key.
-              </p>
-            </figure>
-          ) : null}
         </section>
 
         <section aria-labelledby="lp-entries" className={s.section}>
@@ -406,10 +354,44 @@ export default async function Home() {
             ))}
           </ul>
         </section>
-        <p className={`${s.section} ${s.pricingDisclaimer}`}>
-          Records are measurements. They are not a guarantee.
-        </p>
-        <PricingSection className={s.section} titleId="home-pricing" />
+
+        <section className={s.section} aria-labelledby="lp-use-vet402">
+          <h2 id="lp-use-vet402" className={s.h2}>
+            Use vet402
+          </h2>
+          <div className={`${s.actions} ${s.actionsSecondary}`}>
+            <TrackedLink
+              href="/connect"
+              event="lp_cta_click"
+              props={{ position: "hero_buyer" }}
+              className={s.actionLink}
+            >
+              Add this check to a paying agent
+            </TrackedLink>
+            <TrackedLink
+              href="/docs/api#packages"
+              event="lp_cta_click"
+              props={{ position: "hero_seller" }}
+              className={s.actionLink}
+            >
+              Add a record badge to an API you sell
+            </TrackedLink>
+          </div>
+        </section>
+
+        <section className={s.section} aria-labelledby="home-pricing">
+          <h2 id="home-pricing" className={s.h2}>
+            Pricing
+          </h2>
+          <p className={s.pricingLead}>
+            Start free with {BILLING_PLANS.free.monthlyLimit.toLocaleString("en-US")} score lookups a month.{" "}
+            <Link href="/pricing" className={s.inlineLink}>
+              See pricing
+            </Link>
+            .
+          </p>
+          <p className={s.pricingLead}>Seller checks need no key.</p>
+        </section>
       </main>
 
       <footer className={s.wrap}>

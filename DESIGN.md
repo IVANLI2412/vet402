@@ -8,7 +8,7 @@ Neutral greys only (R = G = B). Light and dark follow `prefers-color-scheme`. In
 
 Applies to: `/` only. `SiteChrome` hides the shared header and footer on `/` only. This route draws its own two-link bar and footer. Implementation: `src/app/page.tsx`, `src/app/home.module.css`.
 
-First screen: one `h1`, one lede sentence, at most two buttons (buyer and seller), a purchase card from the latest real export row, four counts from the cached state read plus the read time. Lower sections use Live and Coming labels on shipped vs planned capabilities.
+First screen: one `h1`, one lede sentence (no link), the paste URL field and Check as the only primary action, a purchase card from the latest real export row, four counts (Settled, Delivered, Settled without delivery, Settled inconclusive 4xx) from the cached state read plus `readAt` linking to `/observatory/state`. The local bar has Check (`#lp-paste-url`) and Records (`/observatory`). Buyer and seller entry links and pricing live below the fold.
 
 ### Tokens (`home.module.css`, on `.lp`)
 
@@ -60,7 +60,7 @@ Navy / paper. Martian + Fragment Mono. Running head, sheet, `doc-head`, `doc-tit
 
 Applies to: `/memo` (the RFC memo, formerly `/`), observatory, methodology, FAQ, docs, legal, blog, `/payee`, `/agent`, 404s. Not `/`.
 
-2026-11-08 owner decision: the front page was redesigned as a monochrome page. The memo is kept unchanged at `/memo`. 2026-09-02 owner decision: the product's core moved to endpoint verification, so the primary CTA is “Open the observatory” → `/observatory` (event `lp_cta_click`, position `hero_observatory`). The secondary “Read the methodology” and the Abstract copy stay as approved. Payee lookup lives in §4 (“Verified Payee”), not in the hero. 2026-10-21 owner decision: the memo first screen (title, one-line description, seller search, two buttons, three-row table) stays as it is, and “The public ledger” (counts cover the whole ledger, read at `readAt`) and the “Where purchases settled” chain table sit directly under it, drawn from the cached ledger read (`src/components/site/HomeLedger.tsx`). That table replaced the memo’s former §5 “Chains”.
+2026-11-08 owner decision: the front page was redesigned as a monochrome page. The memo is kept unchanged at `/memo`. 2026-11-21 owner decision: the home first screen is paste-and-check only. `lp_cta_click` on the home page tracks secondary links under “Use vet402”, not the hero. The memo first screen (title, one-line description, seller search, two buttons, three-row table) stays as it is, and “The public ledger” (counts cover the whole ledger, read at `readAt`) and the “Where purchases settled” chain table sit directly under it, drawn from the cached ledger read (`src/components/site/HomeLedger.tsx`). That table replaced the memo’s former §5 “Chains”.
 
 ## Operate (dashboard)
 

@@ -161,7 +161,7 @@
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 40rem);
-  grid-template-areas: "text" "note" "facts";
+  grid-template-areas: "text" "facts";
   column-gap: 72px;
   row-gap: 0;
   align-items: start;
@@ -169,7 +169,7 @@
 }
 .hero:has(.record) {
   grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
-  grid-template-areas: "text card" "note note" "facts facts";
+  grid-template-areas: "text card" "facts facts";
 }
 .heroText {
   grid-area: text;
@@ -320,10 +320,10 @@
     padding: 24px 0 0;
   }
   .hero {
-    grid-template-areas: "text" "note" "facts";
+    grid-template-areas: "text" "facts";
   }
   .hero:has(.record) {
-    grid-template-areas: "text" "note" "facts" "card";
+    grid-template-areas: "text" "card" "facts";
   }
   .actions {
     margin-top: 20px;
@@ -351,6 +351,19 @@
   }
   .pasteForm {
     margin-top: 12px;
+  }
+  .pasteRow {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .pasteRow .pasteGo {
+    border-left: 0;
+    border-top: 1px solid var(--lp-rule);
+    border-radius: 0 0 11px 11px;
+    width: 100%;
+  }
+  .pasteInput {
+    font-size: 0.875rem;
   }
 }
 @media (max-width: 640px) {
@@ -917,27 +930,72 @@
 }
 .pasteVerdictMarkAllow {
   display: inline-block;
-  width: 12px;
-  height: 12px;
+  width: 16px;
+  height: 16px;
   background: currentColor;
 }
 .pasteVerdictMarkWarn {
   display: inline-block;
-  width: 12px;
-  height: 12px;
+  width: 16px;
+  height: 16px;
   border: 2px dashed currentColor;
   box-sizing: border-box;
 }
 .pasteVerdictMarkBlock {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 12px;
-  height: 12px;
+  position: relative;
+  display: inline-block;
+  width: 16px;
+  height: 16px;
   border: 2px solid currentColor;
   box-sizing: border-box;
-  font-size: 0.625rem;
-  line-height: 1;
+}
+.pasteVerdictMarkBlock::before,
+.pasteVerdictMarkBlock::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 10px;
+  height: 2px;
+  background: currentColor;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+.pasteVerdictMarkBlock::after {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+.pasteVerdictMarkBlock span {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+}
+.pasteCode pre,
+.pasteBlock pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.pasteMeasurementFoot {
+  margin: 0;
+  padding: 12px 18px 14px;
+  border-top: 1px solid var(--lp-rule-soft);
+  font-size: 0.8125rem;
+  color: var(--lp-ink-3);
+}
+.pasteHintId {
+  margin: 8px 0 0;
+  font-size: 0.9375rem;
+  color: var(--lp-ink-2);
+}
+.pasteRetry {
+  margin-top: 12px;
+}
+.pricingLead {
+  margin: 0;
+  font-size: 1.0625rem;
+  line-height: 1.65;
+  color: var(--lp-ink-2);
+  max-width: 40em;
 }
 .pasteReasons {
   margin: 0;
