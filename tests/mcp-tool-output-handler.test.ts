@@ -24,19 +24,10 @@ const BASE_DEPS = {
 test("findSellers return value satisfies findSellersOutput", async () => {
   setMcpDepsForTest({
     ...BASE_DEPS,
-    findAlternatives: async () => ({
+    findAlternatives: (async () => ({
       fetchedAt: "2026-11-20T00:00:00.000Z",
-      listings: [
-        {
-          resource_id: "a".repeat(64),
-          url: "https://example.com/v1",
-          host: "example.com",
-          pay_to: "0x" + "11".repeat(20),
-          score: 82,
-          recommendation: "ALLOW",
-        },
-      ],
-    }),
+      listings: [],
+    })) as McpDeps["findAlternatives"],
   });
   const out = await findSellers(BASE_DEPS as never, { query: "weather" });
   assert.notEqual(out, "invalid_query");
