@@ -171,7 +171,7 @@ export default async function ObservatoryPage({
             x402 and MPP payments by chain
           </Link>
           . Check a seller before paying on{" "}
-          <Link href="/x402/check-a-seller" className="doc-link">
+          <Link href="/#lp-paste-url" className="doc-link">
             its own page
           </Link>
           .

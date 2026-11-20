@@ -21,7 +21,7 @@ import TrackedLink from "@/components/site/TrackedLink";
 type NavItem = { label: string; href: string };
 
 const NAV_ITEMS: NavItem[] = [
-  { label: "Check a seller", href: "/x402/check-a-seller" },
+  { label: "Check a seller", href: "/#lp-paste-url" },
   { label: "Observatory", href: "/observatory" },
   { label: "Docs", href: "/docs/api" },
   { label: "Dashboard", href: "/dashboard/login" },

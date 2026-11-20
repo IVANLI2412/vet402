@@ -84,7 +84,7 @@ export default async function FaqPage() {
             how AI agents pay with stablecoins
           </Link>
           ,{" "}
-          <Link href="/x402/check-a-seller" className="doc-link">
+          <Link href="/#lp-paste-url" className="doc-link">
             how to check an x402 seller before paying
           </Link>
           , and{" "}

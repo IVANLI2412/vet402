@@ -109,7 +109,7 @@ export default async function AboutPage() {
               Impact page
             </Link>
             , including the ones that did not deliver. An agent can{" "}
-            <Link href="/x402/check-a-seller" className="doc-link">
+            <Link href="/#lp-paste-url" className="doc-link">
               look up a seller
             </Link>{" "}
             before it pays.

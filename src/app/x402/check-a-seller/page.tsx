@@ -3,6 +3,7 @@ import Link from "next/link";
 import { headers } from "next/headers";
 import { KEYLESS_READ_STOP, keylessDecisionPerMinute } from "@/lib/api/keyless-limits";
 import { CHECK_SELLER, GUIDE_UPDATED } from "@/components/site/x402-answers";
+import { PasteCheckEmbed } from "@/components/site/home/PasteCheckEmbed";
 import { articleJsonLd, breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/util/json-ld";
 
@@ -52,6 +53,8 @@ export default async function CheckSellerPage() {
           </p>
         ))}
         <div className="rule-double mx-auto mt-6 w-full max-w-[34ch]" />
+
+        <PasteCheckEmbed />
 
         <h2 className="sec-head">
           <span className="sec-no">1.</span>
