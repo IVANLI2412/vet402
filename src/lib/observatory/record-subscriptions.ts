@@ -103,8 +103,21 @@ export function validateSubscription(raw: Record<string, unknown>): ValidationRe
   return { ok: true, value: { endpointId: endpointId.toLowerCase(), email, kind, reason } };
 }
 
-export function hashIp(ip: string): string {
+function hashIpKey(): Buffer | null {
+  const material = process.env.API_KEY_PEPPER?.trim();
+  if (!material) return null;
+  return Buffer.from(hkdfSync("sha256", material, "", "vet402/record-subscriptions/ip-hash/v1", 32));
+}
+
+/** 旧実装（sha256 の先頭 32 桁）。保存済みの ip_hash との照合にだけ使う。 */
+export function legacyHashIp(ip: string): string {
   return createHash("sha256").update(ip).digest("hex").slice(0, 32);
+}
+
+export function hashIp(ip: string): string {
+  const key = hashIpKey();
+  if (!key) return legacyHashIp(ip);
+  return createHmac("sha256", key).update(`ip|${ip}`).digest("hex").slice(0, 32);
 }
 
 /** 宛先ごとのレート制限の桶鍵。ip_rate_limits に生のアドレスを置かない。 */

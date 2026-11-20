@@ -20,6 +20,7 @@ import {
   submitSubscription,
   subscriptionsToNotify,
   hashIp,
+  legacyHashIp,
   SUBSCRIBE_RL_LIMIT,
   SUBSCRIBE_RL_WINDOW_MS,
   CONFIRM_MAIL_LIMIT,
@@ -96,6 +97,20 @@ test("hashIp never stores the raw address and is stable", () => {
   assert.notEqual(h, "203.0.113.9");
   assert.match(h, /^[0-9a-f]{32}$/);
   assert.equal(h, hashIp("203.0.113.9"));
+});
+
+test("hashIp uses HMAC when API_KEY_PEPPER is set and differs from legacy sha256", () => {
+  const prev = process.env.API_KEY_PEPPER;
+  process.env.API_KEY_PEPPER = "pepper-for-ip-hash-test-32chars!!";
+  try {
+    const hmac = hashIp("203.0.113.9");
+    const legacy = legacyHashIp("203.0.113.9");
+    assert.notEqual(hmac, legacy);
+    assert.equal(hmac, hashIp("203.0.113.9"));
+  } finally {
+    if (prev === undefined) delete process.env.API_KEY_PEPPER;
+    else process.env.API_KEY_PEPPER = prev;
+  }
 });
 
 test("rate limit is 5 per hour per IP", () => {

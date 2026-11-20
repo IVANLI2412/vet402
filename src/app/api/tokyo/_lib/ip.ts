@@ -4,11 +4,23 @@
 // （締める側に倒れる。ヘッダの無い呼び手が何人いても、合わせて IP 1つぶんしか押せない。
 // 本番の Vercel では必ず付くので、無いのは Vercel の外から来た要求だけ）。
 // 間隔は関門に数えない。本当の関門は1日の上限（全体と IP ごと）と残高の床。
-import { createHash } from "node:crypto";
+import { createHash, createHmac, hkdfSync } from "node:crypto";
+
+function tokyoIpKey(): Buffer | null {
+  const material = process.env.API_KEY_PEPPER?.trim();
+  if (!material) return null;
+  return Buffer.from(hkdfSync("sha256", material, "", "vet402/tokyo/caller-key/v1", 32));
+}
+
+function legacyCallerDigest(raw: string, label: string): string {
+  return createHash("sha256").update(raw).digest("hex").slice(0, 16);
+}
 
 export function callerKey(request: Request): string {
   const raw = request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  return createHash("sha256").update(raw).digest("hex").slice(0, 16);
+  const key = tokyoIpKey();
+  if (!key) return legacyCallerDigest(raw, "caller");
+  return createHmac("sha256", key).update(`caller|${raw}`).digest("hex").slice(0, 16);
 }
 
 /** IPv6 は /64 に丸める（1 回線に /64 が配られ、下位は利用者が回せる）。IPv4 射影は IPv4。 */
@@ -26,5 +38,8 @@ function networkOf(raw: string): string {
 /** 回数の枠（rate-limit.ts）の鍵。callerKey と同じく IP そのものは保存しない。 */
 export function callerNetworkKey(request: Request): string {
   const raw = request.headers.get("x-vercel-forwarded-for")?.split(",")[0]?.trim() || "unknown";
-  return createHash("sha256").update(networkOf(raw)).digest("hex").slice(0, 16);
+  const key = tokyoIpKey();
+  const net = networkOf(raw);
+  if (!key) return legacyCallerDigest(net, "network");
+  return createHmac("sha256", key).update(`network|${net}`).digest("hex").slice(0, 16);
 }
