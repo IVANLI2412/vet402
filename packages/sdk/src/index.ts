@@ -557,6 +557,8 @@ export type DecisionResult = {
    * `recommendation` とは別欄で、判定を書き換えない。
    */
   caller_policy?: CallerPolicy;
+  /** 最後に配達を確かめた購入の payTo・額・network 等。ALLOW でも無いことがある（XRPL 等）。 */
+  verified_terms?: VerifiedTerms | null;
   rules_version: string;
   registry: { status: "anchored" | "pending" | "off"; tx_hash: string | null };
   scoredAt: string;
@@ -599,6 +601,20 @@ export type DecisionQuery = {
    * 免除で、`minL1Deliveries` ≥1 が無ければサーバは 400 `invalid_policy`（判定を外すなら代わりを置け）。
    */
   requireVet402Allow?: boolean;
+};
+
+/** vet402 が最後に配達を確かめた購入で払った条件（role=payer）。無ければ null。 */
+export type VerifiedTerms = {
+  purchase_id?: string;
+  pay_to: string;
+  asset: string;
+  amount: string;
+  decimals?: number;
+  network: string;
+  scheme: string;
+  protocol?: string;
+  verified_at?: string;
+  signer_key?: string;
 };
 
 /** §5 Endpoint / Resource の記録（resolve 系の共通形）。 */

@@ -352,7 +352,7 @@ export function settlementConfirmed(settlement: X402Settlement | null, responseS
  *
  * `onSigned` は**署名の直後**に同期で呼ぶ。ここから先は金が生きているので、
  * 再送で落ちても「何に署名したか」を呼び手が先に確定させられる
- * （本番は同じ位置で購入行に authNonce を UPDATE している）。
+ * （サーバの attest 経路は authNonce を購入行に保存しない。nonce は SDK の結果と購入行の別列で追う）。
  */
 export async function executeX402Payment(args: {
   account: PayerAccount;

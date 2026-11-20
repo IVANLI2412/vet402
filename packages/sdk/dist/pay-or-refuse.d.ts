@@ -100,7 +100,7 @@ export declare const DEFAULT_MAX_PER_TX_USD = 1;
  *    $1 の 402 を上限内だからと払うのは、上限は守っても名乗りを破っている。サーバの
  *    `caller_policy` は 402 を見ないのでこの語を出せない（SDK だけの語・parity テストが固定）
  */
-export declare const PAY_REFUSE_REASONS: readonly ["price_above_ceiling", "price_above_declared", "payee_mismatch", "chain_or_asset_mismatch", "evidence_unavailable", "payee_recommendation_block", "payee_recommendation_not_allow", "insufficient_delivery_evidence", "insufficient_subgraph_evidence", "resource_uncatalogued", "subgraph_evidence_unavailable", "no_eligible_accept", "allowed_by_caller_policy", "insufficient_chain_evidence", "chain_evidence_unavailable", "ens_name_unresolved", "ens_offer_missing", "ens_offer_malformed", "ens_offer_mismatch", "ens_attestation_missing", "ens_attestation_malformed", "ens_attestation_signer_mismatch", "ens_attestation_stale", "ens_attester_unresolved", "ens_attester_unpinned", "ens_attester_anchor_changed", "ens_record_changed_after_attestation", "ens_evidence_unavailable", "insufficient_ens_attestations", "vet402_unreachable"];
+export declare const PAY_REFUSE_REASONS: readonly ["price_above_ceiling", "price_above_declared", "payee_mismatch", "chain_or_asset_mismatch", "evidence_unavailable", "payee_recommendation_block", "payee_recommendation_not_allow", "insufficient_delivery_evidence", "insufficient_subgraph_evidence", "resource_uncatalogued", "resource_unresolved_host_known", "subgraph_evidence_unavailable", "no_eligible_accept", "allowed_by_caller_policy", "insufficient_chain_evidence", "chain_evidence_unavailable", "ens_name_unresolved", "ens_offer_missing", "ens_offer_malformed", "ens_offer_mismatch", "ens_attestation_missing", "ens_attestation_malformed", "ens_attestation_signer_mismatch", "ens_attestation_stale", "ens_attester_unresolved", "ens_attester_unpinned", "ens_attester_anchor_changed", "ens_record_changed_after_attestation", "ens_evidence_unavailable", "insufficient_ens_attestations", "vet402_unreachable"];
 export type PayRefuseReason = (typeof PAY_REFUSE_REASONS)[number];
 /** 証拠源。`payOrRefuse` の判定が「誰の台帳を読んだか」を機械可読で残す。 */
 export type PayEvidenceSource = "vet402" | "subgraph" | "chain" | "ens";
@@ -241,6 +241,11 @@ export type PayPolicy = {
      * に「何を免除し、どの床をいくつで満たしたか」の内訳。**黙って弱くならない。**
      */
     requireVet402Allow?: boolean;
+    /**
+     * 既定 false。true のときだけ `verified_terms` / `facts.payees` と 402 の照合を飛ばす。
+     * 呼び手が明示したときだけ。
+     */
+    skipVerifiedTermsCheck?: boolean;
 };
 /** 満たした床1つ。**要求値と実測値を両方持つ**——「床を見たふり」を機械可読に潰す。 */
 export type EvidenceFloorCheck = {

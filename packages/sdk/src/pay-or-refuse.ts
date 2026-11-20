@@ -56,6 +56,8 @@ import type { Eip3009Authorization, PayerAccount, X402Accept, X402Settlement } f
 import { readSubgraphReceipts, X402_BASE_SUBGRAPH_ID, type SubgraphReceipts } from "./subgraph-evidence.js";
 // 判定語と「測れたか」の欄の読み方。2つの金の経路で1つの規則を共有する（`./verdict-shape.js`）。
 import { isBlockVerdict, isDecimalUnits, isPlainObject, isUnknownVerdict, scoreQualityDefect } from "./verdict-shape.js";
+import { DEFAULT_MAX_SCORE_AGE_MS } from "./spend-guard.js";
+import { keccak256Bytes } from "./atst-codec.js";
 // 支払いチェーンの定数表（Tokyo B3）。import を持たない定数だけのモジュールなので静的 import でよい。
 import { CHAIN_PROFILES, profileFor, type ChainProfile, type ChainProfileName } from "./chain-profile.js";
 // vet402 の API へ名乗る User-Agent（0.7.1）。import を持たない定数だけのモジュールなので静的 import でよい。
@@ -191,6 +193,7 @@ export const PAY_REFUSE_REASONS = [
   "insufficient_delivery_evidence",
   "insufficient_subgraph_evidence",
   "resource_uncatalogued",
+  "resource_unresolved_host_known",
   "subgraph_evidence_unavailable",
   "no_eligible_accept",
   "allowed_by_caller_policy",
@@ -367,6 +370,11 @@ export type PayPolicy = {
    * に「何を免除し、どの床をいくつで満たしたか」の内訳。**黙って弱くならない。**
    */
   requireVet402Allow?: boolean;
+  /**
+   * 既定 false。true のときだけ `verified_terms` / `facts.payees` と 402 の照合を飛ばす。
+   * 呼び手が明示したときだけ。
+   */
+  skipVerifiedTermsCheck?: boolean;
 };
 
 /** 満たした床1つ。**要求値と実測値を両方持つ**——「床を見たふり」を機械可読に潰す。 */
@@ -658,6 +666,95 @@ const USDC_DECIMALS = 6;
 
 function sameAddress(a: unknown, b: unknown): boolean {
   return typeof a === "string" && typeof b === "string" && a.toLowerCase() === b.toLowerCase();
+}
+
+const RESOURCE_ID_RE = /^[0-9a-f]{64}$/;
+
+function assertHttpsApiUrl(apiUrl: string): void {
+  let parsed: URL;
+  try {
+    parsed = new URL(apiUrl);
+  } catch {
+    throw new Error("invalid_api_url: pass a valid vet402 API origin (https://host[/api/v1])");
+  }
+  if (parsed.protocol === "https:") return;
+  const host = parsed.hostname;
+  if (parsed.protocol === "http:" && (host === "localhost" || host === "127.0.0.1" || host === "[::1]")) return;
+  throw new Error("invalid_api_url: vet402 API URL must use https (loopback http is allowed for local tests)");
+}
+
+function isDecisionStale(body: { scoredAt?: unknown; cacheExpiresAt?: unknown }, nowMs: number, maxAgeMs: number): boolean {
+  const hasScoredAt = typeof body.scoredAt === "string";
+  const hasExpiry = typeof body.cacheExpiresAt === "string";
+  if (!hasScoredAt && !hasExpiry) return false;
+  if (hasScoredAt) {
+    const scoredAtMs = Date.parse(body.scoredAt as string);
+    if (Number.isNaN(scoredAtMs)) return true;
+    if (nowMs - scoredAtMs > maxAgeMs) return true;
+  }
+  if (hasExpiry) {
+    const expiresMs = Date.parse(body.cacheExpiresAt as string);
+    if (Number.isNaN(expiresMs)) return true;
+    if (nowMs >= expiresMs) return true;
+  }
+  return false;
+}
+
+function eip55AddressValid(payTo: string): boolean {
+  if (!/^0x[0-9a-fA-F]{40}$/.test(payTo)) return false;
+  const hex = payTo.slice(2);
+  const hasUpper = /[A-F]/.test(hex);
+  const hasLower = /[a-f]/.test(hex);
+  if (!hasUpper || !hasLower) return true;
+  const hash = keccak256Bytes(new TextEncoder().encode(payTo.toLowerCase()));
+  for (let i = 0; i < 40; i++) {
+    const nibble = parseInt(hex[i]!, 16);
+    const hashByte = hash[Math.floor(i / 2)]!;
+    const hashNibble = i % 2 === 0 ? hashByte >> 4 : hashByte & 0x0f;
+    const wantUpper = hashNibble >= 8;
+    const ch = hex[i]!;
+    if (wantUpper && ch !== ch.toUpperCase()) return false;
+    if (!wantUpper && ch !== ch.toLowerCase()) return false;
+  }
+  return true;
+}
+
+function payeesFromFacts(decision: DecisionResult | null): string[] {
+  if (decision === null) return [];
+  const facts = decision.facts as Record<string, unknown>;
+  if (!isPlainObject(facts) || !Array.isArray(facts.payees)) return [];
+  return facts.payees.filter((p): p is string => typeof p === "string");
+}
+
+/**
+ * 判定が ALLOW のとき、vet402 が記録した payTo・額と accept を照合する。
+ * `verified_terms.network` が払うチェーンと違っても payTo と amount は照合する（検証チェーンと支払いチェーンが違う記録がある）。
+ */
+function matchDeclaredPayTerms(
+  decision: DecisionResult | null,
+  accept: X402Accept,
+  profile: ChainProfile,
+): PayRefuseReason[] | null {
+  if (decision === null || decision.recommendation !== "ALLOW") return null;
+  const vtRaw = (decision as { verified_terms?: unknown }).verified_terms;
+  if (vtRaw !== null && vtRaw !== undefined && isPlainObject(vtRaw)) {
+    const payTo = typeof vtRaw.pay_to === "string" ? vtRaw.pay_to : null;
+    const amount = typeof vtRaw.amount === "string" ? vtRaw.amount : null;
+    if (payTo === null || amount === null || !isDecimalUnits(amount)) {
+      return ["evidence_unavailable"];
+    }
+    if (!sameAddress(accept.payTo, payTo)) return ["payee_mismatch"];
+    if (BigInt(accept.amount) > BigInt(amount)) return ["price_above_declared"];
+    if (typeof vtRaw.asset === "string" && !sameAddress(accept.asset, vtRaw.asset)) return ["chain_or_asset_mismatch"];
+    if (typeof vtRaw.scheme === "string" && accept.scheme !== vtRaw.scheme) return ["chain_or_asset_mismatch"];
+    return null;
+  }
+  const payees = payeesFromFacts(decision);
+  if (payees.length > 0) {
+    if (!payees.some((p) => sameAddress(p, accept.payTo))) return ["payee_mismatch"];
+    return null;
+  }
+  return ["evidence_unavailable"];
 }
 
 /**
@@ -1045,6 +1142,7 @@ async function decideAndPay(input: DecideInput, facts: ReceiptFacts): Promise<Pa
 
   const method = (input.method ?? "GET").toUpperCase();
   const apiUrl = (input.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
+  assertHttpsApiUrl(apiUrl);
   const maxPerTxUsd = input.policy?.maxPerTxUsd ?? DEFAULT_MAX_PER_TX_USD;
   const source = input.source ?? "sdk";
   // vet402 の API（/decision・受取人スコア・attest）へ出す要求のヘッダ。0.7.1 から `vet402-sdk/<版>` を名乗る
@@ -1144,7 +1242,36 @@ async function decideAndPay(input: DecideInput, facts: ReceiptFacts): Promise<Pa
   const mayWaiveUnreachable = ensGate !== null && !requireVet402Allow && typeof ensFloor === "number" && ensFloor >= 1;
 
   // --- 3. /decision ---
-  const resourceId = input.resourceId ?? (await computeResourceId(method, input.resource));
+  let resourceId = input.resourceId;
+  let resourceUnlisted = false;
+  if (typeof input.resource === "string" && resourceId === undefined) {
+    let resolved: unknown = null;
+    let resolvedOk = false;
+    try {
+      const r = await fetchFn(
+        `${apiUrl}/resolve?q=${encodeURIComponent(input.resource)}&method=${encodeURIComponent(method)}`,
+        { headers },
+      );
+      try {
+        resolved = await r.json();
+      } catch {
+        resolved = null;
+      }
+      resolvedOk = r.ok === true && resolved !== null && typeof resolved === "object" && !Array.isArray(resolved);
+    } catch {
+      resolvedOk = false;
+    }
+    if (!resolvedOk) {
+      return refuse(["evidence_unavailable"], "decision");
+    }
+    const hit = (resolved as { resource?: { resource_id?: unknown } }).resource;
+    if (hit && typeof hit.resource_id === "string" && RESOURCE_ID_RE.test(hit.resource_id)) {
+      resourceId = hit.resource_id;
+    } else {
+      resourceUnlisted = true;
+    }
+  }
+  resourceId = resourceId ?? (await computeResourceId(method, input.resource));
   // 呼び手の policy をサーバにも当てさせる（§16.3）。402 の金額・上限・L1 の床を名乗ると、
   // サーバは判定と同じ文書に `caller_policy` を SDK と同じ語で足す。subgraph の床は送らない
   // （サーバは呼び手の Graph 鍵を持たないので、送っても `not_evaluated` に載るだけ）。
@@ -1165,7 +1292,8 @@ async function decideAndPay(input: DecideInput, facts: ReceiptFacts): Promise<Pa
   if (requireVet402Allow || (l1FloorSent && (l1Floor as number) >= 1)) {
     decisionQuery.set("require_vet402_allow", String(requireVet402Allow));
   }
-  const decisionUrl = `${apiUrl}/resources/${resourceId}/decision?${decisionQuery.toString()}`;
+  const urlQuery = typeof input.resource === "string" ? `&url=${encodeURIComponent(input.resource)}` : "";
+  const decisionUrl = `${apiUrl}/resources/${resourceId}/decision?${decisionQuery.toString()}${urlQuery}`;
   let decision: DecisionResult | null = null;
   let uncatalogued = false;
   // G5: vet402 に届かなかった（トランスポートの throw・HTTP 5xx）うえで、呼び手の ENS の床が免除した経路の印。
@@ -1196,7 +1324,13 @@ async function decideAndPay(input: DecideInput, facts: ReceiptFacts): Promise<Pa
       body = null;
     }
     if (response.status === 404 && isPlainObject(body) && body.error === "not_found") {
-      // §3.1: カタログ外。`getResource()` は resource_id の単純照会なので未登録は必ずここ。
+      const hostKnown = (body as { host_known?: unknown }).host_known;
+      if (hostKnown === true) {
+        return refuse(["resource_unresolved_host_known", "evidence_unavailable"], "decision");
+      }
+      if (hostKnown !== false || !resourceUnlisted) {
+        return refuse(["evidence_unavailable"], "decision");
+      }
       uncatalogued = true;
     } else if (!response.ok) {
       // G5/G6: 「届かない」は 500-599 だけ。3xx・4xx（404 を含む・例外なし）は届いて悪い答えが返ったので免除しない。
@@ -1211,6 +1345,10 @@ async function decideAndPay(input: DecideInput, facts: ReceiptFacts): Promise<Pa
     }
   } catch {
     // A3: 読めなかったのだから払わない。
+    return refuse(["evidence_unavailable"], "decision");
+  }
+
+  if (decision !== null && isDecisionStale(decision, Date.now(), DEFAULT_MAX_SCORE_AGE_MS)) {
     return refuse(["evidence_unavailable"], "decision");
   }
 
@@ -1391,7 +1529,7 @@ async function decideAndPay(input: DecideInput, facts: ReceiptFacts): Promise<Pa
   // 一次の所見としてこの語を先頭に置く（売り手が順序を変えても理由がすり替わらない）。
   let selectionReasons: PayRefuseReason[] = [];
   try {
-    const response = await fetchFn(input.resource, { method });
+    const response = await fetchFn(input.resource, { method, redirect: "error" });
     const raw = readHeader(response.headers, "payment-required");
     const challenge = raw ? decodeChallenge(raw, rail, profile, authCaptureOn) : null;
     if (challenge) {
@@ -1441,6 +1579,13 @@ async function decideAndPay(input: DecideInput, facts: ReceiptFacts): Promise<Pa
   // 比べる（浮動小数で 1 単位の差を丸めない）。amount は上で 10 進整数と確かめてある。
   if (BigInt(accept.amount) > BigInt(Math.round(input.amountUsd * 10 ** USDC_DECIMALS))) {
     return refuse([...pathReasons, ...selectionReasons, "price_above_declared"], evidenceVerdictSource, decision, null, accept);
+  }
+
+  if (input.policy?.skipVerifiedTermsCheck !== true) {
+    const termsMismatch = matchDeclaredPayTerms(decision, accept, profile);
+    if (termsMismatch !== null) {
+      return refuse([...pathReasons, ...selectionReasons, ...termsMismatch], evidenceVerdictSource, decision, null, accept);
+    }
   }
 
   // --- 3'. カタログ外なら、ここまでで分かった payTo で受取人スコアを引く（I23）---
@@ -1753,6 +1898,7 @@ function evaluateMoneyGate(
   // scheme / network / asset / 転送方式。**選別と同じ述語**で見る——別の述語を書くと、
   // 選ばれたのに関門で落ちる（またはその逆の）食い違いが静かに入り込む。
   if (!isEligibleOnRail(accept, rail, x402Version, profile, authCaptureOn)) return ["chain_or_asset_mismatch"];
+  if (rail === "evm" && !eip55AddressValid(accept.payTo)) return ["chain_or_asset_mismatch"];
   // EIP-712 ドメインはトークンのものであって売り手のものではない（本番 2026-08-22 監査）。
   // 矛盾する accept を**署名の前に**落とす: 誤ったドメインの署名は決済され得ないので、
   // 通せば「一円も動かないまま署名だけが生きている」状態を売り手が無料で作れてしまう。
