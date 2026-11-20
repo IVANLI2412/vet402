@@ -379,7 +379,9 @@ export default async function ObservatoryStatePage() {
                 <td className="num">—</td>
               </tr>
               <tr>
-                <td className="text-brand">Active records (not closed; a Bazaar record stays active after it leaves the catalog)</td>
+                <td className="text-brand">
+                  Active records (not closed. A Bazaar record stays active after it leaves the catalog)
+                </td>
                 <td className="num">{stats.activeEndpoints.toLocaleString()}</td>
                 <td className="num">{pct(stats.activeEndpoints, denom)}</td>
               </tr>
@@ -864,16 +866,16 @@ export default async function ObservatoryStatePage() {
             </thead>
             <tbody>
               <tr>
-                <td className="text-brand">delisted — vanished from a complete fetch</td>
+                <td className="text-brand">delisted (vanished from a complete fetch)</td>
                 <td className="num">{stats.eventCounts.delisted.toLocaleString()}</td>
               </tr>
               <tr>
-                <td className="text-brand">relisted — returned after a delisting</td>
+                <td className="text-brand">relisted (returned after a delisting)</td>
                 <td className="num">{stats.eventCounts.relisted.toLocaleString()}</td>
               </tr>
               <tr>
                 <td className="text-brand">
-                  settle_drop — catalog-reported 30-day calls fell ≥70% from a ≥100 base
+                  settle_drop (catalog-reported 30-day calls fell ≥70% from a ≥100 base)
                 </td>
                 <td className="num">{stats.eventCounts.settleDrop.toLocaleString()}</td>
               </tr>

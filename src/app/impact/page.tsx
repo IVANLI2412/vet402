@@ -332,7 +332,7 @@ export default async function ImpactPage() {
               )}
             </>
           ) : (
-            "The purchase ledger is a daily hash chain; anchoring begins with the first anchored day."
+            "The purchase ledger is a daily hash chain. Anchoring begins with the first anchored day."
           )}{" "}
           <a href="/api/v1/observatory/anchors" className="underline">
             /anchors
