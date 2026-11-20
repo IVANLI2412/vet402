@@ -1212,7 +1212,10 @@ curl "${SITE_URL}/api/v1/resources/baad6a17bfaf57b11c0c1d8cfb0b38d3d01f09736b7d8
       <section id="packages" className="scroll-mt-32 space-y-3">
         <h2 className="sec-head">Packages</h2>
         <p className="text-[0.84375rem] text-brand">
-          Three published packages, all from{" "}
+          The unscoped <code className="text-brand-deep">vet402</code> package on npm bundles{" "}
+          <code className="text-brand-deep">@vet402/sdk</code> and{" "}
+          <code className="text-brand-deep">@vet402/middleware</code> so one install covers buyer and seller entry
+          points (<code>vet402/buyer</code>, <code>vet402/seller</code>). Scoped packages below install separately. Each comes from{" "}
           <a
             href="https://github.com/kzmttkc/vet402"
             target="_blank"
@@ -1221,14 +1224,17 @@ curl "${SITE_URL}/api/v1/resources/baad6a17bfaf57b11c0c1d8cfb0b38d3d01f09736b7d8
           >
             this repository
           </a>
-          . They wrap the same REST API documented below &mdash; nothing here is available to a
-          package that is not available to a plain <code>fetch</code>.
+          . They wrap the same REST API documented below. Nothing here is available to a package that is not available
+          to a plain <code>fetch</code>.
         </p>
         <CodeBlock
-          label="npm: install the vet402 packages"
-          code={`npm i @vet402/sdk          # spend guard for an agent about to pay
+          label="npm: install vet402"
+          code={`npm install vet402
+
+# or install the scoped packages separately:
+npm i @vet402/sdk          # spend guard for an agent about to pay
 npm i @vet402/middleware   # x402 request gate for an API provider
-npm i @vet402/mcp-server   # MCP tool, so an agent can ask before it pays`}
+npm i @vet402/mcp-server   # local MCP tool (hosted entry: https://vet402.com/mcp)`}
         />
         <p className="text-[0.84375rem] text-brand-lift">
           <code className="text-brand-deep">@vet402/*</code> is the canonical scope.{" "}
@@ -1239,8 +1245,7 @@ npm i @vet402/mcp-server   # MCP tool, so an agent can ask before it pays`}
           <code className="text-brand-deep">@vet402/*</code>, so new work should take the
           canonical scope. Unscoped{" "}
           <code>vouch-sdk</code> and <code>@getvouch/sdk</code> exist on npm and are unrelated
-          packages by other publishers &mdash; installing those gets you someone else&apos;s code,
-          not ours.
+          packages by other publishers. Installing those gets someone else&apos;s code, not vet402&apos;s.
         </p>
 
         {/* 2026-08-13 UX監査R2: 前回のC4修正で `npm i` の行は載ったが、サイト全体を
@@ -1351,7 +1356,7 @@ app.use("/api/paid", createExpressGate({
         />
         <p className="text-[0.84375rem] text-brand-lift">
           Anything but <code>ALLOW</code> returns{" "}
-          <code>403 {"{ error: \"trust_blocked\" }"}</code> before your handler runs; an{" "}
+          <code>403 {"{ error: \"trust_blocked\" }"}</code> before your handler runs. An{" "}
           <code>ALLOW</code> continues with the full decision on <code>req.vouchTrust</code>.
         </p>
         <p className="text-[0.84375rem] text-brand">
@@ -1371,14 +1376,24 @@ app.use("/api/paid", createExpressGate({
             止まる。設定は packages/mcp-server/README.md の実物をそのまま写す。 */}
         <h3 className="text-[1.0625rem] font-semibold text-brand-deep">MCP: let an agent ask before it pays</h3>
         <p className="text-[0.84375rem] text-brand">
-          <code>@vet402/mcp-server</code> exposes the score as Model Context Protocol tools, so an
-          MCP-capable agent (Claude Desktop and other MCP clients) can check a counterparty before it
-          settles. Your client launches it with <code>npx</code> — no clone, no build. Add this to the
-          client config (<code>~/Library/Application&nbsp;Support/Claude/claude_desktop_config.json</code>{" "}
-          on macOS, <code>%APPDATA%\Claude\claude_desktop_config.json</code> on Windows) and restart:
+          For read-only checks before paying, point the MCP client at the hosted server at{" "}
+          <a href="/docs/mcp" className="doc-link">
+            https://vet402.com/mcp
+          </a>{" "}
+          (no key, no local process). Full setup is on{" "}
+          <Link href="/docs/mcp" className="doc-link">
+            /docs/mcp
+          </Link>{" "}
+          and <Link href="/connect" className="doc-link">/connect</Link>.
+        </p>
+        <p className="text-[0.84375rem] text-brand">
+          <code>@vet402/mcp-server</code> is a separate local package for score tools and optional payment. The client
+          launches it with <code>npx</code>. Add this to the client config (
+          <code>~/Library/Application Support/Claude/claude_desktop_config.json</code> on macOS,{" "}
+          <code>%APPDATA%\Claude\claude_desktop_config.json</code> on Windows) and restart:
         </p>
         <CodeBlock
-          label="MCP client config for @vet402/mcp-server"
+          label="MCP client config for @vet402/mcp-server (local)"
           code={`{
   "mcpServers": {
     "vouch-trust": {
@@ -1401,14 +1416,12 @@ app.use("/api/paid", createExpressGate({
           <code>missing_api_key</code>; with one, created at <code>/dashboard/keys</code>, those
           five work too. <code>VOUCH_API_URL</code> is optional and defaults to the hosted API. The
           seven tools: <code>check_resource_decision</code> and <code>pay_if_trusted</code> (the{" "}
-          <code>/decision</code> route; <code>pay_if_trusted</code> also holds a signer if you
-          configure one), and <code>check_agent_trust</code>, <code>check_wallet_trust</code>,{" "}
+          <code>/decision</code> route; <code>pay_if_trusted</code> can sign and pay when a payer key is configured), and{" "}
+          <code>check_agent_trust</code>, <code>check_wallet_trust</code>,{" "}
           <code>check_payee_trust</code>, <code>explain_trust_score</code> and{" "}
-          <code>attest_x402_payment</code> (key required). In 0.3.0 on npm,{" "}
-          <code>check_resource_decision</code> takes the sha256 <code>resourceId</code> from{" "}
-          <code>/api/v1/resolve</code>; taking the URL itself, and answering{" "}
-          <code>not_in_catalog</code> for a URL or id vet402 does not list, is in the repository and
-          ships with the next release. Same fail-closed reading as the SDK: treat anything but{" "}
+          <code>attest_x402_payment</code> (key required). In 0.3.1 on npm,{" "}
+          <code>check_resource_decision</code> accepts the sha256 <code>resourceId</code> from{" "}
+          <code>/api/v1/resolve</code> or the URL itself. Same fail-closed reading as the SDK: treat anything but{" "}
           <code>ALLOW</code> as &ldquo;do not pay yet&rdquo;.
         </p>
       </section>

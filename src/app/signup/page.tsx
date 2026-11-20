@@ -233,7 +233,7 @@ export default function SignupPage() {
             <span>Free API key</span>
             <span>
               {/* この頁のシアン1点。無料枠という事実。 */}
-              Tier: <span className="text-signal">Free — 1,000 score lookups / month</span>
+              Tier: <span className="text-signal">Free. 1,000 score lookups / month</span>
             </span>
           </div>
           <div className="doc-head-col">

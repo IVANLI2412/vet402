@@ -247,7 +247,7 @@ export default async function Home() {
                   <dd>{fmt(ledger.delivered)}</dd>
                 </div>
                 <div className={s.fact}>
-                  <dt>Settled, not delivered</dt>
+                  <dt>Settled without delivery</dt>
                   <dd>{fmt(notDelivered)}</dd>
                 </div>
                 <div className={s.fact}>
@@ -368,7 +368,7 @@ export default async function Home() {
           </ul>
         </section>
         <p className={`${s.section} ${s.pricingDisclaimer}`}>
-          Records are measurements, not a guarantee.
+          Records are measurements. They are not a guarantee.
         </p>
         <PricingSection className={s.section} titleId="home-pricing" />
       </main>

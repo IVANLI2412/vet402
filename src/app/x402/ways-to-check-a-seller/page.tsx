@@ -147,7 +147,7 @@ export default async function WaysToCheckSellerPage() {
           </Link>
         </p>
 
-        <p className="doc-p mt-8 text-brand-lift">Records are measurements, not a guarantee.</p>
+        <p className="doc-p mt-8 text-brand-lift">Records are measurements. They are not a guarantee.</p>
       </article>
     </main>
   );

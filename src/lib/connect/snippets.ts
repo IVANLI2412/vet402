@@ -13,6 +13,10 @@ import { MCP_DOCS_CONNECT_CURSOR } from "@/lib/docs/mcp-page-text";
 
 export const CONNECT_LEAD = "Put vet402 between AI agents. Both sides read the same purchase records.";
 
+/** Curl returns GET /api/v1/check JSON. check() returns the slimmer vet402 package shape. */
+export const CONNECT_CHECK_SHAPE_NOTE =
+  "The curl line above is the JSON from GET /api/v1/check (recommendation, delivery, reason_codes, verified_terms, and more). The vet402 package check() calls resolve and decision instead, and returns recommendation, reasonCodes, verifiedTerms, resourceId, evidenceUrl, retrievedAt, and scoredAt. It does not return delivery or evidence_age.";
+
 export const CONNECT_SIGNUP_HREF = "/signup";
 
 export type ConnectStack = {

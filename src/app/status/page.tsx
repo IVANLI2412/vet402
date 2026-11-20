@@ -98,7 +98,7 @@ function fmtInterval(ms: number | null): string {
 }
 
 function IntervalCell({ row }: { row: ChainFreshness }) {
-  if (row.expectedMsPerBlock === null) return <span className="text-brand-lift">&mdash;</span>;
+  if (row.expectedMsPerBlock === null) return <span className="text-brand-lift" aria-hidden="true">—</span>;
   const pair = `${fmtInterval(row.measuredMsPerBlock)} measured, ${fmtInterval(row.expectedMsPerBlock)} expected`;
   if (row.interval === "drift") return <span className="text-warn-ink">{pair} (differs from assumed)</span>;
   if (row.interval === "unknown") return <span className="text-brand-lift">not measured</span>;
@@ -218,8 +218,8 @@ export default async function StatusPage() {
           <p className="min-w-0 max-w-[62ch] text-brand">
             vet402&apos;s own uptime, measured the same way the rest of this site measures
             anything: no claim without a sample behind it. Nothing on a schedule writes these
-            rows &mdash; a request to <code>/api/health</code> writes one, at most every five
-            minutes unless the status changed &mdash; so a quiet day carries fewer samples and a
+            rows. A request to <code>/api/health</code> writes one, at most every five
+            minutes unless the status changed, so a quiet day carries fewer samples and a
             silent day carries none. Some of those requests are vet402&apos;s: a production check calls
             the endpoint on the hour and the half hour. It is the sample most likely to be red,
             because it is the only one certain to outlive the probe&apos;s one-minute memo rather
@@ -238,16 +238,16 @@ export default async function StatusPage() {
             </>
           ) : verdict.kind === "stale" ? (
             <>
-              <strong className="text-warn-ink">stale</strong> &mdash; no sample for{" "}
+              <strong className="text-warn-ink">stale</strong>. No sample for{" "}
               {fmtAge(verdict.ageMs)} (last: {verdict.lastStatus} at {fmtDateTime(verdict.checkedAt)}).
               vet402&apos;s own check calls <code>/api/health</code> on the hour and the half hour, so a gap
               over {Math.round(STATUS_STALE_AFTER_MS / 60_000)} minutes means samples are not being
-              written &mdash; which is what a database outage looks like from here. The old value is
+              written, which is what a database outage looks like from here. The old value is
               not reported as current.
             </>
           ) : verdict.kind === "unreadable" ? (
             <>
-              <strong className="text-block-ink">unknown</strong> &mdash; the status record could not be
+              <strong className="text-block-ink">unknown</strong>. The status record could not be
               read when this page was built. That usually means vet402&apos;s database is unreachable; it is
               not reported as &quot;ok.&quot;
             </>
@@ -270,7 +270,7 @@ export default async function StatusPage() {
           status above. Read at most two minutes before this page was built.
         </p>
         {/* Streamed: up to a few seconds of chain reads must not hold the first byte of the page. */}
-        <Suspense fallback={<p className="doc-p text-brand-lift">Reading the chains&hellip;</p>}>
+        <Suspense fallback={<p className="doc-p text-brand-lift">Reading the chains…</p>}>
           <FreshnessTable />
         </Suspense>
 
@@ -282,7 +282,7 @@ export default async function StatusPage() {
           {history.monitoringSince ? (
             <>Monitoring since {fmtDateTime(history.monitoringSince)}.</>
           ) : (
-            <>No monitoring history yet &mdash; this page went live 2026-08-15.</>
+            <>No monitoring history yet. This page went live 2026-08-15.</>
           )}{" "}
           A day with no row below was not observed, which is not the same claim as
           &quot;ok.&quot;
@@ -296,7 +296,7 @@ export default async function StatusPage() {
         ) : daysNewestFirst.length === 0 ? (
           <p className="doc-p text-brand-lift">
             No samples in the last 30 days. Traffic drives the sampling, so a quiet window can be
-            empty here even when nothing is wrong &mdash; see{" "}
+            empty here even when nothing is wrong. See{" "}
             <Link href="/observatory/methodology" className="underline">
               the methodology
             </Link>{" "}
@@ -346,10 +346,10 @@ export default async function StatusPage() {
                           d.causes.length > 0 ? (
                             d.causes.join(", ")
                           ) : (
-                            <span className="text-brand-lift">&mdash;</span>
+                            <span className="text-brand-lift" aria-hidden="true">—</span>
                           )
                         ) : (
-                          <span className="text-brand-lift">&mdash;</span>
+                          <span className="text-brand-lift" aria-hidden="true">—</span>
                         )}
                       </td>
                     </tr>
@@ -370,9 +370,9 @@ export default async function StatusPage() {
             the observatory
           </Link>{" "}
           uses, computed by the same probe <code>/api/health</code> runs: <strong>ok</strong>{" "}
-          &mdash; scoring and payee lookups both answered. <strong>degraded</strong> &mdash; the
+          . Scoring and payee lookups both answered. <strong>degraded</strong>. The
           upstream indexer is behind, so a lookup may return &quot;not verifiable&quot; instead of
-          a number. <strong>error</strong> &mdash; scoring is failing outright. A day is marked by
+          a number. <strong>error</strong>. Scoring is failing outright. A day is marked by
           its worst sample, not an average, so one bad five minutes is never hidden inside a
           mostly-good day.
         </p>

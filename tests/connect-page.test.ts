@@ -164,7 +164,8 @@ test("the shared-record paragraph says only what the record shows: tx hashes per
 });
 
 test("public English on /connect: no we, no dash, no semicolon in prose, no assertive words", () => {
-  const prose = [CONNECT_LEAD, ...CONNECT_CHOICES.flatMap((c) => [c.summary, ...c.steps, c.note ?? "", ...c.stacks.map((s) => s.intro)])];
+  const shape = read("src/lib/connect/snippets.ts").match(/CONNECT_CHECK_SHAPE_NOTE =\s*\n\s*"([^"]+)"/)?.[1];
+  const prose = [CONNECT_LEAD, shape ?? "", ...CONNECT_CHOICES.flatMap((c) => [c.summary, ...c.steps, c.note ?? "", ...c.stacks.map((s) => s.intro)])];
   for (const p of prose) {
     assert.doesNotMatch(p, /\b(we|our|us)\b/i, p);
     assert.doesNotMatch(p, /[\u2013\u2014;]/, p);

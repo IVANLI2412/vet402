@@ -55,13 +55,13 @@ export default async function CheckSellerPage() {
 
         <h2 className="sec-head">
           <span className="sec-no">1.</span>
-          <span>Read the decision</span>
+          <span>Check by URL</span>
         </h2>
         <p className="doc-p">
-          <code>GET /api/v1/resources/{"{resourceId}"}/decision</code> returns the L0, L1, and L2 facts for that
-          resource, with an ALLOW, WARN, or BLOCK recommendation. While keyless reads are on, the route answers with no
-          API key, at {keylessDecisionPerMinute()} requests a minute per IP. {KEYLESS_READ_STOP} Shapes, reason codes,
-          and <code>verified_terms</code> are in the{" "}
+          <code>GET /api/v1/check?url=</code> returns what vet402 recorded when it paid that x402 URL, including{" "}
+          <code>recommendation</code>, <code>delivery</code>, <code>verified_terms</code>, and recent purchases. It
+          needs no API key and shares the per-IP limit with <code>/api/v1/resolve</code>. {KEYLESS_READ_STOP} Shapes are
+          in the{" "}
           <Link href="/docs/api" className="doc-link">
             API reference
           </Link>
@@ -70,6 +70,18 @@ export default async function CheckSellerPage() {
 
         <h2 className="sec-head">
           <span className="sec-no">2.</span>
+          <span>Read the decision</span>
+        </h2>
+        <p className="doc-p">
+          When you already hold a <code>resource_id</code>,{" "}
+          <code>GET /api/v1/resources/{"{resourceId}"}/decision</code> returns the L0, L1, and L2 facts for that
+          resource, with an ALLOW, WARN, or BLOCK recommendation. While keyless reads are on, the route answers with no
+          API key, at {keylessDecisionPerMinute()} requests a minute per IP. Reason codes and <code>verified_terms</code>{" "}
+          travel in the same document.
+        </p>
+
+        <h2 className="sec-head">
+          <span className="sec-no">3.</span>
           <span>Read a purchase record</span>
         </h2>
         <p className="doc-p">
@@ -90,7 +102,7 @@ export default async function CheckSellerPage() {
         </p>
 
         <h2 className="sec-head">
-          <span className="sec-no">3.</span>
+          <span className="sec-no">4.</span>
           <span>Compare the terms</span>
         </h2>
         <p className="doc-p">

@@ -654,7 +654,7 @@ export default async function CorrectionsPage() {
           <div className="flex gap-4">
             <span className="w-[4ch] shrink-0 text-brand-lift">2.1</span>
             <p className="min-w-0 max-w-[64ch] text-brand">
-              <strong>A fact we got wrong, and fixed.</strong> If we published something about an
+              <strong>A fact vet402 got wrong, and fixed.</strong> If vet402 published something about an
               address that was not true &mdash; a mis-read signal, a mis-attributed wallet, a stale
               input treated as current &mdash; the correction and the re-score are logged, whether
               the challenge came from a customer or from a stranger.
@@ -671,7 +671,7 @@ export default async function CorrectionsPage() {
           <div className="flex gap-4">
             <span className="w-[4ch] shrink-0 text-brand-lift">2.3</span>
             <p className="min-w-0 max-w-[64ch] text-brand">
-              <strong>Not: a disagreement we did not concede.</strong> A score is our opinion and
+              <strong>Not: a disagreement vet402 did not concede.</strong> A score is vet402&apos;s opinion and
               sometimes we will disagree with the person challenging it. Those are answered
               directly, in writing, and are not corrections. The route stays open either way.
             </p>
@@ -679,7 +679,7 @@ export default async function CorrectionsPage() {
           <div className="flex gap-4">
             <span className="w-[4ch] shrink-0 text-brand-lift">2.4</span>
             <p className="min-w-0 max-w-[64ch] text-brand">
-              <strong>Data-protection requests are honored, not logged away.</strong> If an entry
+              <strong>Data-protection requests are honored. They are not logged away.</strong> If an entry
               names an address that is personal data about you, you can ask us to erase it or to
               restrict it, and we weigh each request individually — the grounds and the process are
               in{" "}

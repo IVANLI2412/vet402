@@ -1,13 +1,8 @@
+// 公開英文の決まり（MCP と同型）。/legal/* は法務のため対象外（文言は別規則）。
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
-
-const PAGE_FILES = [
-  { path: "src/components/site/sellers/SellersViews.tsx", label: "/sellers" },
-  { path: "src/app/observatory/state/page.tsx", label: "/observatory/state" },
-  { path: "src/app/impact/page.tsx", label: "/impact" },
-  { path: "src/app/observatory/methodology/page.tsx", label: "/observatory/methodology" },
-] as const;
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join } from "node:path";
 
 const RULES: { name: string; re: RegExp }[] = [
   { name: "we/our/us", re: /\b(we|our|us)\b/i },
@@ -21,14 +16,15 @@ const RULES: { name: string; re: RegExp }[] = [
   },
 ];
 
-function violations(text: string): string[] {
+export function violations(text: string): string[] {
   const t = text.trim();
   if (t === "—" || t === "–" || t === "-") return [];
   if (/^—\s*\(/.test(t)) return [];
   const normalized = text
-    .replace(/&(?:apos|quot|lt|gt|amp);/g, " ")
+    .replace(/&[a-z]+;/gi, " ")
     .replace(/&mdash;/g, "—")
-    .replace(/&ndash;/g, "–");
+    .replace(/&ndash;/g, "–")
+    .replace(/&nbsp;/g, " ");
   const out: string[] = [];
   for (const r of RULES) if (r.re.test(normalized)) out.push(r.name);
   return out;
@@ -39,7 +35,7 @@ function stripComments(src: string): string {
 }
 
 const JSX_LINE =
-  /className="(doc-|text-brand|fact-|sec-)|<\/?(p|td|th|li|h2|caption|strong|em)\b|^\s+[&A-Za-z].*</;
+  /className="(doc-|text-brand|fact-|sec-)|<\/?(p|td|th|li|h2|h3|caption|strong|em|dd|dt)\b|^\s+[&A-Za-z].*</;
 
 function literalProse(line: string): string[] {
   const out: string[] = [];
@@ -49,11 +45,19 @@ function literalProse(line: string): string[] {
       .replace(/\\'/g, "'")
       .replace(/\\"/g, '"')
       .replace(/\\n/g, " ");
-    if (s.length >= 8 && /[a-zA-Z]/.test(s) && /\s/.test(s) && !s.includes("${") && !s.startsWith("/api")) out.push(s);
+    if (
+      s.length >= 8 &&
+      /[a-zA-Z]/.test(s) &&
+      /\s/.test(s) &&
+      !s.includes("${") &&
+      !s.startsWith("/api") &&
+      !/^image\/|^text\/|^application\//.test(s)
+    )
+      out.push(s);
   }
   for (const m of line.matchAll(/'([^'\\]|\\.)*'/g)) {
     const s = m[0].slice(1, -1);
-    if (s.length >= 8 && /[a-zA-Z]/.test(s) && /\s/.test(s)) out.push(s);
+    if (s.length >= 8 && /[a-zA-Z]/.test(s) && /\s/.test(s) && !/^image\/|^text\//.test(s)) out.push(s);
   }
   const gt = line.match(/>\s*([^<{]+?)\s*</);
   if (gt) {
@@ -66,14 +70,68 @@ function literalProse(line: string): string[] {
 /** 公開面 TSX の JSX 行から英文リテラルを拾う（コメントと TS 本体は除く）。 */
 export function extractPublicProse(src: string): string[] {
   const stripped = stripComments(src);
-  const anchor = stripped.search(/export (default|function Sellers|function Reading)/);
-  const body = anchor >= 0 ? stripped.slice(anchor) : stripped;
   const out: string[] = [];
-  for (const line of body.split("\n")) {
+  for (const line of stripped.split("\n")) {
     if (!JSX_LINE.test(line)) continue;
-    if (/^\s*(import |const |let |type |interface |function [A-Z])/.test(line)) continue;
+    if (/^\s*(import |export const metadata|const [A-Z_]+ =|type |interface |function [a-z])/.test(line)) continue;
     out.push(...literalProse(line));
   }
+  return out;
+}
+
+function walkPages(dir: string, out: string[]): void {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    const st = statSync(p);
+    if (st.isDirectory()) {
+      if (name === "legal" || name === "api" || name === "dashboard" || name === "ethonline") continue;
+      walkPages(p, out);
+      continue;
+    }
+    if (name === "page.tsx") out.push(p);
+  }
+}
+
+function llmsProseLines(): string[] {
+  const lines = readFileSync("public/llms.txt", "utf8").split("\n");
+  const out: string[] = [];
+  for (const line of lines) {
+    const t = line.trim();
+    if (!t || t.startsWith("http://") || t.startsWith("https://")) continue;
+    if (t === "# vet402" || t.startsWith("## ")) continue;
+    if (/^[-*] `/.test(t)) continue;
+    if (/^<!--/.test(t)) continue;
+    // Long API inventory lines use semicolons and field names by design. Plain-English rules apply to narrative blocks.
+    if (/^[-*] https:\/\/vet402\.com/.test(t)) continue;
+    if (t.length > 600) continue;
+    if (/[a-zA-Z]/.test(t) && /\s/.test(t) && t.length >= 20) out.push(t.replace(/^[-*]\s+/, ""));
+  }
+  return out;
+}
+
+const API_STRING_KEYS = ["note:", "disclaimer:", "description:", "cite:", "interpretation"] as const;
+
+function extractApiPublicStrings(): { file: string; fragments: string[] }[] {
+  const root = join(process.cwd(), "src/app/api/v1");
+  const out: { file: string; fragments: string[] }[] = [];
+  const walk = (dir: string) => {
+    for (const name of readdirSync(dir)) {
+      const p = join(dir, name);
+      if (statSync(p).isDirectory()) walk(p);
+      else if (name.endsWith(".ts") || name.endsWith(".tsx")) {
+        const src = readFileSync(p, "utf8");
+        const frags: string[] = [];
+        for (const key of API_STRING_KEYS) {
+          const re = new RegExp(`${key}\\s*:\\s*"([^"]{20,})"`, "g");
+          for (const m of src.matchAll(re)) frags.push(m[1] ?? "");
+          const reTpl = new RegExp(`${key}\\s*:\\s*\`([^\`]{20,})\``, "g");
+          for (const m of src.matchAll(reTpl)) frags.push(m[1] ?? "");
+        }
+        if (frags.length) out.push({ file: p.replace(process.cwd() + "/", ""), fragments: frags });
+      }
+    }
+  };
+  walk(root);
   return out;
 }
 
@@ -97,11 +155,29 @@ test("規則そのものが当たる", () => {
   assert.deepEqual(violations("vet402 buys under its own name"), []);
 });
 
-for (const page of PAGE_FILES) {
-  test(`${page.label} の公開英文（JSX 文字列）が MCP と同じ決まりを守る`, () => {
-    const src = readFileSync(page.path, "utf8");
+const appPages: string[] = [];
+walkPages(join(process.cwd(), "src/app"), appPages);
+
+const SITE_COMPONENTS = readdirSync("src/components/site", { recursive: true })
+  .filter((f): f is string => typeof f === "string" && (f.endsWith(".tsx") || f.endsWith(".ts")))
+  .map((f) => join("src/components/site", f));
+
+for (const rel of [...appPages.map((p) => p.replace(process.cwd() + "/", "")), ...SITE_COMPONENTS].sort()) {
+  const label = rel.replace(/^src\/(app|components\/site)\//, "").replace(/\/page\.tsx$/, "");
+  test(`公開英文 ${label}`, () => {
+    const src = readFileSync(rel, "utf8");
     const prose = extractPublicProse(src);
-    assert.ok(prose.length >= 5, `${page.label}: prose fragments`);
-    assertNoViolations(prose, page.label);
+    if (prose.length === 0) return;
+    assertNoViolations(prose, label);
+  });
+}
+
+test("public/llms.txt prose lines follow public English rules", () => {
+  assertNoViolations(llmsProseLines(), "llms.txt");
+});
+
+for (const { file, fragments } of extractApiPublicStrings()) {
+  test(`API public strings ${file}`, () => {
+    assertNoViolations(fragments, file);
   });
 }

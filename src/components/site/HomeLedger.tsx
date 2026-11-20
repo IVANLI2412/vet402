@@ -129,7 +129,7 @@ export function SettledChainsSection({ ledger }: { ledger: HomeLedger }) {
                 Delivered
               </th>
               <th scope="col" className="num">
-                Settled, not delivered
+                Settled without delivery
               </th>
               <th scope="col" className="num">
                 Of which held (4xx)

@@ -810,7 +810,7 @@ claims:
     verified_at: 2026-09-04
   - id: operator_log_on_every_customer_s_score
     surface: src/app/operator-log/page.tsx
-    quote: "on every customer&rsquo;s score &mdash; the address and the stated reason are recorded"
+    quote: "on every customer&rsquo;s score. The address and the stated reason are recorded"
     means: "ネットワーク全体のブラックリストに入れたら、その事実をここに出す"
     check: null
     why_unverifiable: "この文が述べているのは編集方針・設計上の性質であって、公開 GET が数値で返す種類の主張ではない"
@@ -1029,7 +1029,7 @@ claims:
     verified_at: 2026-09-04
   - id: home_hero_settled_not_delivered_excludes_4xx
     surface: src/app/page.tsx
-    quote: "Settled, not delivered"
+    quote: "Settled without delivery"
     means: "トップの件数は settled − delivered − l1.inconclusiveSettled（state の「Settled but not delivered and not 4xx」と同じ分子）"
     check:
       url: https://vet402.com/api/v1/observatory/state
@@ -1186,7 +1186,7 @@ claims:
     verified_at: 2026-10-21
   - id: audit_e_decision_is_the_canonical_route
     surface: src/components/site/faq-data.ts
-    quote: "The canonical integration since 2026-09-02 is GET /api/v1/resources/:resourceId/decision"
+    quote: "Start with GET /api/v1/check?url= for the seller URL"
     means: "主経路は decision。payee score は「まだ動く旧経路」であって primary ではない"
     check: null
     why_unverifiable: "どの経路を推すかは編集判断。ルートの実在は tests/openapi-route-parity.test.ts が固定する"
@@ -2204,7 +2204,7 @@ claims:
   # 2026-10-21: public/llms.txt を走査に加えた。抽出器は .txt を TSX として読み、バッククォートを文字列の境界にするため、断定は文ではなく断片になる。引用はその断片とファイルの両方にある短い範囲。
   - id: llms_levels_l0_span
     surface: public/llms.txt
-    quote: "anywhere on the site. - **L0 Liveness** — does"
+    quote: "anywhere on the site. - **L0 Liveness**: does"
     means: "llms.txt の検証レベル。L3 は未実装。L0 は購入しないプローブで pass / fail / unverified。"
     check: null
     why_unverifiable: "抽出器がバッククォートで切った断片で、公開 GET の 1 式にはならない。同じ定義は /observatory/methodology にあり、そちらで登録済み。"
@@ -2239,7 +2239,7 @@ claims:
     verified_at: 2026-10-21
   - id: llms_score_not_an_l0_result
     surface: public/llms.txt
-    quote: "is never reported as an L0–L2 result. The front"
+    quote: "is never reported as an L0 to L2 result. The front"
     means: "0–100 のスコアは L0–L2 の結果としては出さない。"
     check: null
     why_unverifiable: "API の区別の説明。同じ文は方法論と語彙にあり、そちらで登録済み。"

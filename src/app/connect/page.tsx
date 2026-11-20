@@ -6,6 +6,7 @@ import MonoCode from "@/components/connect/MonoCode";
 import {
   CONNECT_CHOICES,
   CONNECT_KEYLESS_CHECK_CURL,
+  CONNECT_CHECK_SHAPE_NOTE,
   CONNECT_KEYLESS_SDK,
   CONNECT_LEAD,
   CONNECT_MCP,
@@ -56,10 +57,11 @@ export default function ConnectPage() {
               </p>
             </li>
             <li className={styles.keylessItem}>
-              <p className={styles.keylessLabel}>The vet402 SDK</p>
+              <p className={styles.keylessLabel}>The vet402 package</p>
               <MonoCode code={CONNECT_KEYLESS_SDK} label="TypeScript check without a key" />
             </li>
           </ol>
+          <p className={styles.intro}>{CONNECT_CHECK_SHAPE_NOTE}</p>
         </section>
 
         <section className={styles.stack} aria-labelledby="connect-mcp-heading">

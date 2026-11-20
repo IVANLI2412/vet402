@@ -133,7 +133,7 @@ export function ReputationSellerArticle({ detail, nonce }: { detail: SellerDetai
 
         <WatchSellersInterest recordId={latestRecordId} />
 
-        <p className="doc-p mt-8 text-brand-lift">Records are measurements, not a guarantee.</p>
+        <p className="doc-p mt-8 text-brand-lift">Records are measurements. They are not a guarantee.</p>
         <p className="doc-p">
           <Link href={sellerPath(host)} className="underline">
             Full purchase record for {host}

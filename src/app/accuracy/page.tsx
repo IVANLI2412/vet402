@@ -246,7 +246,7 @@ export default async function AccuracyPage() {
           </div>
         </div>
 
-        <h1 className="doc-title mt-8">Measured, not asserted</h1>
+        <h1 className="doc-title mt-8">Measured. Nothing asserted without data.</h1>
         <div className="rule-double mx-auto mt-6 w-full max-w-[34ch]" />
 
         <div className="mt-8 flex flex-col gap-1 sm:flex-row sm:gap-0">
@@ -257,7 +257,7 @@ export default async function AccuracyPage() {
             with an API key are recorded as watched events (payee scores and key-less reads are
             not): an on-chain detector and partner reports label what the wallet actually did next,
             and the aggregate is published here &mdash;{" "}
-            <strong>including the number that flatters us least.</strong> In the current 90-day
+            <strong>including the number that flatters vet402 least.</strong> In the current 90-day
             window {report.observedVerdicts.toLocaleString("en-US")}{" "}
             {report.observedVerdicts === 1 ? "verdict has" : "verdicts have"} a recorded outcome
             (<code>observedVerdicts</code> in the JSON). This ledger is for

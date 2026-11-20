@@ -75,7 +75,7 @@ export default async function OperatorLogPage() {
           <p className="min-w-0 max-w-[62ch] text-brand">
             When vet402&rsquo;s operator globally blocks an address, that act is recorded here with
             the address, the stated reason, and the time. Enforcement and this public record land
-            together &mdash; there is no way to block globally without leaving this trace. Nothing is
+            together. There is no way to block globally without leaving this trace. Nothing is
             removed from this list once it is on it.
           </p>
         </div>
@@ -98,7 +98,7 @@ export default async function OperatorLogPage() {
               <Link href="/corrections" className="doc-link">
                 the corrections log
               </Link>{" "}
-              does &mdash; a censorship ledger that appears only after the first act of censorship is
+              does. A censorship ledger that appears only after the first act of censorship is
               not a check on it.
             </p>
           </div>
@@ -131,8 +131,8 @@ export default async function OperatorLogPage() {
             <span className="w-[4ch] shrink-0 text-brand-lift">2.1</span>
             <p className="min-w-0 max-w-[64ch] text-brand">
               <strong>A global operator block.</strong> If vet402&rsquo;s operator adds an address to
-              the network-wide blacklist &mdash; the &ldquo;operator_policy&rdquo; block that appears
-              on every customer&rsquo;s score &mdash; the address and the stated reason are recorded
+              the network-wide blacklist. The &ldquo;operator_policy&rdquo; block that appears
+              on every customer&rsquo;s score. The address and the stated reason are recorded
               here at the moment it takes effect.
             </p>
           </div>
@@ -150,8 +150,8 @@ export default async function OperatorLogPage() {
             <p className="min-w-0 max-w-[64ch] text-brand">
               <strong>Not: the score itself.</strong> A block here is advice, not custody. vet402
               never holds or moves customer funds; a customer&rsquo;s SDK decides what to do with the
-              verdict. (The observatory does spend vet402&rsquo;s own funds to buy from endpoints —
-              that is our money, and it never touches yours.) This log records what vet402 said and
+              verdict. (The observatory does spend vet402&rsquo;s own funds to buy from endpoints.
+              That is vet402&rsquo;s money, and it never touches yours.) This log records what vet402 said and
               why, not an action taken on anyone else&rsquo;s money.
             </p>
           </div>

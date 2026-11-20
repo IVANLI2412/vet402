@@ -390,7 +390,7 @@ export default async function ObservatoryEndpointPage({ params, searchParams }: 
               <code>202 Accepted</code> with a non-empty body). Each settled row
               carries its on-chain transaction hash, and that transaction is the evidence. On this page a{" "}
               <em>receipt</em> means the seller&apos;s own settlement receipt (<code>PAYMENT-RESPONSE</code>); a
-              settled row can have none (see &ldquo;tx from our index&rdquo;).{" "}A settled
+              settled row can have none (see &ldquo;tx from vet402&apos;s index&rdquo;).{" "}A settled
               row reads as <strong>nonce-bound</strong> when the on-chain re-read matched the
               one-time value stored for that purchase, so the transaction is the one for this purchase.
               Stellar is not in this count. The Stellar re-read checks payer, payee, amount and asset. A row reads as{" "}
@@ -423,11 +423,11 @@ export default async function ObservatoryEndpointPage({ params, searchParams }: 
             )}
             {purchases.some((p) => p.settlementSource === "vet402_index") && (
               <p className="doc-p">
-                A row marked <strong>tx from our index</strong> came back with no settlement receipt
+                A row marked <strong>tx from vet402&apos;s index</strong> came back with no settlement receipt
                 from the seller. Our own index of on-chain settlements found the transfer afterwards
                 — our payer, this endpoint&apos;s payee, the exact amount, inside the time window —
                 and the row goes through the same on-chain re-read as any other before it reads{" "}
-                <code>settled</code>. The seller did not name that transaction; we did (
+                <code>settled</code>. The seller did not name that transaction. vet402 did (
                 <Link href="/observatory/methodology" className="underline">
                   methodology
                 </Link>
@@ -458,7 +458,7 @@ export default async function ObservatoryEndpointPage({ params, searchParams }: 
             {sides && sides.vet402Side > 0 && (
               <p className="doc-p">
                 {sides.vet402Side} of the paid attempts failed on vet402&apos;s side (for example our wallet was out of
-                USDC, or we did not send the input the listing declares). The rows stay in the table
+                USDC, or vet402 did not send the input the listing declares). The rows stay in the table
                 {l1.settled > 0 ? (
                   <>; the embeddable badge below leaves them out of its count and names them as &ldquo;vet402 side&rdquo;.</>
                 ) : (
@@ -532,7 +532,7 @@ export default async function ObservatoryEndpointPage({ params, searchParams }: 
                           {/* 2026-09-20: その tx を名指したのが売り手でなく vet402 の決済索引なら、行でそう言う
                               （settlement-source.ts）。売り手がレシートを返した行と同じ顔で出さない。 */}
                           {p.settlementSource === "vet402_index" && (
-                            <span className="block text-xs font-normal text-brand-lift">tx from our index</span>
+                            <span className="block text-xs font-normal text-brand-lift">tx from vet402&apos;s index</span>
                           )}
                           {p.settlementSource === "circle_gateway" && (
                             <span className="block text-xs font-normal text-brand-lift">Circle Gateway batch</span>

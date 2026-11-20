@@ -111,7 +111,7 @@ export const FAQS: FaqItem[] = [
   {
     question: "How do I integrate it?",
     answer:
-      "The canonical integration since 2026-09-02 is GET /api/v1/resources/:resourceId/decision, which returns the L0/L1/L2 facts and an ALLOW / WARN / BLOCK recommendation in one document. The older per-subject score routes still work and are still documented: a payee (GET /api/v1/payees/:address/score), a payer wallet (GET /api/v1/wallets/:address/score), or an agent ID (GET /api/v1/agents/:agentId/score), batched up to 25 at once, plus attesting an x402 settlement after verification. Full request/response shapes, error codes, and an OpenAPI schema are on the API reference page.",
+      "Start with GET /api/v1/check?url= for the seller URL. It returns what vet402 recorded when it paid that URL, including recommendation, delivery, verified_terms, and recent purchases. When you already hold a resource_id, GET /api/v1/resources/:resourceId/decision returns the L0/L1/L2 facts and an ALLOW / WARN / BLOCK recommendation in one document. The older per-subject score routes still work and are still documented: a payee (GET /api/v1/payees/:address/score), a payer wallet (GET /api/v1/wallets/:address/score), or an agent ID (GET /api/v1/agents/:agentId/score), batched up to 25 at once, plus attesting an x402 settlement after verification. Full request/response shapes, error codes, and an OpenAPI schema are on the API reference page.",
   },
   {
     id: NOT_LISTED_FAQ_ID,

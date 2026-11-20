@@ -6,13 +6,11 @@ import { keylessDecisionPerMinute } from "@/lib/api/keyless-limits";
  * createVouchClient, resolve, getDecision, pay when recommendation is ALLOW and degraded is false.
  */
 
-export const DEV_INSTALL = "npm i @vet402/sdk";
+export const DEV_INSTALL = "npm install vet402";
 
-export const DEV_CODE = `import { createVouchClient } from "@vet402/sdk"
+export const DEV_CODE = `import { check } from "vet402"
 
-const vet = createVouchClient({})
-const { resource } = await vet.resolve("https://api.example.com/v1/quote")
-const d = await vet.getDecision(resource!.resource_id)
-// pay when d.recommendation is "ALLOW" and d.degraded is false`;
+const r = await check("https://api.example.com/v1/quote")
+// pay with payOrRefuse from vet402/buyer when r.recommendation is "ALLOW"`;
 
 export const DEV_NOTE = `No key needed up to ${keylessDecisionPerMinute()} requests a minute.`;

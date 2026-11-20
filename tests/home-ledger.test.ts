@@ -99,7 +99,7 @@ test("Where purchases settled: one row per chain with a settled purchase, names 
   assert.ok(ledger);
   const html = renderToStaticMarkup(createElement(SettledChainsSection, { ledger }));
   assert.ok(html.includes("Where purchases settled"));
-  for (const h of ["Chain", "Asset", "Settled purchases", "Delivered", "Settled, not delivered", "Of which held (4xx)"]) assert.ok(html.includes(`>${h}<`), h);
+  for (const h of ["Chain", "Asset", "Settled purchases", "Delivered", "Settled without delivery", "Of which held (4xx)"]) assert.ok(html.includes(`>${h}<`), h);
   // The first cell also draws a share rule, so its label is no longer the only child. The title and the six values stay the same.
   const rows = [...html.matchAll(/<tr><td title="([^"]*)">([\s\S]*?)<\/td><td>([^<]*)<\/td><td class="num">([^<]*)<\/td><td class="num">([^<]*)<\/td><td class="num">([^<]*)<\/td><td class="num">([^<]*)<\/td><\/tr>/g)].map(
     (m) => [m[1], m[2].replace(/<[^>]+>/g, "").trim(), m[3], m[4], m[5], m[6], m[7]],
