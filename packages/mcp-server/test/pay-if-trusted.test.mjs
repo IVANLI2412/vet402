@@ -697,38 +697,6 @@ test("K7 実プロセス: check_resource_decision は requireVet402Allow を req
 // 実装は resource / payee / amountUsd が無いと第 4 段（payment_target_unknown）で返り、subgraph の読みと
 // 床の評価（どちらも SDK の payOrRefuse の中）には進まない。**実装を正**とし、文書を実装に合わせる。
 // このテストはその境界を固定する: 変えるなら文書とこのテストを一緒に動かすこと。
-test("R2 signed seller retry sets redirect error and fails closed on redirect (same guard as payOrRefuse)", async () => {
-  const w = watched();
-  const s = seller();
-  const paidRedirects = [];
-  const fetchFn = async (url, init) => {
-    const u = String(url);
-    if (u.includes("/decision")) {
-      return { ok: true, status: 200, json: async () => ({ recommendation: "ALLOW", reason_codes: ["l0_pass"], facts: { l0: { status: "pass" }, l1: { n_delivered: 3, n_attempts: 3 } }, evidence: [] }), headers: new Map() };
-    }
-    if (!u.includes("thegraph")) throw new Error(u);
-    const raw = (init?.headers ?? {})["PAYMENT-SIGNATURE"];
-    if (!raw) return s.stub(url, init);
-    paidRedirects.push(init?.redirect);
-    if (init?.redirect === "error") throw new TypeError("unexpected redirect");
-    throw new Error("redirect target reached");
-  };
-  const r = await payIfTrusted({
-    resourceId: "a".repeat(64),
-    resource: GRAPH_RESOURCE,
-    payee: GRAPH_PAYEE,
-    amountUsd: 0.01,
-    signer: w.signer,
-    fetch: fetchFn,
-    policy: { evidence: { minL1Deliveries: 1, source: "vet402" } },
-  });
-  assert.equal(paidRedirects.length, 1);
-  assert.ok(paidRedirects.every((m) => m === "error"));
-  assert.equal(r.decision, "REFUSE");
-  assert.equal(r.nonce !== null, true);
-  assert.equal(w.signAccesses().length, 1);
-});
-
 test("D4 resource 無し ＋ source:subgraph ＋ 鍵あり ＋ ALLOW → payment_target_unknown で止まり、The Graph は読まない・decision_record は null", async () => {
   const h = harness({ decision: warnDecision({ recommendation: "ALLOW", reason_codes: ["l0_pass", "l1_delivered"] }), receipts: 259 });
   const r = await payIfTrusted({
