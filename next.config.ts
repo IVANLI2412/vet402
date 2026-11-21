@@ -70,6 +70,8 @@ const nextConfig: NextConfig = {
       // API キー本体を返す経路と dashboard API は共有キャッシュに載せない（監査 R3 whitehat-06）。
       { source: "/api/signup", headers: [{ key: "Cache-Control", value: "no-store" }] },
       { source: "/api/dashboard/:path*", headers: [{ key: "Cache-Control", value: "no-store" }] },
+      // 審査用の資料（2026-11-21 オーナー承認）。リンクせず、検索にも載せない。robots.txt に書くと場所が公開されるので、ヘッダだけで外す。
+      { source: "/r/:path*", headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow, noarchive" }] },
     ];
   },
   async rewrites() {
