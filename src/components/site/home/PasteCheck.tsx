@@ -510,8 +510,7 @@ export function PasteCheck({
               </p>
             ) : outcome === "same_host" && sameHostListings ? (
               <p className="sr-only" data-testid="paste-live-verdict">
-                This host has {sameHostListings.length} recorded{" "}
-                {sameHostListings.length === 1 ? "listing" : "listings"}.
+                Host listings loaded.
               </p>
             ) : null}
           </div>
@@ -616,7 +615,7 @@ export function PasteCheck({
                         <a
                           href={deliveryPurchase.explorer_url!}
                           className={s.inlineLink}
-                          rel="noopener"
+                          rel="noopener noreferrer"
                           target="_blank"
                         >
                           {shortTx(deliveryPurchase.tx_hash)}

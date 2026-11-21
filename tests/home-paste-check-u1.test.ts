@@ -455,7 +455,8 @@ test("same_host summary is visible once with singular listing copy", async () =>
   assert.match(summary!.textContent ?? "", /This host has 1 recorded listing\b/);
   const liveVerdicts = [...dom.window.document.querySelectorAll('[data-testid="paste-live-verdict"]')];
   assert.equal(liveVerdicts.length, 1);
-  assert.match(liveVerdicts[0]!.textContent ?? "", /This host has 1 recorded listing\b/);
+  assert.match(liveVerdicts[0]!.textContent ?? "", /Host listings loaded/);
   assert.ok(liveVerdicts[0]!.closest('[aria-live="polite"]'));
+  assert.doesNotMatch(liveVerdicts[0]!.textContent ?? "", /This host has 1 recorded listing/);
   unmount();
 });
