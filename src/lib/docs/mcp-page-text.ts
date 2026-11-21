@@ -8,8 +8,7 @@ export const MCP_DOCS_INTRO =
   "The hosted MCP server at https://vet402.com/mcp returns what vet402 recorded when it paid x402 listings: when each attempt happened, which chain it used, whether content came back, and the transaction hash where vet402 recorded one. " +
   "The endpoint is read only, needs no key, and costs nothing to call.";
 
-export const MCP_DOCS_CONNECT_CURSOR =
-  '{"mcpServers":{"vet402":{"type":"http","url":"https://vet402.com/mcp"}}}';
+export { MCP_DOCS_CONNECT_CURSOR } from "@/lib/docs/mcp-connect-cursor-json";
 
 export const MCP_DOCS_PRIVACY =
   "vet402 counts MCP calls by client kind. The usage counts do not include raw URLs, IP addresses or User-Agent strings. The rate limit keeps the caller's IP for a short time, as the privacy policy says.";
