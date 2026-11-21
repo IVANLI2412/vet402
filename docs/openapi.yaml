@@ -2207,7 +2207,9 @@ paths:
         verdict is verified (payer matches the feedback writer),
         verified_payment_unlinked_client (on-chain payment aligns but the
         payer cannot be tied to the writer, e.g. another chain or wallet—not
-        a demerit), mismatch (hash, recipient, amount, or token conflict,
+        a demerit), payment_recipient_unverified (a payment exists but vet402
+        could not confirm it went to the payTo or wallet of the agent; not verified
+        and not a demerit), mismatch (hash, recipient, amount, or token conflict,
         with reasons), no_proof, or unreadable. 30 requests a minute per IP.
         Results cache 30 minutes. No on-chain writes.
       security: []
@@ -2244,7 +2246,7 @@ paths:
                 properties:
                   verdict:
                     type: string
-                    enum: [verified, verified_payment_unlinked_client, mismatch, no_proof, unreadable]
+                    enum: [verified, verified_payment_unlinked_client, payment_recipient_unverified, mismatch, no_proof, unreadable]
                   reasons:
                     type: array
                     items:

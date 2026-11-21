@@ -311,6 +311,7 @@ const erc8004TriState = z.enum(["pass", "fail", "unknown"]);
 const erc8004Verdict = z.enum([
   "verified",
   "verified_payment_unlinked_client",
+  "payment_recipient_unverified",
   "mismatch",
   "no_proof",
   "unreadable",

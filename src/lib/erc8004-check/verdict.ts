@@ -40,15 +40,29 @@ export function evaluateRecipientCheck(
   inPayTargets: (to: string | null) => boolean,
   payTargets?: Pick<AgentPayTargets, "vet402IndexedPayTo">,
 ): Erc8004CheckTriState {
+  const c = classifyRecipient(movementTo, proofTo, paymentKind, inPayTargets, payTargets);
+  return c === "unconfirmed" ? "unknown" : c;
+}
+
+/**
+ * evaluateRecipientCheck と同じ判定に、「対応表に行が無いので fail と言えないだけで、
+ * 宛先は owner でも agentWallet でもない」を "unconfirmed" として足したもの。
+ * unconfirmed の支払いは verified の語で通さない（11/22 証明の監査 whitehat-R5-3 / adversary-N3）。
+ */
+export function classifyRecipient(
+  movementTo: string | null,
+  proofTo: string | null,
+  paymentKind: PaymentNetworkKind,
+  inPayTargets: (to: string | null) => boolean,
+  payTargets?: Pick<AgentPayTargets, "vet402IndexedPayTo">,
+): Erc8004CheckTriState | "unconfirmed" {
   if (inPayTargets(movementTo) || inPayTargets(proofTo)) return "pass";
   if (!movementTo) return "unknown";
-  const canAssertMismatch = payTargets?.vet402IndexedPayTo === true;
-  if (!canAssertMismatch) return "unknown";
   if (paymentKind !== "evm" && paymentKind !== "tempo") {
     if (proofTo && addressesEqual(movementTo, proofTo)) return "unknown";
-    return "fail";
   }
-  return "fail";
+  const canAssertMismatch = payTargets?.vet402IndexedPayTo === true;
+  return canAssertMismatch ? "fail" : "unconfirmed";
 }
 
 function mismatchReasons(checks: Erc8004CheckChecks): Erc8004CheckMismatchReason[] {
@@ -64,6 +78,7 @@ function mismatchReasons(checks: Erc8004CheckChecks): Erc8004CheckMismatchReason
 export function decideVerdict(
   checks: Erc8004CheckChecks,
   hadPayment: boolean,
+  opts: { recipientUnconfirmed?: boolean } = {},
 ): { verdict: Erc8004CheckVerdict; reasons?: Erc8004CheckMismatchReason[] } {
   const hardMismatch = mismatchReasons(checks);
   if (hardMismatch.length > 0) {
@@ -94,6 +109,11 @@ export function decideVerdict(
     checks.to_matches_agent_payTo_or_wallet !== "fail" &&
     checks.amount !== "fail" &&
     checks.token !== "fail";
+
+  // 宛先が owner でも agentWallet でもないのに対応表に行が無いだけの支払いは、verified の語で通さない（fail でもない）。
+  if (paymentNotWrong && opts.recipientUnconfirmed === true && (paymentConfirmed || checks.tx_exists === "unknown")) {
+    return { verdict: "payment_recipient_unverified" };
+  }
 
   if (paymentNotWrong && paymentConfirmed && checks.from_matches_client !== "pass") {
     return { verdict: "verified_payment_unlinked_client" };

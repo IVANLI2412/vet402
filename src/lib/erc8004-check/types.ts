@@ -1,6 +1,7 @@
 export type Erc8004CheckVerdict =
   | "verified"
   | "verified_payment_unlinked_client"
+  | "payment_recipient_unverified"
   | "mismatch"
   | "no_proof"
   | "unreadable";

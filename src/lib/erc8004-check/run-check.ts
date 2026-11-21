@@ -24,7 +24,7 @@ import { STELLAR_USDC_ISSUER, STELLAR_USDC_SAC } from "@/lib/observatory/stellar
 import { addressInPayTargets, resolveAgentPayTargets, type AgentPayTargets } from "./payto";
 import {
   decideVerdict,
-  evaluateRecipientCheck,
+  classifyRecipient,
   payerLinkable,
   triFromMatchesClient,
   type PaymentNetworkKind,
@@ -330,7 +330,7 @@ export async function runErc8004Check(
     proof = { ...proof, chain: paymentCheck.resolvedChain };
     checks.proof_chain = paymentCheck.resolvedChain;
   }
-  const decided = decideVerdict(checks, paymentCheck.hadPayment);
+  const decided = decideVerdict(checks, paymentCheck.hadPayment, { recipientUnconfirmed: paymentCheck.recipientUnconfirmed });
   return baseResult({
     verdict: decided.verdict,
     reasons: decided.reasons,
@@ -363,7 +363,8 @@ async function verifyProofOnChain(
   sources: Erc8004CheckResult["sources"],
   readers?: PaymentProofReaders,
   options?: VerifyProofOptions,
-): Promise<{ hadPayment: boolean; resolvedChain?: string; unreadable?: boolean }> {
+): Promise<{ hadPayment: boolean; resolvedChain?: string; unreadable?: boolean; recipientUnconfirmed?: boolean }> {
+  let recipientUnconfirmed = false;
   const proofTo = (proof.to ?? proof.toAddress ?? null)?.trim() ?? null;
   let paymentKind: PaymentNetworkKind = "unsupported";
 
@@ -433,13 +434,15 @@ async function verifyProofOnChain(
 
   checks.from_matches_client = triFromMatchesClient(client, movement.from);
 
-  checks.to_matches_agent_payTo_or_wallet = evaluateRecipientCheck(
+  const recipient = classifyRecipient(
     movement.to,
     proofTo,
     paymentKind,
     (to) => addressInPayTargets(to, payTargets),
     payTargets,
   );
+  checks.to_matches_agent_payTo_or_wallet = recipient === "unconfirmed" ? "unknown" : recipient;
+  recipientUnconfirmed = recipient === "unconfirmed";
 
   checks.amount = comparePaymentAmount(proof.amount, movement.amount, paymentKind);
 
@@ -454,7 +457,7 @@ async function verifyProofOnChain(
     checks.token = paymentAssetsMatch(expectedAsset, movement.asset, paymentKind) ? "pass" : "fail";
   }
 
-  return { hadPayment: movement.state === "confirmed", resolvedChain };
+  return { hadPayment: movement.state === "confirmed", resolvedChain, recipientUnconfirmed };
 }
 
 function networkFromChainId(chainId: number | string): string {

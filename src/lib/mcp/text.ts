@@ -82,7 +82,7 @@ export const TOOL_TEXT = {
       "Look up one ERC-8004 feedback and whether its payment proof matches. Read-only. It does not pay. " +
       "Pass agentId. Add client and feedbackIndex when the person names them. " +
       "check_8004_agent loads one ERC-8004 Reputation Registry feedback on Base by default (chain eip155:8453), fetches its feedbackURI JSON, re-reads proofOfPayment on chain, and returns the same verdict and checks as GET /api/v1/erc8004/check. Recipient pass comes from vet402 state (agent payTo, owner, agentWallet). Payees named inside the feedback body do not count. " +
-      "Pass agentId with client to read that client's latest feedback, or with feedbackIndex to read one feedback. Pass client when more than one client left feedback at the same index. chain accepts eip155:8453 and defaults to it. verdict is verified, verified_payment_unlinked_client, mismatch, no_proof, or unreadable. " +
+      "Pass agentId with client to read that client's latest feedback, or with feedbackIndex to read one feedback. Pass client when more than one client left feedback at the same index. chain accepts eip155:8453 and defaults to it. verdict is verified, verified_payment_unlinked_client, payment_recipient_unverified, mismatch, no_proof, or unreadable. " +
       "Use it when an agent's reputation cites a payment. To read a seller PAYMENT-RESPONSE directly, use check_payment_proof. " +
       "It changes no data, needs no API key and has no charge. It reads the registry and the feedback URI over the network and writes nothing on chain. Up to 30 calls per minute per IP.",
   },
