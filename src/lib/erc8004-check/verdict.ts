@@ -1,4 +1,5 @@
 import { isAddress } from "viem";
+import type { AgentPayTargets } from "./payto";
 import type { Erc8004CheckChecks, Erc8004CheckMismatchReason, Erc8004CheckTriState, Erc8004CheckVerdict } from "./types";
 
 const STELLAR_ADDR = /^G[A-Z2-7]{55}$|^C[A-Z0-9]{55}$/;
@@ -37,9 +38,12 @@ export function evaluateRecipientCheck(
   proofTo: string | null,
   paymentKind: PaymentNetworkKind,
   inPayTargets: (to: string | null) => boolean,
+  payTargets?: Pick<AgentPayTargets, "vet402IndexedPayTo">,
 ): Erc8004CheckTriState {
   if (inPayTargets(movementTo) || inPayTargets(proofTo)) return "pass";
   if (!movementTo) return "unknown";
+  const canAssertMismatch = payTargets?.vet402IndexedPayTo === true;
+  if (!canAssertMismatch) return "unknown";
   if (paymentKind !== "evm" && paymentKind !== "tempo") {
     if (proofTo && addressesEqual(movementTo, proofTo)) return "unknown";
     return "fail";

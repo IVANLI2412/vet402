@@ -7,11 +7,22 @@ import { declaredAgentPayees } from "@/lib/erc8004-check/feedback-uri";
 const CLIENT = "0x00000000000000000000000000000000000000c1";
 const Y = "0x00000000000000000000000000000000000000e2";
 
+test("recipient is unknown when vet402 purchase index has no row", () => {
+  const recipient = evaluateRecipientCheck(
+    "0x1111111111111111111111111111111111111111",
+    null,
+    "evm",
+    () => false,
+    { vet402IndexedPayTo: false },
+  );
+  assert.equal(recipient, "unknown");
+});
+
 test("self-declared payee in feedback JSON does not pass recipient check", () => {
   const feedbackJson = { seller: { payTo: Y }, proofOfPayment: { txHash: "0x" + "ab".repeat(32), from: CLIENT, to: Y } };
   const declared = declaredAgentPayees(feedbackJson);
   assert.deepEqual(declared, [Y]);
-  const recipient = evaluateRecipientCheck(Y, Y, "evm", () => false);
+  const recipient = evaluateRecipientCheck(Y, Y, "evm", () => false, { vet402IndexedPayTo: true });
   assert.equal(recipient, "fail");
   const v = decideVerdict(
     {

@@ -7,6 +7,8 @@ export type AgentPayTargets = {
   agentWallet: string | null;
   vet402PayTo: string | null;
   matchKind: "owner" | "agent_wallet" | null;
+  /** vet402 の購入対応表を読め、かつこの agent の行があった。 */
+  vet402IndexedPayTo: boolean;
 };
 
 export async function resolveAgentPayTargets(agentId: bigint, chainId: number): Promise<AgentPayTargets> {
@@ -16,6 +18,7 @@ export async function resolveAgentPayTargets(agentId: bigint, chainId: number): 
 
   let vet402PayTo: string | null = null;
   let matchKind: AgentPayTargets["matchKind"] = null;
+  let vet402IndexedPayTo = false;
   try {
     const match = await getErc8004MatchCached();
     if (match.status === "ok") {
@@ -24,13 +27,14 @@ export async function resolveAgentPayTargets(agentId: bigint, chainId: number): 
       if (row) {
         vet402PayTo = row.payTo.toLowerCase();
         matchKind = row.matchKind;
+        vet402IndexedPayTo = true;
       }
     }
   } catch {
     // state unavailable — chain identity only
   }
 
-  return { owner, agentWallet, vet402PayTo, matchKind };
+  return { owner, agentWallet, vet402PayTo, matchKind, vet402IndexedPayTo };
 }
 
 function normalizePayeeRef(addr: string): string {

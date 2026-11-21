@@ -61,6 +61,7 @@ function baseDeps(logSlice: FeedbackLogSlice) {
       agentWallet: PAYEE,
       vet402PayTo: PAYEE,
       matchKind: "owner" as const,
+      vet402IndexedPayTo: true,
     }),
     fetchFeedbackUri: async (uri: string) => ({
       body: Buffer.from(uri.split(",")[1], "base64").toString("utf8"),

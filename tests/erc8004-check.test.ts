@@ -50,6 +50,7 @@ const defaultPayTargets = {
   agentWallet: PAYEE,
   vet402PayTo: PAYEE,
   matchKind: "owner" as const,
+  vet402IndexedPayTo: true,
 };
 
 function registryReader() {

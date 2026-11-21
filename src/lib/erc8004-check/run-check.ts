@@ -438,6 +438,7 @@ async function verifyProofOnChain(
     proofTo,
     paymentKind,
     (to) => addressInPayTargets(to, payTargets),
+    payTargets,
   );
 
   checks.amount = comparePaymentAmount(proof.amount, movement.amount, paymentKind);
