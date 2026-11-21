@@ -141,6 +141,8 @@ fails if this table and those constants drift apart. Server `reason_codes` (for 
 | `price_above_ceiling` | the 402 asks more than `maxPerTxUsd` | do not raise the ceiling silently; tell the user the price and ask |
 | `price_above_declared` | the 402 asks more than the `amountUsd` you named | re-check the seller's price page; retry only with the corrected amount if the user agrees |
 | `payee_mismatch` | the 402's `payTo` is not the `payee` you expected | stop; a changed payee is the classic redirect attack. Never "fix" `payee` from the 402 |
+| `payee_unverified_on_rail` | vet402 checked this payee on a different chain, and the payee list for the seller does not have it on the chain you would pay on | stop; nobody has checked this payee on this chain yet. Pay on the chain vet402 checked, or wait until this one is checked |
+| `price_unverified` | the price could not be compared: a different chain or asset, or the token's decimals differ from what vet402 recorded | stop when you allow WARN or waive vet402; the gate will not guess a price it cannot compare |
 | `chain_or_asset_mismatch` | no accept is Base mainnet + canonical USDC + scheme `exact` | stop; this gate pays USDC on Base only |
 | `no_eligible_accept` | the 402 was readable but offered no payable option | stop; report the seller's accepts to the user |
 | `evidence_unavailable` | `/decision` or the 402 could not be read (network, non-JSON, wrong API key) | not an ALLOW. Check `VOUCH_API_URL` / `VOUCH_API_KEY`, retry once later; do not pay blind |
