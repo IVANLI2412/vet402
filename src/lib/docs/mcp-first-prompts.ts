@@ -22,7 +22,7 @@ const PROMPT_HOST =
   "Using vet402, check my host llm.gedx402.com: which listings has vet402 paid, and what failed on my side if anything?";
 
 const PROMPT_EXPLAIN =
-  "Using vet402, explain why URL https://api.exa.ai/search with method POST is BLOCK in one short paragraph. Give the reason texts instead of only the reason codes.";
+  "Using vet402, explain why URL https://api.exa.ai/search with method POST is ALLOW in one short paragraph. Give the reason texts instead of only the reason codes.";
 
 const PROMPT_PROOF =
   "Using vet402, read this payment proof: network eip155:8453, transaction 0x3978fbe3b9be1f722bc3057fb1cd7600a705f8b0f5daaf28ea0d68e0a9670e6c. Report from, to, amount, and status. Compare amount and recipient to the seller record page yourself. Do not pay anyone.";
