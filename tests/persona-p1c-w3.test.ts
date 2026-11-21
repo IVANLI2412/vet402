@@ -43,6 +43,6 @@ test("observatory state loading streams with an h1", () => {
 test("home LP bar links sit outside the default tab order", () => {
   const page = read("src/app/page.tsx");
   const header = page.slice(page.indexOf("<header className={s.wrap}>"), page.indexOf("</header>") + 10);
-  assert.match(header, /tabIndex=\{-1\}/);
-  assert.equal((header.match(/tabIndex=\{-1\}/g) ?? []).length, 3);
+  // Nav links stay keyboard reachable. The skip link to #lp-paste-url comes first in tab order instead.
+  assert.doesNotMatch(header, /tabIndex=\{-1\}/);
 });
