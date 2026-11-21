@@ -26,6 +26,7 @@ import {
 } from "@/components/site/sellers/SellersViews";
 import TrackView from "@/components/site/TrackView";
 import SellerCalledVsDeliveredSection from "@/components/site/sellers/SellerCalledVsDeliveredSection";
+import SellerDeliveryCalendar from "@/components/site/sellers/SellerDeliveryCalendar";
 import SellerHostBadgeSection from "@/components/site/sellers/SellerHostBadgeSection";
 import SellerRefundSection from "@/components/site/sellers/SellerRefundSection";
 import SellerErc8004Section from "@/components/site/sellers/SellerErc8004Section";
@@ -183,6 +184,7 @@ export default async function SellerPage({ params, searchParams }: Props) {
             <SellerRefundSection host={detail.host} />
             <SellerErc8004Section host={detail.host} />
             <SellerHostBadgeSection host={detail.host} />
+            <SellerDeliveryCalendar detail={detail} />
           </>
         }
       />
