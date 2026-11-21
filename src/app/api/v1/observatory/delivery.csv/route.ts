@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiJsonRedirect } from "@/lib/api/api-redirect";
 import { getClientIp } from "@/lib/api/client-ip";
 import { consumeIpRateLimit, ipRateLimitHeaders, sharedCacheRateLimitHeaders } from "@/lib/api/ip-rate-limit";
 import { getDb } from "@/lib/db/client";
@@ -13,6 +14,7 @@ import {
   resolveObservatoryExportDays,
 } from "@/lib/observatory/delivery-export";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/observatory/delivery.csv?days=90 — settled の行に delivery の 3 値を載せた CSV。
@@ -43,7 +45,7 @@ export async function GET(request: NextRequest) {
   if (resolved.kind === "redirect") {
     const canonical = new URL(request.nextUrl.toString());
     canonical.search = `?days=${resolved.days}`;
-    return NextResponse.redirect(canonical, { status: 308, headers: perCaller });
+    return apiJsonRedirect(canonical, 308, perCaller);
   }
   const days = resolved.days;
 
@@ -86,3 +88,5 @@ export async function GET(request: NextRequest) {
     await slot.release();
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

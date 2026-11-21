@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { apiMethodNotAllowed } from "@/lib/api/method-not-allowed";
 import {
   applyRateLimit,
   authenticateApiRequest,
@@ -50,7 +51,7 @@ function disabled404(): NextResponse {
 /** OFF なら 404、ON なら 405。ON 時のメソッド不一致は隠す理由がない。 */
 function methodNotAllowedOrHidden(): NextResponse {
   if (!isGuaranteeUnderwritingEnabled()) return disabled404();
-  return NextResponse.json({ error: "method_not_allowed" }, { status: 405 });
+  return apiMethodNotAllowed(["GET"]);
 }
 
 export const POST = methodNotAllowedOrHidden;

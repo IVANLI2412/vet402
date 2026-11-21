@@ -1,5 +1,6 @@
 import { l2ReadingColumnsSql, l2ReadingOf } from "@/lib/observatory/l2-check";
 import { NextRequest, NextResponse } from "next/server";
+import { apiJsonRedirect } from "@/lib/api/api-redirect";
 import { sql } from "drizzle-orm";
 import { getClientIp } from "@/lib/api/client-ip";
 import { consumeIpRateLimit, ipRateLimitHeaders, sharedCacheRateLimitHeaders } from "@/lib/api/ip-rate-limit";
@@ -18,6 +19,7 @@ import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { csvCell } from "@/lib/util/csv-write";
 import { acquireExportSlot, exportBusyResponse, rejectUnknownQuery } from "@/lib/api/export-guard";
 import { withNoindex } from "@/lib/api/public-read-robots";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/observatory/export.csv?days=90 — 購入台帳のCSVエクスポート
@@ -104,7 +106,7 @@ export async function GET(request: NextRequest) {
     const qs = new URLSearchParams({ days: String(days) });
     if (includeParam === EXPORT_CSV_INCLUDE_ERC8004_AGENT) qs.set("include", EXPORT_CSV_INCLUDE_ERC8004_AGENT);
     canonical.search = `?${qs.toString()}`;
-    return NextResponse.redirect(canonical, { status: 308, headers: perCaller });
+    return apiJsonRedirect(canonical, 308, perCaller);
   }
 
   const { columns: emitColumns, extraSelectSql } = ledgerExportCsvShape(includeParam === EXPORT_CSV_INCLUDE_ERC8004_AGENT);
@@ -186,3 +188,5 @@ export async function GET(request: NextRequest) {
     await slot.release();
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
