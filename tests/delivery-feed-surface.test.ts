@@ -6,6 +6,7 @@ import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { spawn } from "node:child_process";
+import { createServer } from "node:net";
 import { randomBytes } from "node:crypto";
 
 const ROOT = process.cwd();
@@ -36,7 +37,17 @@ test("#8–#9 next start で /docs/mcp と registry-auth（build 済みのとき
     t.skip("run npm run build first");
     return;
   }
-  const port = 3099;
+  // A fixed port collided with another local next server on 3099 (2026-11-21), so the test read
+  // that server's 500. Ask the OS for a free port instead.
+  const port = await new Promise<number>((resolve, reject) => {
+    const srv = createServer();
+    srv.once("error", reject);
+    srv.listen(0, "127.0.0.1", () => {
+      const addr = srv.address();
+      const p = typeof addr === "object" && addr ? addr.port : 0;
+      srv.close(() => resolve(p));
+    });
+  });
   const secret = () => randomBytes(32).toString("hex");
   const child = spawn("npx", ["next", "start", "-p", String(port)], {
     cwd: ROOT,
