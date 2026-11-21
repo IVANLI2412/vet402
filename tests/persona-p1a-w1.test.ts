@@ -70,8 +70,9 @@ test("C5-002: state HTML mentions spendingHalted and lastAttemptAt", () => {
   assert.match(page, /spendingHalted\.halted/);
 });
 
-test("G2-002: home four-count caption uses full readAt ISO", () => {
-  assert.match(read("src/app/page.tsx"), /<time dateTime=\{readAt\}>\{readAt\}<\/time>/);
+test("G2-002: home four-count caption keeps machine readAt on dateTime", () => {
+  assert.match(read("src/app/page.tsx"), /<time dateTime=\{readAt\}>/);
+  assert.match(read("src/app/page.tsx"), /\{ledger\.readDate\} \{ledger\.readTime\} UTC/);
 });
 
 test("G1-001: same-host paste lists every returned listing and prompts for a full URL", () => {
