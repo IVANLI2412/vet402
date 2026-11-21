@@ -54,6 +54,11 @@ export default async function CheckSellerPage() {
         ))}
         <div className="rule-double mx-auto mt-6 w-full max-w-[34ch]" />
 
+        <p className="doc-p text-brand">
+          The URL check below uses the same monochrome paste form as the home page, not the navy RFC
+          paper chrome on this page header.
+        </p>
+
         <PasteCheckEmbed />
 
         <h2 className="sec-head">
