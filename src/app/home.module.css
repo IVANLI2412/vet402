@@ -887,6 +887,12 @@
     font-size: 0.8125rem;
   }
 }
+/* 391–1024: paste row stays horizontal; 16px mono overflows the field beside Check (FIX_UX5). */
+@media (min-width: 391px) and (max-width: 1024px) {
+  .pasteInput {
+    font-size: 0.8125rem;
+  }
+}
 .pasteRow .pasteGo {
   flex-shrink: 0;
   min-height: 46px;
