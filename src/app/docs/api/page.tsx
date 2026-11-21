@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
-import dynamic from "next/dynamic";
+import ApiEndpointsSection from "@/components/docs/ApiEndpointsSectionLazy";
 import Link from "next/link";
 import { API_ENDPOINT_TOC } from "@/lib/docs/api-endpoints-toc";
 import { headers } from "next/headers";
@@ -73,11 +73,6 @@ const errorCodes = [
   { status: "403", meaning: "Forbidden / plan upgrade required", detail: "e.g. score history on a plan below Pro." },
   { status: "429", meaning: "Rate limited", detail: `Two causes, told apart by the error string: "rate_limit_exceeded" is the monthly quota (retry next month), "rate_limited" is a one-minute IP throttle (retry after the reported seconds). See Two kinds of 429 above.` },
 ];
-
-const ApiEndpointsSection = dynamic(() => import("@/components/docs/ApiEndpointsSection"), {
-  ssr: false,
-  loading: () => <p className="text-[0.84375rem] text-brand">Loading endpoint reference…</p>,
-});
 
 export default async function ApiDocsPage() {
   const nonce = (await headers()).get("x-nonce") ?? undefined;
