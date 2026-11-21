@@ -62,6 +62,14 @@ Applies to: `/memo` (the RFC memo, formerly `/`), observatory, methodology, FAQ,
 
 2026-11-08 owner decision: the front page was redesigned as a monochrome page. The memo is kept unchanged at `/memo`. 2026-11-21 owner decision: the home first screen is paste-and-check only. `lp_cta_click` on the home page tracks secondary links under “Use vet402”, not the hero. The memo first screen (title, one-line description, seller search, two buttons, three-row table) stays as it is, and “The public ledger” (counts cover the whole ledger, read at `readAt`) and the “Where purchases settled” chain table sit directly under it, drawn from the cached ledger read (`src/components/site/HomeLedger.tsx`). That table replaced the memo’s former §5 “Chains”.
 
+## Signup (`/signup`)
+
+Public-adjacent account creation on the RFC paper surface, not the Operate dashboard shell.
+
+Applies to: `/signup` only. Copy leads with what a free API key adds; seller URL checks need no key. Forms use the same paper inputs and navy ink as other RFC pages (`doc-input`, `doc-title`, `rule-double`). Stripe checkout for paid tiers links out from this page; billing management itself lives under Operate after login.
+
+Does not use the home monochrome tokens (`--lp-*`). Does not use zinc dashboard cards.
+
 ## Operate (dashboard)
 
 Zinc SaaS. Stripe / Linear / Vercel density. Sidebar, cards, forms, live regions on errors. This world stays zinc on purpose.
