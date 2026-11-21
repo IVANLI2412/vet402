@@ -44,35 +44,6 @@ function scoreToolFailure(error) {
         isError: true,
     };
 }
-/** vet402 API ルートの origin（boundedFetch の照合に使う）。ハンドラ内 try/catch に置かない。 */
-function originOfVet402ApiRoot(apiRoot) {
-    try {
-        return new URL(apiRoot.includes("://") ? apiRoot : `https://${apiRoot}`).origin;
-    }
-    catch {
-        return apiRoot;
-    }
-}
-/** vet402 へだけ AbortSignal.timeout を付ける fetch。 */
-function vet402BoundedFetch(apiRoot, timeoutMs) {
-    const apiOrigin = originOfVet402ApiRoot(apiRoot);
-    return (url, init) => {
-        const target = String(url);
-        let isVet402 = target.startsWith(apiRoot);
-        if (!isVet402) {
-            try {
-                isVet402 = new URL(target).origin === apiOrigin;
-            }
-            catch {
-                isVet402 = false;
-            }
-        }
-        if (!isVet402) {
-            return fetch(url, init);
-        }
-        return fetch(url, { ...init, signal: init?.signal ?? AbortSignal.timeout(timeoutMs) });
-    };
-}
 const AGENT_ID = z.string().max(78).describe("ERC-8004 agent ID (tokenId)");
 const WALLET = z.string().max(42).describe("EVM wallet address (0x...)");
 // pay_if_trusted の payee だけは Solana の base58 も受ける（2026-09-15）。WALLET は check_agent_trust と
@@ -465,12 +436,6 @@ async function main() {
             // own 401/429 words come back through the usual failure shape.
             const rawKey = process.env.VOUCH_API_KEY;
             const apiKey = typeof rawKey === "string" && rawKey.trim() !== "" ? rawKey : undefined;
-            const rawTimeout = Number(process.env.VOUCH_TIMEOUT_MS);
-            const timeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 10_000;
-            // 注入する fetch は必ず期限付き。ハングした上流はツール呼び出しを永久に返さず、
-            // 返らない呼び出しはモデルが fail-closed に扱えない（vouch-client.ts と同じ規律）。
-            const apiRoot = (process.env.VOUCH_API_URL ?? "https://vet402.com/api/v1").replace(/\/$/, "");
-            const boundedFetch = vet402BoundedFetch(apiRoot, timeoutMs);
             const signer = await resolvePayer();
             // Solana の署名者（base58 の payee 用）。鍵と RPC は env だけから。ツール入力には存在しない。
             const svmPayer = await resolveSvmPayer(process.env.VOUCH_SOLANA_PAYER_SECRET_KEY, process.env.SOLANA_RPC_URL);
@@ -505,7 +470,7 @@ async function main() {
                 resourceId,
                 signer: signer ?? UNCONFIGURED_SIGNER,
                 svmSigner: svmPayer?.signer ?? UNCONFIGURED_SVM_SIGNER,
-                fetch: boundedFetch,
+                fetch,
                 apiUrl: process.env.VOUCH_API_URL,
                 apiKey,
                 policy: effectivePolicy,

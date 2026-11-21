@@ -84,6 +84,7 @@ import { refusalReasonCodes } from "./decision.js";
 import { MCP_USER_AGENT } from "./version.js";
 import { authorizationResourceKey } from "./authorization-resource-key.js";
 import { clearLiveAuthorization, hasLiveAuthorization, rememberLiveAuthorization } from "./pending-payment.js";
+import { createMcpBoundedFetch } from "./mcp-bounded-fetch.js";
 // 型だけ。値の import は ALLOW ブランチ内の動的 import に限る（第3層）。`import type` は
 // tsc が消すので、dist の拒否経路に `@vet402/sdk` への静的な参照は残らない。
 import type { PayDecisionRecord, PayEvidencePolicy, PayPolicy, PayRefuseReason, SvmPayerAccount } from "@vet402/sdk";
@@ -271,8 +272,7 @@ export async function payIfTrusted(input: PayIfTrustedInput): Promise<PayIfTrust
 }
 
 async function payIfTrustedCore(input: PayIfTrustedInput, notes: string[]): Promise<PayIfTrustedResult> {
-  const fetchFn = input.fetch;
-  if (typeof fetchFn !== "function") {
+  if (typeof input.fetch !== "function") {
     throw new Error("invalid_fetch: pass the fetch implementation pay_if_trusted should use");
   }
   if (typeof input.resourceId !== "string" || !RESOURCE_ID_RE.test(input.resourceId)) {
@@ -293,6 +293,9 @@ async function payIfTrustedCore(input: PayIfTrustedInput, notes: string[]): Prom
   }
 
   const apiUrl = (input.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
+  const rawTimeout = Number(process.env.VOUCH_TIMEOUT_MS);
+  const vet402TimeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 10_000;
+  const fetchFn = createMcpBoundedFetch(apiUrl, vet402TimeoutMs, input.fetch);
   const requireVet402Allow = input.policy?.requireVet402Allow !== false;
   const wantedSource = input.policy?.evidence?.source ?? "vet402";
 

@@ -84,6 +84,7 @@ import { refusalReasonCodes } from "./decision.js";
 import { MCP_USER_AGENT } from "./version.js";
 import { authorizationResourceKey } from "./authorization-resource-key.js";
 import { clearLiveAuthorization, hasLiveAuthorization, rememberLiveAuthorization } from "./pending-payment.js";
+import { createMcpBoundedFetch } from "./mcp-bounded-fetch.js";
 /** Solana の base58 アドレス。SDK の `payOrRefuse` がレールを決めるのと同じ形（0x でなければこれ）。 */
 export const SOLANA_PAYEE_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
 /**
@@ -124,8 +125,7 @@ export async function payIfTrusted(input) {
     return result;
 }
 async function payIfTrustedCore(input, notes) {
-    const fetchFn = input.fetch;
-    if (typeof fetchFn !== "function") {
+    if (typeof input.fetch !== "function") {
         throw new Error("invalid_fetch: pass the fetch implementation pay_if_trusted should use");
     }
     if (typeof input.resourceId !== "string" || !RESOURCE_ID_RE.test(input.resourceId)) {
@@ -143,6 +143,9 @@ async function payIfTrustedCore(input, notes) {
         throw new Error("invalid_api_url: pass the vet402 API origin as a string");
     }
     const apiUrl = (input.apiUrl ?? DEFAULT_API_URL).replace(/\/$/, "");
+    const rawTimeout = Number(process.env.VOUCH_TIMEOUT_MS);
+    const vet402TimeoutMs = Number.isFinite(rawTimeout) && rawTimeout > 0 ? rawTimeout : 10_000;
+    const fetchFn = createMcpBoundedFetch(apiUrl, vet402TimeoutMs, input.fetch);
     const requireVet402Allow = input.policy?.requireVet402Allow !== false;
     const wantedSource = input.policy?.evidence?.source ?? "vet402";
     // --- 1.5 The Graph を読むと宣言したのに鍵が無い → 通信の前に拒否 ---
