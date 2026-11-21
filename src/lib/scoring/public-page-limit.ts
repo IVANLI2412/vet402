@@ -8,6 +8,16 @@ import { rateLimitPageHtml } from "@/lib/sellers/page-limit";
 export const PUBLIC_SCORE_RL_LIMIT = 10;
 export const PUBLIC_SCORE_RL_WINDOW_MS = 60_000;
 
+/** Next のリンク先読み・RSC 先読みを枠に数えない（adversary-4）。 */
+export function isPublicScorePrefetch(request: Request): boolean {
+  const h = request.headers;
+  if (h.get("next-router-prefetch") === "1") return true;
+  const purpose = (h.get("purpose") ?? h.get("sec-purpose") ?? "").toLowerCase();
+  if (purpose.includes("prefetch")) return true;
+  if (h.get("rsc") === "1" && h.get("next-router-prefetch") != null) return true;
+  return false;
+}
+
 /** 採点頁の path か（API の /api/v1/payees は含まない）。 */
 export function isPublicScorePagePath(pathname: string): boolean {
   if (isMalformedPayeePath(pathname)) return false;
@@ -21,6 +31,7 @@ export function isPublicScorePagePath(pathname: string): boolean {
 
 /** 通ってよければ null、上限なら 429（枠の判定不能なら 503）の HTML 頁。 */
 export async function publicScoreRateLimitResponse(request: Request): Promise<NextResponse | null> {
+  if (isPublicScorePrefetch(request)) return null;
   const ip = getClientIp(request) ?? "unknown";
   const limited = await consumeIpRateLimit(
     `public-score-page:${ip}`,

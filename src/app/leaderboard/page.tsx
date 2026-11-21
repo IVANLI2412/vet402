@@ -275,7 +275,7 @@ export default async function LeaderboardPage({
                         伴って読み上げられる。 */}
                     <th scope="row" className={SUBJECT_CELL}>
                       {r.agentId ? (
-                        <Link href={`/agent/${r.agentId}`} className="doc-link">
+                        <Link href={`/agent/${r.agentId}`} className="doc-link" prefetch={false}>
                           Agent #{r.agentId}
                         </Link>
                       ) : r.wallet ? (
@@ -283,7 +283,7 @@ export default async function LeaderboardPage({
                         // 短縮形のままにする（紙面の列幅がこの表の可読性そのもの）。
                         // ただし短縮形からは音声でフルアドレスを復元できないので、
                         // 読み上げ側には 42 桁を丸ごと渡す。
-                        <Link href={`/payee/${r.wallet}`} className="doc-link">
+                        <Link href={`/payee/${r.wallet}`} className="doc-link" prefetch={false}>
                           <span aria-hidden="true">{shortWallet(r.wallet)}</span>
                           <span className="sr-only">Wallet {r.wallet}</span>
                         </Link>

@@ -13,6 +13,29 @@ test("proxy wires public score pages through IP rate limit", () => {
   assert.ok(proxy.includes("isSellersPath"));
 });
 
+test("leaderboard disables next/link prefetch on score destinations", () => {
+  const page = readFileSync(join(ROOT, "src/app/leaderboard/page.tsx"), "utf8");
+  assert.match(page, /prefetch=\{false\}/);
+});
+
+test("prefetch navigation is not counted against the public score limit", async () => {
+  const { PUBLIC_SCORE_RL_LIMIT, publicScoreRateLimitResponse } = await import("@/lib/scoring/public-page-limit");
+  for (let i = 0; i < PUBLIC_SCORE_RL_LIMIT + 20; i++) {
+    const res = await publicScoreRateLimitResponse(
+      new Request("http://localhost/payee/0x1234567890123456789012345678901234567890", {
+        headers: { "next-router-prefetch": "1", "x-real-ip": "203.0.113.44" },
+      }),
+    );
+    assert.equal(res, null, "prefetch must bypass the limit gate");
+  }
+  const normal = await publicScoreRateLimitResponse(
+    new Request("http://localhost/payee/0x1234567890123456789012345678901234567890", {
+      headers: { "x-real-ip": "203.0.113.44" },
+    }),
+  );
+  assert.equal(normal, null, "after prefetches only, a normal request should still pass");
+});
+
 test("public score limit is 10 per minute", async () => {
   const { PUBLIC_SCORE_RL_LIMIT, PUBLIC_SCORE_RL_WINDOW_MS, isPublicScorePagePath } = await import(
     "@/lib/scoring/public-page-limit"
