@@ -196,6 +196,48 @@ test("invalid http URL shows guidance without fetch", async () => {
   unmount();
 });
 
+test("empty paste shows guidance in aria-live without fetch", async () => {
+  await act(async () => {
+    root.render(React.createElement(PasteCheck, { cls }));
+  });
+  await submit("");
+  const live = dom.window.document.querySelector("[aria-live]");
+  assert.match(live?.textContent ?? "", /Paste a full https URL/);
+  assert.equal(productFetchCount(), 0);
+  unmount();
+});
+
+test("check abort shows timeout copy in aria-live", async () => {
+  globalThis.fetch = ((input: RequestInfo, init?: RequestInit) => {
+    const u = String(input);
+    fetchCalls.push(u);
+    if (u.includes("/api/v1/check")) {
+      return new Promise((_resolve, reject) => {
+        const signal = init?.signal;
+        if (signal?.aborted) {
+          reject(new dom.window.DOMException("Aborted", "AbortError"));
+          return;
+        }
+        signal?.addEventListener("abort", () => {
+          reject(new dom.window.DOMException("Aborted", "AbortError"));
+        });
+      });
+    }
+    return Promise.resolve(new Response("{}", { status: 404 }));
+  }) as typeof fetch;
+
+  await act(async () => {
+    root.render(React.createElement(PasteCheck, { cls, timeoutMs: 40 }));
+  });
+  await submit(CHECK_URL);
+  await act(async () => {
+    await new Promise((r) => setTimeout(r, 120));
+  });
+  const live = dom.window.document.querySelector("[aria-live]");
+  assert.match(live?.textContent ?? "", /more than 10 seconds/);
+  unmount();
+});
+
 test("ALLOW verdict, tx link, and reason text appear", async () => {
   await act(async () => {
     root.render(React.createElement(PasteCheck, { cls }));
