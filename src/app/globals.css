@@ -247,6 +247,23 @@ a:hover {
   text-decoration-thickness: 2px;
 }
 
+@media (prefers-color-scheme: dark) {
+  .site-header nav a,
+  .site-header .text-brand-lift {
+    color: #d1d1d1;
+  }
+  .site-header nav a:hover {
+    color: #f7f7f7;
+  }
+  .site-header .text-brand-deep {
+    color: #f7f7f7;
+  }
+  .site-header a[aria-label="vet402 home"] {
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   /* 2026-08-13 アクセシビリティ監査: 下の `*` は html にも当たるので上の
      scroll-behavior:smooth は本来ここで潰れているはずだが、監査は「解除
