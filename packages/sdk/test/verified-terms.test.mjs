@@ -347,3 +347,45 @@ test("V5 skipVerifiedTermsCheck で照合を外せる", async () => {
   });
   assert.notEqual(r.status, "refused");
 });
+// 11/22 証明の監査 proof-payaudit-1: vet402 が別の網（Celo・Arc・Arbitrum など）の USDC で確かめ、
+// 買い手が Base の USDC で払う売り手を、網が違うだけで止めない。
+import { readFileSync } from "node:fs";
+const LIVE = JSON.parse(readFileSync(new URL("./fixtures/live-decisions-1122.json", import.meta.url), "utf8")).items;
+
+function liveFetch(vt, payees, payTo, amount) {
+  const decision = decisionBody(vt, payees);
+  return async (input, init = {}) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.includes("/decision")) return new Response(JSON.stringify(decision), { status: 200 });
+    return stubFetch(vt, payTo, amount)(input, init);
+  };
+}
+
+test("live sample: every delivered resource whose payee vet402 knows on Base is paid at its verified USDC price", async () => {
+  let paid = 0;
+  for (const { vt, payees } of LIVE) {
+    const basePayee = payees.find((p) => p.startsWith("eip155:8453:"));
+    assert.ok(basePayee, "fixture rows all carry a Base payee");
+    const payTo = basePayee.split(":")[2];
+    const r = await pay(RESOURCE, undefined, { account, fetch: liveFetch(vt, payees, payTo, vt.amount) });
+    assert.equal(r.status, "paid", `${vt.network} ${vt.asset}: ${r.status} ${JSON.stringify(r.reasonCodes ?? [])}`);
+    paid += 1;
+  }
+  assert.equal(paid, LIVE.length);
+});
+
+test("cross-chain USDC: a price above the verified amount is still refused (price_above_declared)", async () => {
+  const celo = LIVE.find((x) => x.vt.network === "eip155:42220");
+  const payTo = celo.payees[0].split(":")[2];
+  const higher = String(BigInt(celo.vt.amount) + 1n);
+  const r = await pay(RESOURCE, undefined, { account, fetch: liveFetch(celo.vt, celo.payees, payTo, higher) });
+  assert.equal(r.status, "refused");
+  assert.ok(r.reasonCodes.includes("price_above_declared"), JSON.stringify(r.reasonCodes));
+});
+
+test("cross-chain USDC: a payTo vet402 does not know on Base is refused (payee_unverified_on_rail)", async () => {
+  const arb = LIVE.find((x) => x.vt.network === "eip155:42161");
+  const r = await pay(RESOURCE, undefined, { account, fetch: liveFetch(arb.vt, arb.payees, EVIL, arb.vt.amount) });
+  assert.equal(r.status, "refused");
+  assert.ok(r.reasonCodes.includes("payee_unverified_on_rail"), JSON.stringify(r.reasonCodes));
+});

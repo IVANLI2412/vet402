@@ -54,5 +54,10 @@ export type PayCheckedResult = {
      * could not be written. The pending line stays in the store and still counts.
      */
     recordError?: string;
+    /**
+     * Set when `refusedBy` is `payment_error`: the message of the error the payment step threw
+     * (for example a malformed payer). Returned to the caller only; not written to the store.
+     */
+    error?: string;
 };
 export declare function payChecked(input: PayCheckedInput): Promise<PayCheckedResult>;

@@ -1,0 +1,261 @@
+{
+ "note": "Production /decision answers for 16 delivered Base GET resources, sampled 2026-11-22 by the proof audit. Only verified_terms and facts.payees are kept. sdk 0.10.2 paid 13 of them; 0.10.3 (ca90e582) paid 6.",
+ "items": [
+  {
+   "vt": {
+    "purchase_id": "eip155:8453:0x8b2765eef56278543dc1fb5663dc8a5b2368d2c433559444d8aa8c96e16a318a",
+    "pay_to": "0x0ebb943298cf4bbdbe4673217212a089d3f5ee7e",
+    "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+    "amount": "20000",
+    "decimals": 6,
+    "network": "eip155:8453",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-11-13T09:32:07.850Z"
+   },
+   "payees": [
+    "eip155:8453:0x0ebb943298cf4bbdbe4673217212a089d3f5ee7e"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "eip155:42161:0x5dfec51dde321ec26393e0496b06e736fb835584d15622ab2ca1f9b1adf1d26e",
+    "pay_to": "0x2074c40346ae2a90e0e4a391bcee6f16bf5277f5",
+    "asset": "0xaf88d065e77c8cc2239327c5edb3a432268e5831",
+    "amount": "10000",
+    "decimals": 6,
+    "network": "eip155:42161",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-11-07T03:31:33.210Z"
+   },
+   "payees": [
+    "eip155:8453:0x6293ded2684f1a76e26becef87c137d691fbf800"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "eip155:8453:0xc6f5cd4ab891e714f658e68483fc5c4cf52caf6c288b182b68ac06a4cdf6ad65",
+    "pay_to": "0xd32c540f5bfe52ff791de0a5910e50fde257afac",
+    "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+    "amount": "10000",
+    "decimals": 6,
+    "network": "eip155:8453",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-11-15T06:02:18.257Z"
+   },
+   "payees": [
+    "eip155:8453:0xd32c540f5bfe52ff791de0a5910e50fde257afac"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "stellar:pubnet:a71e8470e6c13b5c040138732a704d3feb3089296ea4ff6ae2ebe785b599bf75",
+    "pay_to": "GDNJXCKW7ZM7GEEVP674TWPU26YJNBQ2FI4ZIPRKTPTNUEJMDHFJWWRL",
+    "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+    "amount": "2000",
+    "decimals": 6,
+    "network": "stellar:pubnet",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-10-31T03:30:45.287Z"
+   },
+   "payees": [
+    "eip155:8453:0xabf4fabd7c416fb67202e5f9002389fc75e2a9d0"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "eip155:5042:0xd298af1573ffd97f52e99a578f386ea86c6b15cb2e906d5863e602e8af49a42a",
+    "pay_to": "0xd334ab5151c624cada654854e2879903dc4217ed",
+    "asset": "0x3600000000000000000000000000000000000000",
+    "amount": "5000",
+    "decimals": 6,
+    "network": "eip155:5042",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-10-28T03:30:24.180Z"
+   },
+   "payees": [
+    "eip155:8453:0xd334ab5151c624cada654854e2879903dc4217ed"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "eip155:8453:0xc1c8ef83a0d1f04606b498f4f4c3c87dbe502c4b8e074fa11b8b8b94117ab89b",
+    "pay_to": "0x657e0c16008c962a63325f216052a47e06301dbf",
+    "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+    "amount": "5000",
+    "decimals": 6,
+    "network": "eip155:8453",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-11-21T12:02:11.249Z"
+   },
+   "payees": [
+    "eip155:8453:0x657e0c16008c962a63325f216052a47e06301dbf"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "eip155:5042:0x6ec2a4507cdb0b1d50f5cbb72d994632041fc5133fdbda3030e1a3f165b9395b",
+    "pay_to": "0xb8491f953e6860d3b5840b73c60883ff099ceafa",
+    "asset": "0x3600000000000000000000000000000000000000",
+    "amount": "2000",
+    "decimals": 6,
+    "network": "eip155:5042",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-11-10T15:31:38.944Z"
+   },
+   "payees": [
+    "eip155:8453:0xb8491f953e6860d3b5840b73c60883ff099ceafa"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "eip155:42220:0x4c574b94e78ea2cff7b9a257637275bb5e0248aea85c97a935c5134b1c873294",
+    "pay_to": "0xb8491f953e6860d3b5840b73c60883ff099ceafa",
+    "asset": "0xceba9300f2b948710d2653dd7b07f33a8b32118c",
+    "amount": "2000",
+    "decimals": 6,
+    "network": "eip155:42220",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-11-08T21:30:44.254Z"
+   },
+   "payees": [
+    "eip155:8453:0xb8491f953e6860d3b5840b73c60883ff099ceafa"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "stellar:pubnet:4ab438a1217aabd8ac0714a94b9f7038f05e5a200d3d59dbbb1d8532a404f519",
+    "pay_to": "GBIX2M7HNL2G2VYU5KZ446OSN55ZWHS3WBEUP4JTLS6R34VXIGTDOAFI",
+    "asset": "CCW67TSZV3SSS2HXMBQ5JFGCKJNXKZM7UQUWUZPUTHXSTZLEO7SJMI75",
+    "amount": "2000",
+    "decimals": 6,
+    "network": "stellar:pubnet",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-11-20T12:01:41.329Z"
+   },
+   "payees": [
+    "eip155:8453:0xb8491f953e6860d3b5840b73c60883ff099ceafa"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "eip155:43114:0x14b30faedb64fcc0bb852728f7154e1d09e20ce21fbb3f4c42a0ca2b6fc10666",
+    "pay_to": "0xaf8e0a8a8a0a8f65831b2dd0ffe0c1b804698d70",
+    "asset": "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
+    "amount": "2000",
+    "decimals": 6,
+    "network": "eip155:43114",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-11-17T12:01:46.728Z"
+   },
+   "payees": [
+    "eip155:8453:0xaf8e0a8a8a0a8f65831b2dd0ffe0c1b804698d70"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "eip155:8453:0x7970a657b47348c1882961b44d660a77fc2eb094045f2e7c226eb910b12f11b2",
+    "pay_to": "0x52e29e0d2aa49bfbfc548c0a9f2196f4aa51f3ea",
+    "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+    "amount": "3000",
+    "decimals": 6,
+    "network": "eip155:8453",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-11-04T21:32:29.789Z"
+   },
+   "payees": [
+    "eip155:8453:0x52e29e0d2aa49bfbfc548c0a9f2196f4aa51f3ea"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "eip155:42220:0xd749ba1a9606ad531fb87cc44128abefdc683665ef7bfcd29a9d5af123469304",
+    "pay_to": "0xb8491f953e6860d3b5840b73c60883ff099ceafa",
+    "asset": "0xceba9300f2b948710d2653dd7b07f33a8b32118c",
+    "amount": "3000",
+    "decimals": 6,
+    "network": "eip155:42220",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-11-21T06:01:49.324Z"
+   },
+   "payees": [
+    "eip155:8453:0xb8491f953e6860d3b5840b73c60883ff099ceafa"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "eip155:42220:0xddbb2bdbcde9622f3eda4e1aeb6aeacea625c04dd94c26f99299a801cb3c5255",
+    "pay_to": "0xb8491f953e6860d3b5840b73c60883ff099ceafa",
+    "asset": "0xceba9300f2b948710d2653dd7b07f33a8b32118c",
+    "amount": "2000",
+    "decimals": 6,
+    "network": "eip155:42220",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-11-08T12:01:37.465Z"
+   },
+   "payees": [
+    "eip155:8453:0xb8491f953e6860d3b5840b73c60883ff099ceafa"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "eip155:42220:0x5a21d980654de34b974514ceccc42488953c06c5614f97d61225cd6fb8692d4d",
+    "pay_to": "0xb8491f953e6860d3b5840b73c60883ff099ceafa",
+    "asset": "0xceba9300f2b948710d2653dd7b07f33a8b32118c",
+    "amount": "2000",
+    "decimals": 6,
+    "network": "eip155:42220",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-11-01T18:01:17.115Z"
+   },
+   "payees": [
+    "eip155:8453:0xb8491f953e6860d3b5840b73c60883ff099ceafa"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "eip155:8453:0x1ca9365f8d12f8ef3c064a5b064056b529d7335ca3ce44983eee916454e0d949",
+    "pay_to": "0x4466d4a84b7c49a6a094ec6eef4a0712d6dd125e",
+    "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+    "amount": "2200",
+    "decimals": 6,
+    "network": "eip155:8453",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-11-01T12:02:37.879Z"
+   },
+   "payees": [
+    "eip155:8453:0x4466d4a84b7c49a6a094ec6eef4a0712d6dd125e"
+   ]
+  },
+  {
+   "vt": {
+    "purchase_id": "eip155:8453:0x13c71df51a157ef09bd85897ed24a3ffcb064a983b21609d12e384dc87af179a",
+    "pay_to": "0x147991a1c25e78f6d9225d2dba61ed93a6158c7b",
+    "asset": "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913",
+    "amount": "5000",
+    "decimals": 6,
+    "network": "eip155:8453",
+    "scheme": "exact",
+    "protocol": "x402",
+    "verified_at": "2026-11-09T12:02:24.504Z"
+   },
+   "payees": [
+    "eip155:8453:0x147991a1c25e78f6d9225d2dba61ed93a6158c7b"
+   ]
+  }
+ ]
+}

@@ -192,6 +192,27 @@ function signalUntilDeadline(caller, waitMs) {
         return ctrl.signal;
     return AbortSignal.any([caller, ctrl.signal]);
 }
+/**
+ * signal を見ない自前の fetch でも、期限で必ず返る（11/22 証明の監査 proof-payaudit-5）。
+ * signal が切れたら、その理由で reject する競争を足す。fetch 自体は止められないが、呼び手は待たされない。
+ */
+function raceAbort(work, signal) {
+    if (signal === undefined)
+        return work;
+    if (signal.aborted)
+        return Promise.reject(signal.reason);
+    return new Promise((resolve, reject) => {
+        const onAbort = () => reject(signal.reason);
+        signal.addEventListener("abort", onAbort, { once: true });
+        work.then((v) => {
+            signal.removeEventListener("abort", onAbort);
+            resolve(v);
+        }, (e) => {
+            signal.removeEventListener("abort", onAbort);
+            reject(e);
+        });
+    });
+}
 function readHeader(headers, name) {
     const get = headers?.get;
     if (typeof get !== "function")
@@ -306,7 +327,7 @@ export async function executeX402Payment(args) {
     const sellerSignal = args.sellerWaitOwnedByFetch === true ? undefined : signalUntilDeadline(undefined, waitMs);
     let response;
     try {
-        response = await args.fetch(args.resource, {
+        response = await raceAbort(args.fetch(args.resource, {
             method: args.method,
             redirect: "error",
             ...(sellerSignal === undefined ? {} : { signal: sellerSignal }),
@@ -316,7 +337,7 @@ export async function executeX402Payment(args) {
                 ...(args.method === "POST" ? { "content-type": "application/json" } : {}),
             },
             ...(args.method === "POST" ? { body: "{}" } : {}),
-        });
+        }), sellerSignal);
     }
     catch {
         return failed;

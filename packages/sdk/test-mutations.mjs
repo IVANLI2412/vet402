@@ -304,7 +304,7 @@ const MUTATIONS = [
       },
       {
         find: "  const fetchFn = input.fetch;",
-        replace: '  const fetchFn = input.fetch;\n  const { executeX402Payment } = await import("./x402-pay.js"); /* MUTANT */',
+        replace: '  const fetchFn = input.fetch;\n  const { executeX402Payment, MAX_AUTHORIZATION_WINDOW_SECONDS } = await import("./x402-pay.js"); /* MUTANT */',
       },
     ],
   },
@@ -526,12 +526,36 @@ const MUTATIONS = [
     replace: '    if (sameRail) {\n      if (BigInt(accept.amount) > BigInt(amount)) return ["price_above_declared"];\n    } else {\n      /* MUTANT */ if (BigInt(accept.amount) > BigInt(amount)) return ["price_above_declared"];\n    }',
   },
   {
+    id: "M58",
+    what: "別の網の USDC 同士でも額を比べず必ず止める（0.10.3 の止めすぎ）",
+    rule: "proof-payaudit-1 cross-chain USDC",
+    file: PAY,
+    find: "      if (!bothUsdc || amount === null || !isDecimalUnits(amount)) return [\"price_unverified\"];",
+    replace: "      if (!bothUsdc || amount === null || !isDecimalUnits(amount) || accept.amount !== \"__never__\") return /* MUTANT */ [\"price_unverified\"];",
+  },
+  {
+    id: "M59",
+    what: "別の網の USDC 同士で、高い額を通す",
+    rule: "proof-payaudit-1 price_above_declared",
+    file: PAY,
+    find: "      if (BigInt(accept.amount) > BigInt(amount)) return [\"price_above_declared\"];\n      return null;\n    }",
+    replace: "      /* MUTANT */ return null;\n    }",
+  },
+  {
+    id: "M60",
+    what: "signal を見ない fetch との競争を外す（期限で返らない）",
+    rule: "proof-payaudit-5 raceAbort",
+    file: X402,
+    find: "  if (signal === undefined) return work;\n  if (signal.aborted) return Promise.reject(signal.reason);",
+    replace: "  if (signal === undefined || signal.aborted === signal.aborted) return work; /* MUTANT */\n  if (signal.aborted) return Promise.reject(signal.reason);",
+  },
+  {
     id: "M57",
     what: "Solana の支払いつき再送に期限 signal を付けない",
     rule: "payaudit-3 blockhash の寿命",
     file: SVM,
-    find: "      signal: signalUntilDeadline(undefined, SVM_BLOCKHASH_LIFETIME_MS),\n",
-    replace: "      /* MUTANT: no deadline */\n",
+    find: "    const sellerSignal = signalUntilDeadline(undefined, SVM_BLOCKHASH_LIFETIME_MS);\n",
+    replace: "    const sellerSignal = undefined; /* MUTANT: no deadline */\n",
   },
 ];
 

@@ -395,6 +395,8 @@ test("決済段で throw したとき payment_error を記録し、同じ冪等�
   const r = await payChecked({ url: base.resource, amountUsd: base.amountUsd, account: h.w.account, fetch: h.f.fetch, store: h.store, ...opts });
   assert.equal(r.paid, false);
   assert.equal(r.refusedBy, "payment_error");
+  assert.equal(typeof r.error, "string", "payment_error must carry the reason text");
+  assert.ok(r.error.length > 0);
   const lines = readFileSync(h.store, "utf8").trim().split("\n").filter(Boolean);
   const failed = lines.map((l) => JSON.parse(l)).find((row) => row.payChecked?.state === "failed");
   assert.ok(failed?.payChecked?.result?.refusedBy === "payment_error");

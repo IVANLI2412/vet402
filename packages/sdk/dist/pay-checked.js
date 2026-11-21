@@ -819,9 +819,10 @@ export async function payChecked(input) {
             })));
         }
         catch {
-            return { ...paymentErrorResult, recordError: errorText(error) };
+            return { ...paymentErrorResult, error: errorText(error), recordError: errorText(error) };
         }
-        return paymentErrorResult;
+        // 理由の文を呼び手へ返す（11/22 証明の監査 proof-payaudit-6）。台帳の行には書かない。
+        return { ...paymentErrorResult, error: errorText(error) };
     }
     const signed = payment.signed === true || payment.status === "paid";
     const result = {

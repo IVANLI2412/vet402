@@ -114,3 +114,38 @@ test("executeSvmPayment: silent seller is aborted within the blockhash life", as
   assert.equal(r.sent, true);
   assert.equal(r.settled, false);
 });
+
+// proof-payaudit-5: a caller-supplied fetch that ignores the signal must not hang the payment either.
+async function settleWithMockedClock(promise, maxSeconds = 600) {
+  let settled = false;
+  let value;
+  promise.then((v) => { settled = true; value = v; }, (e) => { settled = true; value = e; });
+  for (let s = 0; s < maxSeconds && !settled; s++) {
+    await new Promise((r) => setImmediate(r));
+    mock.timers.tick(1000);
+  }
+  await new Promise((r) => setImmediate(r));
+  return { settled, value, at: Date.now() };
+}
+
+test("executeX402Payment: a fetch that ignores the signal still returns failed by the deadline", async (t) => {
+  mock.timers.enable({ apis: ["setTimeout", "Date"], now: 1_800_000_000_000 });
+  t.after(() => mock.timers.reset());
+  const deaf = async (url, init) => {
+    const paid = init?.headers?.["PAYMENT-SIGNATURE"] ?? init?.headers?.["payment-signature"];
+    if (!paid) return new Response(null, { status: 402, headers: { "payment-required": btoa(JSON.stringify({ x402Version: 2, accepts: [ACCEPT] })) } });
+    return new Promise(() => {}); // never answers, never looks at init.signal
+  };
+  const t0 = Date.now();
+  const { settled, value, at } = await settleWithMockedClock(
+    executeX402Payment({
+      account: { address: "0xDB62BD202914609830fA656F87996b91be3Aa673", signTypedData: async () => "0x" + "11".repeat(65) },
+      accept: ACCEPT, resource: RESOURCE, method: "GET", chainId: 8453, x402Version: 2, fetch: deaf,
+    }),
+  );
+  assert.equal(settled, true, "payment never returned");
+  assert.equal(value.signed, true);
+  assert.equal(value.settled, false);
+  assert.ok(value.nonce);
+  assert.ok(at - t0 <= MAX_AUTHORIZATION_WINDOW_SECONDS * 1000 + 1000, `returned after ${at - t0}ms`);
+});

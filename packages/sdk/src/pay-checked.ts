@@ -87,6 +87,11 @@ export type PayCheckedResult = {
    * could not be written. The pending line stays in the store and still counts.
    */
   recordError?: string;
+  /**
+   * Set when `refusedBy` is `payment_error`: the message of the error the payment step threw
+   * (for example a malformed payer). Returned to the caller only; not written to the store.
+   */
+  error?: string;
 };
 
 type SavedSpend = {
@@ -950,9 +955,10 @@ export async function payChecked(input: PayCheckedInput): Promise<PayCheckedResu
         ),
       );
     } catch {
-      return { ...paymentErrorResult, recordError: errorText(error) };
+      return { ...paymentErrorResult, error: errorText(error), recordError: errorText(error) };
     }
-    return paymentErrorResult;
+    // 理由の文を呼び手へ返す（11/22 証明の監査 proof-payaudit-6）。台帳の行には書かない。
+    return { ...paymentErrorResult, error: errorText(error) };
   }
   const signed = payment.signed === true || payment.status === "paid";
   const result: PayCheckedResult = {

@@ -158,6 +158,27 @@ export async function fetchLatestBlockhash(fetchFn, rpcUrl) {
  * `onSending` は売り手へ送る直前に同期で呼ぶ（0.7.1）。送った後で応答が壊れていて例外になっても、
  * 呼び手は送った取引を失わない。
  */
+/**
+ * signal を見ない自前の fetch でも、期限で必ず返る（11/22 証明の監査 proof-payaudit-5）。
+ * signal が切れたら、その理由で reject する競争を足す。fetch 自体は止められないが、呼び手は待たされない。
+ */
+function raceAbort(work, signal) {
+    if (signal === undefined)
+        return work;
+    if (signal.aborted)
+        return Promise.reject(signal.reason);
+    return new Promise((resolve, reject) => {
+        const onAbort = () => reject(signal.reason);
+        signal.addEventListener("abort", onAbort, { once: true });
+        work.then((v) => {
+            signal.removeEventListener("abort", onAbort);
+            resolve(v);
+        }, (e) => {
+            signal.removeEventListener("abort", onAbort);
+            reject(e);
+        });
+    });
+}
 export async function executeSvmPayment(args) {
     assertHttpsSellerResource(args.resource);
     const { account, accept } = args;
@@ -201,17 +222,18 @@ export async function executeSvmPayment(args) {
     args.onSending?.({ transactionB64 });
     let response;
     try {
-        response = await args.fetch(args.resource, {
+        const sellerSignal = signalUntilDeadline(undefined, SVM_BLOCKHASH_LIFETIME_MS);
+        response = await raceAbort(args.fetch(args.resource, {
             method: args.method,
             redirect: "error",
-            signal: signalUntilDeadline(undefined, SVM_BLOCKHASH_LIFETIME_MS),
+            signal: sellerSignal,
             headers: {
                 accept: "application/json",
                 [header.headerName]: header.headerValue,
                 ...(args.method === "POST" ? { "content-type": "application/json" } : {}),
             },
             ...(args.method === "POST" ? { body: "{}" } : {}),
-        });
+        }), sellerSignal);
     }
     catch {
         return { ...notSent, sent: true, transactionB64 };
