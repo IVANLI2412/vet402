@@ -143,8 +143,12 @@ export function SiteHeader() {
               <TrackedLink
                 key={item.href}
                 href={item.href}
-                event="nav_click"
-                props={{ label: item.label }}
+                event={item.label === "Check a seller" ? "nav_check_click" : "nav_click"}
+                props={
+                  item.label === "Check a seller"
+                    ? { href: item.href, label: item.label }
+                    : { label: item.label }
+                }
                 ariaCurrent={currentNav(pathname, item.href)}
                 className="inline-flex h-11 items-center hover:text-brand-deep"
               >

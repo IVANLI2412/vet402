@@ -32,8 +32,10 @@ export function sendSiteEvent(payload: SiteEventPayload): void {
 }
 
 function referrerHostFromProp(props?: Record<string, string | number | boolean>): string {
-  const r = props?.r;
-  if (typeof r === "string" && r.trim()) return r.trim().slice(0, 253);
+  for (const key of ["r", "kind", "verdict", "target", "href", "prompt_id"] as const) {
+    const v = props?.[key];
+    if (typeof v === "string" && v.trim()) return v.trim().slice(0, 253);
+  }
   return "internal";
 }
 

@@ -16,6 +16,7 @@ import { getObservatoryStatsCached } from "@/lib/observatory/cached-reads";
 import { homeLedgerOf } from "@/components/site/HomeLedger";
 import { getHomeExampleCached, cardDeliveredLabel, fmt, sellerRecordParts, utc } from "@/lib/observatory/home-example";
 import { PasteCheck } from "@/components/site/home/PasteCheck";
+import HomePurchaseSparkline from "@/components/site/home/HomePurchaseSparkline";
 import s from "./home.module.css";
 
 export const metadata = pageMetadata({
@@ -212,7 +213,7 @@ export default async function Home() {
             <TrackedLink href="#lp-paste-url" event="nav_click" props={{ label: "Check", position: "lp_bar" }}>
               Check
             </TrackedLink>
-            <TrackedLink href="/observatory" event="nav_click" props={{ label: "Records", position: "lp_bar" }}>
+            <TrackedLink href="/observatory" event="lp_cta_click" props={{ position: "hero_observatory" }}>
               Records
             </TrackedLink>
           </nav>
@@ -336,6 +337,9 @@ export default async function Home() {
                 </a>
                 .
               </p>
+              {days !== null && days >= 2 ? (
+                <HomePurchaseSparkline historyDays={Math.min(days, 98)} readDate={ledger.readDate} readTime={ledger.readTime} />
+              ) : null}
             </div>
           ) : (
             <p className={s.readAt}>
@@ -368,18 +372,13 @@ export default async function Home() {
             Use vet402
           </h2>
           <div className={`${s.actions} ${s.actionsSecondary}`}>
-            <TrackedLink
-              href="/connect"
-              event="lp_cta_click"
-              props={{ position: "hero_buyer" }}
-              className={s.actionLink}
-            >
+            <TrackedLink href="/connect" event="home_cta" props={{ target: "connect_agent" }} className={s.actionLink}>
               Add this check to a paying agent
             </TrackedLink>
             <TrackedLink
               href="/docs/api#packages"
-              event="lp_cta_click"
-              props={{ position: "hero_seller" }}
+              event="home_cta"
+              props={{ target: "record_badge" }}
               className={s.actionLink}
             >
               Add a record badge to an API you sell

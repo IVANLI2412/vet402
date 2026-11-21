@@ -59,9 +59,24 @@ test("homeResultStateSource", () => {
 });
 
 test("home paste events are in SITE_EVENTS", () => {
-  for (const name of ["home_paste_submit", "home_result_state", "home_snippet_copy"]) {
+  for (const name of [
+    "home_paste_submit",
+    "home_paste_invalid",
+    "home_paste_error",
+    "home_verdict",
+    "home_cta",
+    "home_result_state",
+    "home_snippet_copy",
+    "nav_check_click",
+    "mcp_docs_first_prompt_copy",
+  ]) {
     assert.ok(SITE_EVENTS.includes(name as (typeof SITE_EVENTS)[number]), name);
   }
+});
+
+test("homeResultStateSource accepts invalid and error", () => {
+  assert.equal(homeResultStateSource("invalid"), "invalid");
+  assert.equal(homeResultStateSource("error"), "error");
 });
 
 test("watch_sellers_interest is in SITE_EVENTS", () => {

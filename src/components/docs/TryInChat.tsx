@@ -11,7 +11,11 @@ export function TryInChat() {
         {MCP_TRY_IN_CHAT.map((ex, i) => (
           <li key={ex.prompt} className="space-y-1">
             <p className="text-brand-deep">&ldquo;{ex.prompt}&rdquo;</p>
-            <PromptCopyButton prompt={ex.prompt} label={`Copy prompt ${MCP_FIRST_PROMPTS[i]?.id ?? i + 1}`} />
+            <PromptCopyButton
+              prompt={ex.prompt}
+              promptId={MCP_FIRST_PROMPTS[i]?.id}
+              label={`Copy prompt ${MCP_FIRST_PROMPTS[i]?.id ?? i + 1}`}
+            />
             {ex.publicPageUrl && ex.publicPageLabel ? (
               <p>
                 <a href={ex.publicPageUrl} className="doc-link">

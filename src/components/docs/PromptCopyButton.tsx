@@ -2,7 +2,15 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { track } from "@/lib/analytics";
-export function PromptCopyButton({ prompt, label = "Copy prompt" }: { prompt: string; label?: string }) {
+export function PromptCopyButton({
+  prompt,
+  label = "Copy prompt",
+  promptId,
+}: {
+  prompt: string;
+  label?: string;
+  promptId?: string;
+}) {
   const [state, setState] = useState<"idle" | "copied" | "selected">("idle");
 
   useEffect(() => {
@@ -17,6 +25,7 @@ export function PromptCopyButton({ prompt, label = "Copy prompt" }: { prompt: st
         await navigator.clipboard.writeText(prompt);
         setState("copied");
         track("snippet_copy");
+        if (promptId) track("mcp_docs_first_prompt_copy", { prompt_id: promptId });
         return;
       }
     } catch {

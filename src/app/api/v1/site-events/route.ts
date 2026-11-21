@@ -3,6 +3,13 @@ import { getClientIp } from "@/lib/api/client-ip";
 import { consumeIpRateLimit, ipRateLimitHeaders } from "@/lib/api/ip-rate-limit";
 import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 import {
+  homeCtaSource,
+  homePasteErrorSource,
+  homeVerdictSource,
+  mcpPromptCopySource,
+  navCheckClickSource,
+} from "@/lib/site/event-sources";
+import {
   homeResultStateSource,
   pathGroup,
   recordSiteEvent,
@@ -56,6 +63,30 @@ export async function POST(request: NextRequest) {
     source = state;
   } else if (event === "watch_sellers_interest" && refRaw === "seller_page") {
     source = "seller_page";
+  } else if (event === "home_paste_invalid") {
+    source = "invalid";
+  } else if (event === "home_paste_error") {
+    const kind = homePasteErrorSource(refRaw);
+    if (!kind) return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
+    source = kind;
+  } else if (event === "home_verdict") {
+    const verdict = homeVerdictSource(refRaw);
+    if (!verdict) return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
+    source = verdict;
+  } else if (event === "home_cta") {
+    const target = homeCtaSource(refRaw);
+    if (!target) return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
+    source = target;
+  } else if (event === "nav_check_click") {
+    const dest = navCheckClickSource(refRaw);
+    if (!dest) return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
+    source = dest;
+  } else if (event === "mcp_docs_first_prompt_copy") {
+    const id = mcpPromptCopySource(refRaw);
+    if (!id) return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
+    source = id;
+  } else if (event === "mcp_html_redirect") {
+    source = "direct";
   } else {
     let refHost: string | undefined;
     if (refRaw && /^[a-z0-9.-]+$/i.test(refRaw)) refHost = refRaw;

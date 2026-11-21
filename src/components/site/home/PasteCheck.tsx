@@ -283,6 +283,8 @@ export function PasteCheck({
         setAlts(null);
         setFindSettled(false);
         setFindErr(false);
+        track("home_paste_invalid");
+        track("home_result_state", { r: "invalid" });
         return;
       }
       if (parsed.protocol !== "https:") {
@@ -294,6 +296,8 @@ export function PasteCheck({
         setAlts(null);
         setFindSettled(false);
         setFindErr(false);
+        track("home_paste_invalid");
+        track("home_result_state", { r: "invalid" });
         return;
       }
 
@@ -337,9 +341,18 @@ export function PasteCheck({
           setCheck(checkOut.body);
           setCheckErr(checkOut.err);
           setPhase("result");
-          if (!checkOut.err && checkOut.body) {
+          if (checkOut.err) {
+            const kind =
+              checkOut.err.includes("10 seconds") ? "timeout" : checkOut.err.includes("minute") ? "429" : "other";
+            track("home_paste_error", { kind });
+            track("home_result_state", { r: "error" });
+          } else if (checkOut.body) {
             const outcomeState = pasteOutcomeOf(checkOut.body);
             if (outcomeState) track("home_result_state", { r: outcomeState });
+            const v = checkOut.body.recommendation;
+            if (v === "ALLOW" || v === "WARN" || v === "BLOCK") {
+              track("home_verdict", { verdict: v });
+            }
           }
           return checkOut;
         });
@@ -377,6 +390,7 @@ export function PasteCheck({
     void navigator.clipboard.writeText(text).then(
       () => {
         track("home_snippet_copy", { r: "internal" });
+        track("home_cta", { target: "copy_curl" });
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
       },
@@ -417,6 +431,7 @@ export function PasteCheck({
   const mcpPromptLine = submittedUrl ? mcpCheckPromptForUrl(submittedUrl) : "";
 
   const fillExample = () => {
+    track("home_cta", { target: "try_example" });
     setUrl(EXAMPLE_X402_URL);
     setInputInvalid(false);
     setHint(null);
@@ -490,7 +505,7 @@ export function PasteCheck({
               </p>
             ) : null}
           </div>
-          <div className={s.pasteResult}>
+          <div className={`${s.pasteResult} ${phase === "result" ? s.pasteResultRise : ""}`}>
             {phase === "result" && outcome === "same_host" && sameHostListings ? (
               <div className={s.pasteBlock} data-testid="paste-same-host">
                 <p data-testid="paste-same-host-summary">
@@ -619,7 +634,11 @@ export function PasteCheck({
                   <div>
                     <dt>Record</dt>
                     <dd>
-                      <a href={recordHref} className={s.inlineLink}>
+                      <a
+                        href={recordHref}
+                        className={s.inlineLink}
+                        onClick={() => track("home_cta", { target: "full_record" })}
+                      >
                         Full record
                       </a>
                       <p className={s.pasteBlock}>{RECORD_UPDATE_NOTE}</p>
@@ -706,6 +725,7 @@ export function PasteCheck({
                             if (!navigator.clipboard?.writeText) return;
                             void navigator.clipboard.writeText(text).then(
                               () => {
+                                track("home_cta", { target: "copy_mcp_prompt" });
                                 setMcpCopied(true);
                                 setTimeout(() => setMcpCopied(false), 2000);
                               },

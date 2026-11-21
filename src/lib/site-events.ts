@@ -58,13 +58,20 @@ export const SITE_EVENTS = [
   "entry_while_pay",
   "entry_after_pay",
   "home_paste_submit",
+  "home_paste_invalid",
+  "home_paste_error",
+  "home_verdict",
+  "home_cta",
   "home_result_state",
   "home_snippet_copy",
+  "nav_check_click",
+  "mcp_docs_first_prompt_copy",
+  "mcp_html_redirect",
   "watch_sellers_interest",
 ] as const;
 
 /** home_result_state: stored in `source` (state word only, not a referrer host). */
-export const HOME_RESULT_STATES = ["record", "same_host", "none"] as const;
+export const HOME_RESULT_STATES = ["record", "same_host", "none", "invalid", "error"] as const;
 export type HomeResultState = (typeof HOME_RESULT_STATES)[number];
 
 const HOME_RESULT_STATE_SET: ReadonlySet<string> = new Set(HOME_RESULT_STATES);
