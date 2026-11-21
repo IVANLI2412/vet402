@@ -1143,13 +1143,22 @@
 @media (prefers-reduced-motion: no-preference) {
   /* The card is on screen from the first paint. The class stays so the hook does not move. */
   .rise2 {
-    animation: lpRise 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+    animation: lpRise 180ms ease-out both;
   }
   .pasteResultRise {
-    animation: lpRise 520ms cubic-bezier(0.2, 0.7, 0.2, 1) 90ms both;
+    animation: pasteRise 520ms cubic-bezier(0.2, 0.7, 0.2, 1) 90ms both;
   }
 }
 @keyframes lpRise {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 1;
+  }
+}
+/* UX6 P2-3: only the paste result rises. The purchase card is on screen from the first paint. */
+@keyframes pasteRise {
   from {
     opacity: 0;
     transform: translateY(6px);

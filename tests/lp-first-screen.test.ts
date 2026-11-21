@@ -178,10 +178,17 @@ test("a missing purchase card leaves one text column", () => {
   assert.match(css, /\.hero:has\(\.record\)\s*\{[^}]*minmax\(0,\s*1fr\) minmax\(0,\s*440px\)/);
 });
 
-test("lpRise motion runs only without reduced motion (UX6: 520ms verdict rise)", () => {
-  assert.match(css, /animation:\s*lpRise 520ms cubic-bezier\(0\.2, 0\.7, 0\.2, 1\) both/);
-  assert.match(css, /\.pasteResultRise/);
-  assert.match(css, /@media \(prefers-reduced-motion: no-preference\)[\s\S]*@keyframes lpRise/);
+test("the purchase card does not fade in from off-screen", () => {
+  assert.match(css, /animation:\s*lpRise 180ms ease-out both/);
+  const lp = /@keyframes lpRise \{[\s\S]*?\n\}/.exec(css)?.[0] ?? "";
+  assert.ok(lp, "lpRise keyframes exist");
+  assert.doesNotMatch(lp, /opacity:\s*0[;.]/);
+  assert.doesNotMatch(lp, /translateY/);
+});
+
+test("only the paste result rises, and only without reduced motion (UX6 P2-3)", () => {
+  assert.match(css, /\.pasteResultRise\s*\{\s*animation:\s*pasteRise 520ms/);
+  assert.match(css, /@media \(prefers-reduced-motion: no-preference\)[\s\S]*\.pasteResultRise/);
 });
 
 test("CC BY links to the license, and the home page uses its own footer", () => {

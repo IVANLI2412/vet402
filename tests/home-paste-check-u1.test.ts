@@ -324,10 +324,7 @@ test("find timeout yields alternatives read error", async () => {
   await act(async () => {
     await new Promise((r) => setTimeout(r, 150));
   });
-  assert.match(
-    dom.window.document.body.textContent ?? "",
-    /Alternatives could not be read|No listing for the same use passed the rule yet/,
-  );
+  assert.match(dom.window.document.body.textContent ?? "", /Alternatives could not be read/);
   unmount();
 });
 
