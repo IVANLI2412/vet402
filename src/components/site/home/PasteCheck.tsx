@@ -461,12 +461,10 @@ export function PasteCheck({
         </div>
       </form>
 
-      {(phase === "loading" || phase === "result") && (
+      {phase === "result" && (
         <>
           <div className={s.pasteLive} aria-live="polite">
-            {phase === "loading" ? (
-              <p className="sr-only">Checking</p>
-            ) : hint ? (
+            {hint ? (
               <p id={HINT_ID} className={s.pasteHintId}>
                 {hint}
               </p>
