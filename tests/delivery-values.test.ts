@@ -144,6 +144,16 @@ async function compareDaysPaths(search: string, ip: string) {
   assert.equal(rD.status, rL.status, search);
   if (rL.status === 308) {
     assert.equal(new URL(rD.headers.get("location") ?? "").search, new URL(rL.headers.get("location") ?? "").search);
+    const jL = (await rL.json()) as Record<string, unknown>;
+    const jD = (await rD.json()) as Record<string, unknown>;
+    assert.equal(jL.error, "moved");
+    assert.equal(jD.error, "moved");
+    assert.equal(
+      new URL(String(jL.location)).search,
+      new URL(String(jD.location)).search,
+      search,
+    );
+    return;
   }
   const ctL = rL.headers.get("content-type") ?? "";
   const ctD = rD.headers.get("content-type") ?? "";

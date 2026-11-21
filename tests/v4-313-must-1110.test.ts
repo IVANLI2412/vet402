@@ -388,6 +388,7 @@ test("3.13-S1-2: S1-3 の網から外した物差しの 2 ファイルは台帳�
   assert.deepEqual(importSpecifiers("src/app/api/v1/v4/delivery-hit-rate-yardstick/route.ts"), [
     "@/lib/api/client-ip",
     "@/lib/api/ip-rate-limit",
+    "@/lib/api/method-not-allowed",
     "@/lib/api/public-read-robots",
     "@/lib/v4/delivery-hit-rate-yardstick",
     "next/server",

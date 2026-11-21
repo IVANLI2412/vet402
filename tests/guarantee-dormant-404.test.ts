@@ -45,7 +45,7 @@ test("メソッド共通ハンドラが OFF を先に見る（405 を先に返�
   assert.ok(fn, "共通ハンドラが見つからない");
   const body = fn![0];
   const offAt = body.indexOf("isGuaranteeUnderwritingEnabled");
-  const at405 = body.indexOf("405");
+  const at405 = body.indexOf("apiMethodNotAllowed");
   assert.ok(offAt >= 0 && at405 >= 0, "分岐が揃っていない");
   assert.ok(offAt < at405, "405 をフラグ判定より先に返している——OFF でも実在が漏れる");
 });

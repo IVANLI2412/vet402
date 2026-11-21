@@ -102,7 +102,7 @@ const ALLOWED_ENV = [
   "TOKYO_OPERATOR_PRIVATE_KEY",
   "TOKYO_SEPOLIA_RPC_URL",
 ];
-const ALLOWED_LIB = ["@/lib/cron/lease", "@/lib/db/client", "@/lib/util/log"];
+const ALLOWED_LIB = ["@/lib/api/method-not-allowed", "@/lib/cron/lease", "@/lib/db/client", "@/lib/util/log"];
 
 function filesUnder(dir: string, pick: (p: string) => boolean): string[] {
   const out: string[] = [];

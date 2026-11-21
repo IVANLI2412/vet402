@@ -7184,6 +7184,9 @@ components:
             - mcp_disabled
             - not_found
             - forbidden
+            # 2026-11-21 C-6: shared 405 envelope and API 308 JSON body
+            - method_not_allowed
+            - moved
             # 2026-09-02 敵対的監査 P1-1: 実装が返しているのに enum に無かった語を全数
             # 追加。tests/openapi-error-enum.test.ts が「文書化された route.ts の
             # error リテラル ⊆ この enum」を機械検査する。

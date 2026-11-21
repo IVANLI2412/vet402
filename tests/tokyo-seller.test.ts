@@ -115,11 +115,17 @@ test("支払い無しの GET は 402・PAYMENT-REQUIRED の accepts[0] が約束
   assert.deepEqual(body, pr);
 });
 
-test("約束の method は GET。route が出すのは GET だけ", async () => {
+test("約束の method は GET。他 verb は共有 405", async () => {
   const mod = await import("@/app/api/tokyo/seller/route");
   assert.equal(OFFER.method, "GET");
   for (const verb of ["POST", "PUT", "PATCH", "DELETE"]) {
-    assert.equal((mod as Record<string, unknown>)[verb], undefined, `${verb} を export しない`);
+    const handler = (mod as Record<string, unknown>)[verb];
+    assert.equal(typeof handler, "function", `${verb}`);
+    const res = await (handler as (r: Request) => Promise<Response>)(
+      new NextRequest(URL_, { method: verb, body: "{}" }),
+    );
+    assert.equal(res.status, 405);
+    assert.equal((await res.json()).error, "method_not_allowed");
   }
   assert.equal(dynamic, "force-dynamic");
 });
@@ -221,7 +227,12 @@ test("facilitator に届かない・5xx → 502（払ったことにしない）
 test("W01: route は既存 lib を許可の3本以外 import しない・env を読まない・秘密鍵と署名器を持たない", () => {
   const src = readFileSync("src/app/api/tokyo/seller/route.ts", "utf8");
   const libs = [...src.matchAll(/from\s+["'](@\/lib\/[^"']+)["']/g)].map((m) => m[1]);
-  const allowed = new Set(["@/lib/db/client", "@/lib/util/log", "@/lib/cron/lease"]);
+  const allowed = new Set([
+    "@/lib/api/method-not-allowed",
+    "@/lib/db/client",
+    "@/lib/util/log",
+    "@/lib/cron/lease",
+  ]);
   for (const l of libs) assert.ok(allowed.has(l), `許可外の lib: ${l}`);
   assert.doesNotMatch(src, /import\(/, "動的 import なし");
   assert.doesNotMatch(src, /process\.env/, "env を読まない");
