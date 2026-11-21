@@ -178,10 +178,10 @@ test("a missing purchase card leaves one text column", () => {
   assert.match(css, /\.hero:has\(\.record\)\s*\{[^}]*minmax\(0,\s*1fr\) minmax\(0,\s*440px\)/);
 });
 
-test("the purchase card does not fade in from off-screen", () => {
-  assert.match(css, /animation:\s*lpRise 180ms ease-out both/);
-  assert.doesNotMatch(css, /opacity:\s*0\.001/);
-  assert.doesNotMatch(css, /translateY/);
+test("lpRise motion runs only without reduced motion (UX6: 520ms verdict rise)", () => {
+  assert.match(css, /animation:\s*lpRise 520ms cubic-bezier\(0\.2, 0\.7, 0\.2, 1\) both/);
+  assert.match(css, /\.pasteResultRise/);
+  assert.match(css, /@media \(prefers-reduced-motion: no-preference\)[\s\S]*@keyframes lpRise/);
 });
 
 test("CC BY links to the license, and the home page uses its own footer", () => {
