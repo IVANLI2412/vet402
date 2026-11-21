@@ -26,10 +26,10 @@ export default async function SellerCalledVsDeliveredSection({ host }: { host: s
         <div className="border-t border-brand-deep pt-3">
           <h3 className="doc-caption">Delivered rate, from purchases vet402 paid for and checked (all chains, last 30 days)</h3>
           {v.settled > 0 && v.deliveredPct !== null ? (
-            <p className="mt-2 text-[1.75rem] tabular-nums text-brand-deep">{v.deliveredPct}%</p>
+            <p className="mt-2 text-[2rem] font-semibold tabular-nums text-brand-deep">{v.deliveredPct}%</p>
           ) : null}
           {v.settled > 0 ? (
-            <p className="mt-2 text-[1.0625rem] tabular-nums text-brand-deep">
+            <p className="mt-2 text-[1.25rem] tabular-nums text-brand-deep">
               {v.delivered.toLocaleString("en-US")} delivered of {v.settled.toLocaleString("en-US")} settled
             </p>
           ) : null}
@@ -39,15 +39,15 @@ export default async function SellerCalledVsDeliveredSection({ host }: { host: s
             </p>
           ))}
         </div>
-        <div className="border-t border-brand-deep pt-3">
-          <h3 className="doc-caption">Calls in the last 30 days, counted by the CDP Bazaar (Coinbase)</h3>
+        <div className="border-t border-hair pt-3 sm:max-w-[26ch]">
+          <h3 className="doc-caption text-brand-lift">Calls in the last 30 days, counted by the CDP Bazaar (Coinbase)</h3>
           {hasBazaar ? (
-            <p className="mt-2 text-[1.0625rem] tabular-nums text-brand">
+            <p className="mt-2 text-[0.9375rem] tabular-nums text-brand-lift">
               {b.calls30d!.toLocaleString("en-US")}
             </p>
           ) : null}
           {lines.bazaar.map((line) => (
-            <p key={line} className="doc-note mt-2">
+            <p key={line} className="doc-note mt-2 text-[0.84375rem] text-brand-lift">
               {line}
             </p>
           ))}

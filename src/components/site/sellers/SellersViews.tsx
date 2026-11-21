@@ -194,7 +194,7 @@ function SearchForm({ q }: { q: string }) {
         <label className="block min-w-0 basis-full text-[0.84375rem] sm:basis-auto sm:flex-1">
           <span className="doc-caption block">Your domain</span>
           {/* 17px: iOS Safari は 16px 未満の入力欄にフォーカスすると頁を拡大する。階段に 16px は無い（2026-09-28 監査、2026-10-22 に 17px）。 */}
-          <input data-clarity-mask="true" name="q" type="search" defaultValue={q} placeholder="api.example.com" className="doc-input mt-1 text-[1.0625rem]" />
+          <input data-clarity-mask="true" name="q" type="search" defaultValue={q} placeholder="llm.gedx402.com" className="doc-input mt-1 text-[1.0625rem]" />
         </label>
         <button type="submit" className={buttonClass({ size: "sm" })}>
           Find
@@ -425,12 +425,23 @@ export function SellersIndexView({
       </p>
       <p className="doc-p">
         Before an agent pays,{" "}
-        <Link href="/x402/check-a-seller" className="doc-link">
+        <Link href="/#lp-paste-url" className="doc-link">
           check an x402 seller
         </Link>{" "}
         against the decision and the purchases vet402 has already made.
       </p>
       <SearchForm q={q} />
+      <nav aria-label="Purchase results by chain" className="mt-4 flex flex-wrap gap-x-4 gap-y-2 text-[0.84375rem]">
+        <span className="font-semibold text-brand-deep" aria-current="page">
+          Base
+        </span>
+        <Link href="/observatory?l1=1" className="underline decoration-1 hover:decoration-2">
+          All chains (Observatory)
+        </Link>
+        <Link href="/x402/chains" className="underline decoration-1 hover:decoration-2">
+          Chains vet402 buys on
+        </Link>
+      </nav>
 
       {search && (
         <section aria-label="Search results" className="mt-6">
