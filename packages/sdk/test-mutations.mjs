@@ -475,6 +475,15 @@ const MUTATIONS = [
     replace:
       "    const response = await fetchFn(input.resource, {\n      method,\n      redirect: \"error\",\n      signal: AbortSignal.timeout(SELLER_READ_TIMEOUT_MS),\n      headers,\n    }); /* MUTANT */",
   },
+  {
+    id: "M51",
+    what: "verified_terms の照合を ALLOW のときだけに戻す（WARN 免除で額超過を通す）",
+    rule: "N7 verified_terms は免除の有無に関わらず照合",
+    file: PAY,
+    find: "  if (hasKey && vtRaw !== null && vtRaw !== undefined && isPlainObject(vtRaw)) {",
+    replace:
+      "  if (/* MUTANT */ decision.recommendation === \"ALLOW\" && hasKey && vtRaw !== null && vtRaw !== undefined && isPlainObject(vtRaw)) {",
+  },
 ];
 
 // ---------- 実行器 ----------

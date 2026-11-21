@@ -305,24 +305,18 @@ function payeesFromFacts(decision) {
     return facts.payees.filter((p) => typeof p === "string");
 }
 /**
- * 判定が ALLOW のとき、vet402 が記録した payTo・額と accept を照合する。
+ * vet402 が記録した payTo・額と accept を照合する。
+ * `verified_terms` があるときは判定語（ALLOW かどうか）や WARN 免除に関わらず照合する（N7）。
+ * `verified_terms` が無く ALLOW のときだけ `facts.payees` に落ちる。
  * `verified_terms.network` が払うチェーンと違っても payTo と amount は照合する（検証チェーンと支払いチェーンが違う記録がある）。
  */
 function matchDeclaredPayTerms(decision, accept, profile) {
-    if (decision === null || decision.recommendation !== "ALLOW")
+    if (decision === null)
         return null;
     const body = decision;
     const hasKey = Object.hasOwn(body, "verified_terms");
     const vtRaw = body.verified_terms;
-    if (!hasKey) {
-        const payees = payeesFromFacts(decision);
-        if (payees.length === 0)
-            return ["evidence_unavailable"];
-        if (!payees.some((p) => payeeMatchesDeclared(p, accept.payTo, profile.network)))
-            return ["payee_mismatch"];
-        return null;
-    }
-    if (vtRaw !== null && vtRaw !== undefined && isPlainObject(vtRaw)) {
+    if (hasKey && vtRaw !== null && vtRaw !== undefined && isPlainObject(vtRaw)) {
         const payTo = typeof vtRaw.pay_to === "string" ? vtRaw.pay_to : null;
         const amount = typeof vtRaw.amount === "string" ? vtRaw.amount : null;
         if (payTo === null || amount === null || !isDecimalUnits(amount)) {
@@ -341,6 +335,16 @@ function matchDeclaredPayTerms(decision, accept, profile) {
             if (typeof vtRaw.scheme === "string" && accept.scheme !== vtRaw.scheme)
                 return ["chain_or_asset_mismatch"];
         }
+        return null;
+    }
+    if (decision.recommendation !== "ALLOW")
+        return null;
+    if (!hasKey) {
+        const payees = payeesFromFacts(decision);
+        if (payees.length === 0)
+            return ["evidence_unavailable"];
+        if (!payees.some((p) => payeeMatchesDeclared(p, accept.payTo, profile.network)))
+            return ["payee_mismatch"];
         return null;
     }
     const payees = payeesFromFacts(decision);

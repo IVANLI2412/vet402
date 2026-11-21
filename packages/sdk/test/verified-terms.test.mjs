@@ -167,6 +167,60 @@ test("V4b ALLOW で verified_terms キーが無く payees も無い → refused"
   assert.ok(r.decision.reason_codes.includes("evidence_unavailable"));
 });
 
+const warnDecisionBody = (terms) => ({
+  ...decisionBody(terms),
+  recommendation: "WARN",
+  reason_codes: ["l1_latest_failed"],
+  facts: { l1: { n_delivered: 3, n_attempts: 4 } },
+});
+
+const waivePolicy = { requireVet402Allow: false, evidence: { minL1Deliveries: 1 } };
+
+test("V6 WARN 免除＋床＋verified_terms 超過 → refused・price_above_declared・署名0", async () => {
+  const signed = [];
+  const acc = { ...account, signTypedData: async () => (signed.push(1), "0x" + "00".repeat(65)) };
+  const fetch = async (input, init = {}) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.includes("/decision")) {
+      return new Response(JSON.stringify(warnDecisionBody(TERMS)), { status: 200 });
+    }
+    return stubFetch(TERMS, GOOD, "1000000")(input, init);
+  };
+  const r = await payOrRefuse({
+    payee: GOOD,
+    resource: RESOURCE,
+    amountUsd: 1,
+    account: acc,
+    fetch,
+    policy: waivePolicy,
+  });
+  assert.equal(r.status, "refused");
+  assert.equal(signed.length, 0);
+  assert.ok(r.decision.reason_codes.includes("price_above_declared"));
+});
+
+test("V7 WARN 免除＋床＋verified_terms 一致 → paid", async () => {
+  const signed = [];
+  const acc = { ...account, signTypedData: async () => (signed.push(1), "0x" + "00".repeat(65)) };
+  const fetch = async (input, init = {}) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.includes("/decision")) {
+      return new Response(JSON.stringify(warnDecisionBody(TERMS)), { status: 200 });
+    }
+    return stubFetch(TERMS, GOOD, "10000")(input, init);
+  };
+  const r = await payOrRefuse({
+    payee: GOOD,
+    resource: RESOURCE,
+    amountUsd: 0.01,
+    account: acc,
+    fetch,
+    policy: waivePolicy,
+  });
+  assert.equal(r.status, "paid");
+  assert.equal(signed.length, 1);
+});
+
 test("V5 skipVerifiedTermsCheck で照合を外せる", async () => {
   const signed = [];
   const acc = { ...account, signTypedData: async () => (signed.push(1), "0x" + "00".repeat(65)) };

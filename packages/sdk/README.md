@@ -189,6 +189,8 @@ const r = await payOrRefuse({
 - `BLOCK`, `WARN` (unless waived with `requireVet402Allow: false` and a floor), `degraded`, an unreadable
   decision, and a resource outside the catalogue (`resource_uncatalogued` + `evidence_unavailable`) all
   refuse before the 402 is fetched, with zero `sign*` accesses and zero RPC calls.
+- Waiving vet402's verdict does not skip matching the 402 to vet402's `verified_terms` (`pay_to`, `amount`).
+  Pass `policy.skipVerifiedTermsCheck: true` only when you intend to skip that check.
 - The 402 must offer `scheme: "exact"`, network `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp`, asset
   `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` (exact match), x402 v2, and an `extra.feePayer` that is
   neither `payTo` nor your signer. `payTo` must equal `payee` exactly — base58 is case-sensitive.
