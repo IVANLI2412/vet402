@@ -2,7 +2,6 @@ import { DEFAULT_MAX_PER_TX_USD } from "./ceiling.js";
 const SESSION_MAX_ENV = "VOUCH_SESSION_MAX_USD";
 const WAIVE_ENV = "VOUCH_ALLOW_WAIVE_VET402";
 const L1_FLOOR_ENV = "VOUCH_MIN_L1_DELIVERIES";
-const SOURCE_RANK = { vet402: 0, subgraph: 1, both: 2 };
 let sessionSpentUsd = 0;
 export function resetSessionSpendForTests() {
     sessionSpentUsd = 0;
@@ -29,16 +28,21 @@ function maxFloor(a, b) {
         return undefined;
     return Math.max(...vals);
 }
-function narrowSource(envSource, toolSource) {
+/**
+ * source は厳しい側へ合成する（11/22 証明の監査 whitehat-R5-1 / adversary-N4）。
+ * 同じなら その値、違えば both（両方を読み、どちらかが読めなければ拒否）。
+ * ツールが The Graph を求めて鍵が無い時は、SDK の graph_key_not_configured で拒否される。
+ */
+function strictestSource(envSource, toolSource) {
     const env = envSource ?? "vet402";
-    if (toolSource === undefined)
+    if (toolSource === undefined || toolSource === env)
         return env;
-    return SOURCE_RANK[toolSource] <= SOURCE_RANK[env] ? toolSource : env;
+    return "both";
 }
 function mergedEvidence(envEv, toolEv) {
     const minL1 = maxFloor(envEv?.minL1Deliveries, toolEv?.minL1Deliveries);
     const minSub = maxFloor(envEv?.minSubgraphReceipts, toolEv?.minSubgraphReceipts);
-    const source = narrowSource(envEv?.source, toolEv?.source);
+    const source = strictestSource(envEv?.source, toolEv?.source);
     if (minL1 === undefined && minSub === undefined && envEv === undefined && toolEv === undefined)
         return undefined;
     return {

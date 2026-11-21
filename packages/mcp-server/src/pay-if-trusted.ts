@@ -528,8 +528,6 @@ async function payIfTrustedCore(input: PayIfTrustedInput, notes: string[]): Prom
     );
   }
 
-  if (authKey !== null) markPendingAuthorization(authKey);
-
   // --- 5. ここから先だけが支払い。実装は ALLOW ブランチ内の動的 import（第3層）---
   // payee の形でレールが決まる（SDK と同じ規則）。base58 なら Solana の署名者だけを渡し、EVM の signer には触らない。
   // 署名者の**有無**だけを見る（`=== undefined` は Proxy の get を起こさない）。
@@ -540,8 +538,12 @@ async function payIfTrustedCore(input: PayIfTrustedInput, notes: string[]): Prom
   const payer = solanaPayee
     ? { svm: { account: input.svmSigner as PayIfTrustedSvmSigner, rpcUrl: input.solanaRpcUrl as string } }
     : { account: input.signer };
+  // 確かめてから印を付けるまで await を挟まない（並行の呼び出しが同じ資源で2回署名しないため）。
+  if (authKey !== null) markPendingAuthorization(authKey);
+  let paid: Awaited<ReturnType<typeof import("@vet402/sdk").payOrRefuse>>;
+  try {
   const { payOrRefuse } = await import("@vet402/sdk");
-  const paid = await payOrRefuse({
+  paid = await payOrRefuse({
     payee: input.payee,
     resource: input.resource,
     amountUsd: input.amountUsd,
@@ -562,6 +564,11 @@ async function payIfTrustedCore(input: PayIfTrustedInput, notes: string[]): Prom
         : {}),
     },
   });
+  } catch (error) {
+    // 署名の前の例外（RPC の一時的な失敗・URL の形・署名器の例外）。署名は無いので、印を戻す（adversary-N1）。
+    if (authKey !== null) clearPendingAuthorization(authKey);
+    throw error;
+  }
 
   // SDK の決定行はサーバの reason_codes を既に含む。橋の測定と連結すると同じ語が2回並ぶので、
   // 順序を保ったまま重複だけ落とす（語を消したり並べ替えたりはしない）。

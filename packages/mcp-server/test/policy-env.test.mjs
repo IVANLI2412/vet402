@@ -23,7 +23,16 @@ test("default env merges tool evidence floors", () => {
   assert.equal(merged.requireVet402Allow, true);
   assert.equal(merged.evidence?.minL1Deliveries, 5);
   assert.equal(merged.evidence?.minSubgraphReceipts, 3);
-  assert.equal(merged.evidence?.source, "vet402");
+  // 11/22 証明の監査 R5-1/N4: tool の both は捨てずに残す（前は vet402 に落ち、assertPolicy が拒否する組み合わせだった）。
+  assert.equal(merged.evidence?.source, "both");
+});
+
+test("source takes the strictest side: same stays, different becomes both", () => {
+  const env = policyFromEnv({});
+  assert.equal(mergePolicyFromEnv(env, { evidence: { source: "vet402" } }).evidence?.source, "vet402");
+  assert.equal(mergePolicyFromEnv(env, { evidence: { source: "subgraph", minSubgraphReceipts: 3 } }).evidence?.source, "both");
+  assert.equal(mergePolicyFromEnv(env, { evidence: { source: "both" } }).evidence?.source, "both");
+  assert.equal(mergePolicyFromEnv(env, {}).evidence, undefined);
 });
 
 test("waive env takes max L1 floor from tool when tool requires vet402 ALLOW", () => {

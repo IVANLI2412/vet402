@@ -22,3 +22,10 @@ test("pay_if_trusted tool text mentions onUnresolved and env-controlled waiver/f
   const readme = readFileSync(README, "utf8");
   assert.match(readme, /onUnresolved|uncatalogued/, "README should mention onUnresolved behavior");
 });
+test("policy text no longer claims the input is forwarded unchanged (whitehat-R5-5)", () => {
+  const src = readFileSync(INDEX, "utf8");
+  const readme = readFileSync(README, "utf8");
+  assert.doesNotMatch(src, /payOrRefuse unchanged/, "tool text still says unchanged");
+  assert.doesNotMatch(readme, /forwarded to `payOrRefuse` unchanged/, "README still says unchanged");
+  assert.doesNotMatch(readme, /env `both` \+ tool `subgraph` → `subgraph`/, "README keeps an example the env cannot produce");
+});

@@ -324,8 +324,6 @@ async function payIfTrustedCore(input, notes) {
         return refuse(m, [...serverWords, "evidence_unavailable"], "Do not pay again yet: a prior authorization for this resource is still live until validBefore. " +
             "Reconcile the nonce with the chain or wait for validBefore before signing again.");
     }
-    if (authKey !== null)
-        markPendingAuthorization(authKey);
     // --- 5. ここから先だけが支払い。実装は ALLOW ブランチ内の動的 import（第3層）---
     // payee の形でレールが決まる（SDK と同じ規則）。base58 なら Solana の署名者だけを渡し、EVM の signer には触らない。
     // 署名者の**有無**だけを見る（`=== undefined` は Proxy の get を起こさない）。
@@ -336,28 +334,40 @@ async function payIfTrustedCore(input, notes) {
     const payer = solanaPayee
         ? { svm: { account: input.svmSigner, rpcUrl: input.solanaRpcUrl } }
         : { account: input.signer };
-    const { payOrRefuse } = await import("@vet402/sdk");
-    const paid = await payOrRefuse({
-        payee: input.payee,
-        resource: input.resource,
-        amountUsd: input.amountUsd,
-        ...payer,
-        fetch: fetchFn,
-        method: input.method,
-        // 1.8 で正規化した id（凍結中の SDK が生の URL から作る id を使わせない）。
-        resourceId,
-        apiUrl,
-        apiKey: input.apiKey,
-        source: input.source ?? "mcp",
-        // 値をそのまま渡す。鍵だけは env から来たものをここで合流させる。
-        policy: {
-            ...input.policy,
-            ...(input.maxPerTxUsd === undefined ? {} : { maxPerTxUsd: input.maxPerTxUsd }),
-            ...(input.policy?.evidence
-                ? { evidence: { ...input.policy.evidence, ...(input.graphApiKey ? { graphApiKey: input.graphApiKey } : {}) } }
-                : {}),
-        },
-    });
+    // 確かめてから印を付けるまで await を挟まない（並行の呼び出しが同じ資源で2回署名しないため）。
+    if (authKey !== null)
+        markPendingAuthorization(authKey);
+    let paid;
+    try {
+        const { payOrRefuse } = await import("@vet402/sdk");
+        paid = await payOrRefuse({
+            payee: input.payee,
+            resource: input.resource,
+            amountUsd: input.amountUsd,
+            ...payer,
+            fetch: fetchFn,
+            method: input.method,
+            // 1.8 で正規化した id（凍結中の SDK が生の URL から作る id を使わせない）。
+            resourceId,
+            apiUrl,
+            apiKey: input.apiKey,
+            source: input.source ?? "mcp",
+            // 値をそのまま渡す。鍵だけは env から来たものをここで合流させる。
+            policy: {
+                ...input.policy,
+                ...(input.maxPerTxUsd === undefined ? {} : { maxPerTxUsd: input.maxPerTxUsd }),
+                ...(input.policy?.evidence
+                    ? { evidence: { ...input.policy.evidence, ...(input.graphApiKey ? { graphApiKey: input.graphApiKey } : {}) } }
+                    : {}),
+            },
+        });
+    }
+    catch (error) {
+        // 署名の前の例外（RPC の一時的な失敗・URL の形・署名器の例外）。署名は無いので、印を戻す（adversary-N1）。
+        if (authKey !== null)
+            clearPendingAuthorization(authKey);
+        throw error;
+    }
     // SDK の決定行はサーバの reason_codes を既に含む。橋の測定と連結すると同じ語が2回並ぶので、
     // 順序を保ったまま重複だけ落とす（語を消したり並べ替えたりはしない）。
     const reasons = Array.isArray(paid.decision?.reason_codes) ? paid.decision.reason_codes : [];

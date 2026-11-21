@@ -22,7 +22,7 @@ const ACCEPT = {
 };
 const b64 = (o) => btoa(JSON.stringify(o));
 
-function harness(nDelivered) {
+function harness(nDelivered, resolvedId = "a".repeat(64)) {
   const seen = { signs: 0 };
   const fetch = async (url, init) => {
     const u = String(url);
@@ -33,7 +33,7 @@ function harness(nDelivered) {
       return { ok: true, status: 200, json: async () => body, headers: new Map() };
     }
     if (u.includes("/resolve")) {
-      return { ok: true, status: 200, json: async () => ({ resource: { resource_id: "a".repeat(64) } }), headers: new Map() };
+      return { ok: true, status: 200, json: async () => ({ resource: { resource_id: resolvedId } }), headers: new Map() };
     }
     if (u.includes("/payments/x402")) return { ok: true, status: 200, json: async () => ({}), headers: new Map() };
     const paid = (init?.headers ?? {})["PAYMENT-SIGNATURE"];
@@ -98,4 +98,44 @@ test("handler wiring: merged policy is what payIfTrusted gets, and the cap is re
   const callBlock = src.slice(call, src.indexOf("});", call));
   assert.match(callBlock, /policy: effectivePolicy,/);
   assert.doesNotMatch(src.slice(reserve, call), /\bawait\b/, "an await between reserve and the call reopens the race");
+});
+
+test("tool source both + default env + no Graph key → REFUSE graph_key_not_configured, 0 signatures (R5-1/N4)", async () => {
+  const h = harness(6);
+  const policy = mergePolicyFromEnv(policyFromEnv({}), { evidence: { source: "both" } });
+  assert.equal(policy.evidence?.source, "both");
+  const r = await payIfTrusted({
+    resourceId: "a".repeat(64), signer: h.signer, fetch: h.fetch, apiUrl: "https://api.stub",
+    resource: "https://gateway.example/api/data", payee: PAYEE, amountUsd: 0.01, maxPerTxUsd: 1, policy,
+  });
+  assert.equal(r.decision, "REFUSE", JSON.stringify(r));
+  assert.ok(r.refuse_reasons.includes("graph_key_not_configured"), JSON.stringify(r.refuse_reasons));
+  assert.equal(h.seen.signs, 0);
+});
+
+test("signer throws before signing → pending mark is cleared; the same resource can be paid next (N1/R5-4)", async () => {
+  // 他の試験が払った資源と認可の鍵が重ならないよう、別の id を返す。
+  const h = harness(6, "b".repeat(64));
+  const base = {
+    resourceId: "b".repeat(64), fetch: h.fetch, apiUrl: "https://api.stub",
+    resource: "https://gateway.example/api/throws", payee: PAYEE, amountUsd: 0.01, maxPerTxUsd: 1,
+  };
+  // http:// の資源 URL は SDK が署名の前に throw する（adversary T5 の再現と同じ）。
+  let first;
+  try { first = await payIfTrusted({ ...base, signer: h.signer, resource: "http://gateway.example/api/throws" }); } catch (e) { first = e; }
+  assert.ok(first instanceof Error, `expected a throw, got ${JSON.stringify(first)}`);
+  assert.equal(h.seen.signs, 0);
+  const r = await payIfTrusted({ ...base, signer: h.signer });
+  assert.notEqual(r.decision, "REFUSE", `still blocked after a throw: ${JSON.stringify(r)}`);
+  assert.equal(h.seen.signs, 1);
+});
+
+test("handler wiring: a throw from payIfTrusted releases the session reservation (N1/R5-4)", () => {
+  const src = readFileSync(join(PKG, "src/index.ts"), "utf8");
+  const call = src.indexOf("const result = await payIfTrusted({");
+  const before = src.slice(Math.max(0, call - 300), call);
+  const after = src.slice(call, call + 6000);
+  assert.match(before, /if \(typeof amountUsd === "number"\) reservedUsd = amountUsd;/, "reservation is not recorded before the call");
+  assert.match(after, /reservedUsd = null;/, "reservation is not cleared once payIfTrusted returns");
+  assert.match(after, /catch \(error\) \{\n\s+if \(reservedUsd !== null\) releaseSessionSpend\(reservedUsd\);\n\s+return scoreToolFailure\(error\);/);
 });

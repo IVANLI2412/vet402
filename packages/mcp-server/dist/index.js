@@ -391,7 +391,7 @@ async function main() {
         "is the seller-claimed Solana signature, nonce is the memo vet402 wrote into the transaction, and",
         "attested is false. policy.evidence.source subgraph/both is a caller error for a Solana payee.",
         "",
-        "policy is passed to the SDK's payOrRefuse unchanged. policy.evidence.source \"subgraph\" or \"both\"",
+        "policy is merged with the server env before payOrRefuse: floors take the larger of env and input, a waiver needs the env to allow it, and a source that differs from the env becomes \"both\". policy.evidence.source \"subgraph\" or \"both\"",
         "reads The Graph's x402 Base subgraph through the Graph Gateway and puts that read on",
         "decision_record.evidence[] as its own row (source subgraph, receipts, block.number). The Gateway",
         "key is read from GRAPH_API_KEY in this server's env, never from tool input; without it the tool",
@@ -428,8 +428,9 @@ async function main() {
                 .optional(),
         })
             .optional()
-            .describe("Caller's own rule; forwarded to payOrRefuse unchanged. The Graph key is NOT an input - set GRAPH_API_KEY in the server env."),
+            .describe("Caller's own rule, merged with the server env (floors take the larger value, waiver only if the env allows it, a source that differs from the env becomes both). The Graph key is NOT an input - set GRAPH_API_KEY in the server env."),
     }, async ({ resourceId, resource, payee, amountUsd, method, maxPerTxUsd, policy, onUnresolved }) => {
+        let reservedUsd = null;
         try {
             // 2026-09-07: VOUCH_API_KEY is optional — /decision answers key-less
             // (10/min per IP). Unset or blank → no Authorization header; the server's
@@ -470,6 +471,9 @@ async function main() {
                     ],
                 };
             }
+            // payIfTrusted が throw した時は署名していない（契約）。外側の catch で予約を戻す（11/22 証明の監査 adversary-N1）。
+            if (typeof amountUsd === "number")
+                reservedUsd = amountUsd;
             const result = await payIfTrusted({
                 resourceId,
                 signer: signer ?? UNCONFIGURED_SIGNER,
@@ -486,6 +490,7 @@ async function main() {
                 // 常に上書きすることで、天井の入口を env の1本だけにする。
                 ...(payerReady ? { resource, payee, amountUsd, method, maxPerTxUsd: ceiling.effective, solanaRpcUrl: svmPayer?.rpcUrl } : {}),
             });
+            reservedUsd = null;
             if (typeof amountUsd === "number") {
                 const signed = result.decision === "PAID" || (result.decision === "FAILED" && result.signed === true);
                 if (!signed)
@@ -520,6 +525,8 @@ async function main() {
             return { content: [{ type: "text", text: JSON.stringify(result, null, 2) }] };
         }
         catch (error) {
+            if (reservedUsd !== null)
+                releaseSessionSpend(reservedUsd);
             return scoreToolFailure(error);
         }
     });

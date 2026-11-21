@@ -7,8 +7,6 @@ const L1_FLOOR_ENV = "VOUCH_MIN_L1_DELIVERIES";
 
 type EvidenceSource = NonNullable<PayEvidencePolicy["source"]>;
 
-const SOURCE_RANK: Record<EvidenceSource, number> = { vet402: 0, subgraph: 1, both: 2 };
-
 let sessionSpentUsd = 0;
 
 export function resetSessionSpendForTests(): void {
@@ -39,10 +37,15 @@ function maxFloor(a: number | undefined, b: number | undefined): number | undefi
   return Math.max(...vals);
 }
 
-function narrowSource(envSource: EvidenceSource | undefined, toolSource: EvidenceSource | undefined): EvidenceSource {
+/**
+ * source は厳しい側へ合成する（11/22 証明の監査 whitehat-R5-1 / adversary-N4）。
+ * 同じなら その値、違えば both（両方を読み、どちらかが読めなければ拒否）。
+ * ツールが The Graph を求めて鍵が無い時は、SDK の graph_key_not_configured で拒否される。
+ */
+function strictestSource(envSource: EvidenceSource | undefined, toolSource: EvidenceSource | undefined): EvidenceSource {
   const env = envSource ?? "vet402";
-  if (toolSource === undefined) return env;
-  return SOURCE_RANK[toolSource] <= SOURCE_RANK[env] ? toolSource : env;
+  if (toolSource === undefined || toolSource === env) return env;
+  return "both";
 }
 
 function mergedEvidence(
@@ -51,7 +54,7 @@ function mergedEvidence(
 ): PayEvidencePolicy | undefined {
   const minL1 = maxFloor(envEv?.minL1Deliveries, toolEv?.minL1Deliveries);
   const minSub = maxFloor(envEv?.minSubgraphReceipts, toolEv?.minSubgraphReceipts);
-  const source = narrowSource(envEv?.source, toolEv?.source);
+  const source = strictestSource(envEv?.source, toolEv?.source);
   if (minL1 === undefined && minSub === undefined && envEv === undefined && toolEv === undefined) return undefined;
   return {
     source,
