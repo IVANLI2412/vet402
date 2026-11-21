@@ -169,6 +169,10 @@ export default async function ApiDocsPage() {
             className="underline"
           >
             <code className="text-brand-deep">/openapi.yaml</code>
+          </TrackedLink>
+          ,{" "}
+          <TrackedLink href="/openapi.json" event="openapi_click" className="underline">
+            <code className="text-brand-deep">/openapi.json</code>
           </TrackedLink>{" "}
           (also on{" "}
           <TrackedLink

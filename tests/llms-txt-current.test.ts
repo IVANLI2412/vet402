@@ -41,6 +41,10 @@ test("OpenAPI は配信している URL を正典として指す", () => {
     LLMS.includes("https://vet402.com/openapi.yaml"),
     "llms.txt が配信中の openapi.yaml を指していない（GitHub の blob だけを指すと、リポ名が変わるたびに引用が腐る）",
   );
+  assert.ok(
+    LLMS.includes("https://vet402.com/openapi.json"),
+    "llms.txt が配信中の openapi.json を指していない",
+  );
 });
 
 test("L1 の対応チェーンは方法論と一致する（Base だけだと言わない）", () => {

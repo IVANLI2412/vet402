@@ -82,7 +82,7 @@ What the API returns today is a different, older thing. It is a 0 to 100 trust o
 - https://vet402.com/blog — notes on agent-to-agent payments, x402, and verification
 - https://vet402.com/blog/rss.xml — the same posts as RSS
 - https://vet402.com/llms-full.txt — full FAQ and blog text, generated from the same modules the HTML uses
-- https://vet402.com/openapi.yaml — OpenAPI 3.1 of every public endpoint
+- https://vet402.com/openapi.yaml — OpenAPI 3.1 of every public endpoint (same document at https://vet402.com/openapi.json)
 
 Public per-subject pages: `https://vet402.com/payee/{address}`, `https://vet402.com/agent/{agentId}`, and `https://vet402.com/observatory/e/{id}` (one endpoint's full L0/L1/L2 history).
 
@@ -151,7 +151,7 @@ Cite as: KIZUNA Creation. vet402 observatory. Dataset, retrieved YYYY-MM-DD. htt
 
 Every response that carries a score or a published rate carries a `disclaimer` string in the payload, so the caveat travels with the number rather than living only on the web page.
 
-Full machine-readable schema (OpenAPI 3.1, covering every public endpoint listed above, key-less and keyed, with `https://vet402.com` as the only production server): https://vet402.com/openapi.yaml. The same file is in the repository at https://github.com/kzmttkc/vet402/blob/main/docs/openapi.yaml, but cite the served URL.
+Full machine-readable schema (OpenAPI 3.1, covering every public endpoint listed above, key-less and keyed, with `https://vet402.com` as the only production server): https://vet402.com/openapi.yaml or https://vet402.com/openapi.json (same document). The YAML is also in the repository at https://github.com/kzmttkc/vet402/blob/main/docs/openapi.yaml, but cite a served URL.
 
 ## Packages
 
