@@ -25,6 +25,7 @@ import { getDailyMetricsCoverage, getDailyMetricsHistory, type DailyMetricsRow }
 import { humanDuration, maxStaleSecondsOf } from "@/lib/observatory/freshness";
 import { PUBLIC_READ_REVALIDATE } from "@/lib/observatory/public-read-revalidate";
 import { getAnchors } from "@/lib/observatory/anchors";
+import { isSpendingHalted } from "@/lib/observatory/kill-switch";
 import { CATALOG_SOURCE } from "@/lib/observatory/catalog-source";
 import { CIRCLE_DISCOVERY_SOURCE, SNAPSHOT_ONLY_SOURCES } from "@/lib/observatory/listing-sources";
 import { MPP_DIRECTORY_SOURCE } from "@/lib/observatory/mpp-payer";
@@ -134,7 +135,7 @@ function HistoryChart({ rows, lastRollupAt }: { rows: DailyMetricsRow[]; lastRol
 }
 
 export default async function ObservatoryStatePage() {
-  const stats = await getObservatoryStatsCached();
+  const [stats, spendingHalted] = await Promise.all([getObservatoryStatsCached(), isSpendingHalted()]);
   const chainRead = await getObservatoryStatsByChainCached();
   const chainStats = chainRead.rows;
   const chainReadAt = chainRead.readAt;
@@ -333,6 +334,18 @@ export default async function ObservatoryStatePage() {
             home page
           </Link>
           .
+        </p>
+        <p className="doc-p mt-2 text-[0.84375rem] text-brand-lift">
+          L1 purchases: last attempt at{" "}
+          <span className="text-brand">{stats.l1.lastAttemptAt ?? "not recorded yet"}</span>. vet402 spending on new
+          purchases:{" "}
+          <span className="text-brand">{spendingHalted.halted ? "halted" : "active"}</span>. The JSON at{" "}
+          {/* eslint-disable-next-line @next/next/no-html-link-for-pages */}
+          <a href="/api/v1/observatory/state" className="doc-link">
+            /api/v1/observatory/state
+          </a>{" "}
+          carries the same two fields and may carry a different <code>retrievedAt</code> when the CDN serves a cached
+          response.
         </p>
         <p className="doc-p mt-4">
           Purchase counts by chain are listed at{" "}
