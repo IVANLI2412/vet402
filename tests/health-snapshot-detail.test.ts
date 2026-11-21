@@ -190,9 +190,9 @@ test("detail を渡さない既存の呼び出しは今までと同じ挙動（�
 
 test("公開 /api/health の本文に detail / latency / instance を足さない", () => {
   const route = readFileSync(join(process.cwd(), "src/app/api/health/route.ts"), "utf8");
-  // 非 deep: status 必須。settlementsIndex は 2026-11-21 persona P2（公開の索引遅れ）。
-  // version/chain/erc8004 と probe detail は依然 admin 限定。
-  assert.match(route, /settlementsIndex \? \{ status, settlementsIndex \} : \{ status \}/);
+  // 非 deep の分岐が返すのは {status} ただ 1 つ。ここが増えたら 2026-08-06 の
+  // 監査（version/chain/erc8004 を公開本文から外した決定）を破っている。
+  assert.match(route, /NextResponse\.json\(\s*\{\s*status\s*\}\s*,\s*\{\s*status:\s*httpStatus\s*\}\s*\)/);
   assert.doesNotMatch(route, /NextResponse\.json\(\s*\{\s*status,\s*detail/);
 });
 

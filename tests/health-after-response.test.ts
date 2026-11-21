@@ -187,8 +187,10 @@ test("SWR 分岐は裏のリフレッシュを after-response へ登録する（
 
 test("公開 /api/health の本文と HTTP コードの形は変わっていない", () => {
   const route = readFileSync(join(process.cwd(), "src/app/api/health/route.ts"), "utf8");
-  assert.match(route, /return NextResponse\.json\(body, \{ status: httpStatus \}\)/);
-  assert.match(route, /settlementsIndex \? \{ status, settlementsIndex \} : \{ status \}/);
+  assert.match(
+    route,
+    /NextResponse\.json\(\s*\{\s*status\s*\}\s*,\s*\{\s*status:\s*httpStatus\s*\}\s*\)/,
+  );
 });
 
 // ------------------------------------------------------------

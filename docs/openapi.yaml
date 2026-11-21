@@ -5175,11 +5175,10 @@ paths:
       tags: [System]
       summary: Liveness for uptime pollers
       description: |
-        Anonymous callers get service liveness — up, partly, or not — from an
-        actual probe of both scoring engines (seller-side and buyer-side), not
-        from a constant. When the settlements index can be read in time, the body
-        also carries `settlementsIndex` (the same public chain lag as /status
-        section 2). Service metadata (version, chain) is admin-only.
+        Anonymous callers get exactly one bit of detail — up, partly, or not —
+        and it comes from an actual probe of both scoring engines (seller-side
+        and buyer-side), not from a constant. Service metadata (version, chain)
+        is admin-only; it is fingerprinting material and is not returned here.
 
         **`degraded` is not up: it returns 503.** A poller reads the status
         code, so a half-down product must not look green. The body still
@@ -5204,8 +5203,6 @@ paths:
                 required: [status]
                 properties:
                   status: { type: string, enum: [ok] }
-                  settlementsIndex:
-                    $ref: "#/components/schemas/PublicSettlementsIndex"
         "403":
           description: Deep report requested without the admin token
         "503":
@@ -5217,8 +5214,6 @@ paths:
                 required: [status]
                 properties:
                   status: { type: string, enum: [degraded, error] }
-                  settlementsIndex:
-                    $ref: "#/components/schemas/PublicSettlementsIndex"
 
 components:
   headers:
@@ -5262,27 +5257,6 @@ components:
         pattern: "^0x[a-fA-F0-9]{40}$"
 
   schemas:
-    PublicSettlementsIndexChain:
-      type: object
-      required: [label, network]
-      properties:
-        label: { type: string, example: Base }
-        network: { type: string, example: "eip155:8453" }
-        secondsBehind:
-          type: integer
-          minimum: 1
-          description: Gap between checkpoint and tip block timestamps, in seconds.
-        note:
-          type: string
-          description: When lag is not measured (for example not indexed yet).
-    PublicSettlementsIndex:
-      type: object
-      required: [readAt, chains]
-      properties:
-        readAt: { type: string, format: date-time }
-        chains:
-          type: array
-          items: { $ref: "#/components/schemas/PublicSettlementsIndexChain" }
     TradeDisputeChainFactsNamedTx:
       type: object
       required: [hash, match]

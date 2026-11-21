@@ -10,7 +10,6 @@ import { recordHealthSnapshotIfDue } from "@/lib/health/snapshot";
 import { composeDetail, probeSegment } from "@/lib/health/probe-detail";
 import { runAfterResponse } from "@/lib/util/after-response";
 import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
-import { readPublicSettlementsIndex } from "@/lib/health/public-index-freshness";
 
 function authorizeAdmin(request: NextRequest): boolean {
   const secret = process.env.ADMIN_SECRET;
@@ -100,13 +99,10 @@ export async function GET(request: NextRequest) {
   // ——上の 2026-08-06 監査の決定は「どの上流が不調かは admin 限定」であり、
   // 観測を足すためにそれを緩めない。読むのは admin 経路か DB 直参照だけ。
   if (!deep) {
-    const [{ status, httpStatus, detail, latencyMs }, settlementsIndex] = await Promise.all([
-      evaluateLiveness({
-        scoring: runScoringProbe,
-        payee: runPayeeProbe,
-      }),
-      readPublicSettlementsIndex(),
-    ]);
+    const { status, httpStatus, detail, latencyMs } = await evaluateLiveness({
+      scoring: runScoringProbe,
+      payee: runPayeeProbe,
+    });
     // 2026-09-08（同日・後）: ここは `void recordHealthSnapshotIfDue(...)` だった。
     // 応答を返した後に走る書き込みで、**誰も待っていない**。Vercel の Fluid compute は
     // 応答後のインスタンスを suspend するので（docs: attachDatabasePool は idle client を
@@ -115,8 +111,7 @@ export async function GET(request: NextRequest) {
     // `after()` に載せると、この処理が決着するまで invocation が終わらない。
     // 公開本文と HTTP コードは変えていない（下の行はそのまま）。
     runAfterResponse(() => recordHealthSnapshotIfDue(status, { detail, latencyMs }));
-    const body = settlementsIndex ? { status, settlementsIndex } : { status };
-    return NextResponse.json(body, { status: httpStatus });
+    return NextResponse.json({ status }, { status: httpStatus });
   }
 
   // Always require admin for deep health — never gate on APP_ENV alone.
