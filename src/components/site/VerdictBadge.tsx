@@ -25,6 +25,8 @@
  * （"Trust score 37 out of 100, recommendation BLOCK"）はそのまま効く。
  */
 
+import { VerdictShapeMark } from "@/components/site/VerdictShapeMark";
+
 const VERDICT_STYLE: Record<string, string> = {
   ALLOW: "marker-verdict-allow",
   WARN: "marker-verdict-warn",
@@ -43,5 +45,11 @@ export function VerdictBadge({
   // fail-open するとユーザーに嘘の安全を見せることになる。破線はこの世界で
   // 「まだ引かれていない」を意味していて、未知の band の扱いとして正しい。
   const style = VERDICT_STYLE[verdict] ?? "marker-plan";
-  return <span className={`marker ${style} ${className}`.trim()}>{verdict}</span>;
+  const shaped = VERDICT_STYLE[verdict];
+  return (
+    <span className={`marker inline-flex items-center gap-2 ${style} ${className}`.trim()}>
+      {shaped ? <VerdictShapeMark verdict={verdict} /> : null}
+      {verdict}
+    </span>
+  );
 }

@@ -22,17 +22,29 @@ const HAIR = "#dfe3e9";
 const BLOCK = "#9f0712";
 
 /** 判定の記号。pass = 塗りつぶし、fail = × 入りの枠（block-ink）、unverified = 破線の枠。 */
-export function VerdictMark({ verdict, size = 10 }: { verdict: L0Verdict; size?: number }) {
-  const common = { width: size, height: size, viewBox: "0 0 10 10", "aria-hidden": true as const, className: "inline-block shrink-0 align-[-0.5px]" };
-  if (verdict === "pass") return <svg {...common}><rect x="0.5" y="0.5" width="9" height="9" fill={INK} stroke={INK} /></svg>;
+export function VerdictMark({ verdict, size = 16 }: { verdict: L0Verdict; size?: number }) {
+  const common = { width: size, height: size, viewBox: "0 0 16 16", "aria-hidden": true as const, className: "inline-block shrink-0 align-[-0.5px]" };
+  const u = 16;
+  const inset = 1;
+  const inner = u - inset * 2;
+  if (verdict === "pass")
+    return (
+      <svg {...common}>
+        <rect x={inset} y={inset} width={inner} height={inner} fill={INK} stroke={INK} strokeWidth="2" />
+      </svg>
+    );
   if (verdict === "fail")
     return (
       <svg {...common}>
-        <rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke={BLOCK} />
-        <path d="M2.5 2.5L7.5 7.5M7.5 2.5L2.5 7.5" stroke={BLOCK} strokeWidth="1.25" />
+        <rect x={inset} y={inset} width={inner} height={inner} fill="none" stroke={BLOCK} strokeWidth="2" />
+        <path d={`M${inset + 3} ${inset + 3}L${inset + inner - 3} ${inset + inner - 3}M${inset + inner - 3} ${inset + 3}L${inset + 3} ${inset + inner - 3}`} stroke={BLOCK} strokeWidth="2" />
       </svg>
     );
-  return <svg {...common}><rect x="0.5" y="0.5" width="9" height="9" fill="none" stroke={INK_MIST} strokeDasharray="2 1.5" /></svg>;
+  return (
+    <svg {...common}>
+      <rect x={inset} y={inset} width={inner} height={inner} fill="none" stroke={INK_MIST} strokeWidth="2" strokeDasharray="3 2" />
+    </svg>
+  );
 }
 
 /** 記号＋判定語。表のセルと doc-head で同じ形にする。 */

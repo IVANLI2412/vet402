@@ -1100,7 +1100,8 @@
   font-family: var(--font-fragment), ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.8125rem;
   overflow-x: auto;
-  white-space: pre;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
   color: var(--lp-ink);
 }
 .pasteCopy {
