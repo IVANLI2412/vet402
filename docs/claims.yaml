@@ -2399,3 +2399,26 @@ claims:
     check: null
     why_unverifiable: "将来製品の有無の宣言。未実装を隠さない文言。tests/site-interest-stats.test.ts が固定する"
     verified_at: 2026-11-16
+  - id: ux6_home_sparkline_daily_purchases
+    surface: src/components/site/home/HomePurchaseSparkline.tsx
+    quote: "Daily paid attempts and settled purchases"
+    means: "ホームのスパークラインが描く系列は observatory state の日次 L1 集計"
+    check:
+      url: https://vet402.com/api/v1/observatory/state
+      assert: "l1.attempts_7d >= 0"
+    verified_at: 2026-11-21
+  - id: ux6_seller_delivery_calendar_legend
+    surface: src/components/site/sellers/SellerDeliveryCalendar.tsx
+    quote: "One cell per listing per UTC day."
+    means: "売り手頁カレンダーの凡例。形で配達パターンを示す説明であり、網羅・頻度の断定ではない"
+    check: null
+    why_unverifiable: "図の読み方。tests/pmf85-ux6-acceptance.test.ts が固定する"
+    verified_at: 2026-11-21
+  - id: ux6_observatory_l1_index_only_label
+    surface: src/app/observatory/page.tsx
+    quote: "index only"
+    means: "L1 で vet402 の決済索引だけが付いた endpoint 数（methodology の seller receipt 対比）"
+    check:
+      url: https://vet402.com/api/v1/observatory/state
+      assert: "l1.endpoints_settled_index_only >= 0"
+    verified_at: 2026-11-21

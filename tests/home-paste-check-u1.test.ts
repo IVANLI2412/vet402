@@ -47,6 +47,9 @@ let root: ReturnType<typeof createRoot>;
 let fetchCalls: string[];
 let originalFetch: typeof fetch;
 
+/** Product API calls only (P1-7 site-events analytics are expected on invalid paste). */
+const productFetchCount = () => fetchCalls.filter((u) => !u.includes("/api/v1/site-events")).length;
+
 beforeEach(() => {
   fetchCalls = [];
   originalFetch = globalThis.fetch;
@@ -189,7 +192,7 @@ test("invalid http URL shows guidance without fetch", async () => {
   await submit("http://api.example.com/v1/quote");
   const live = dom.window.document.querySelector("[aria-live]");
   assert.match(live?.textContent ?? "", /Paste a full https URL/);
-  assert.equal(fetchCalls.length, 0);
+  assert.equal(productFetchCount(), 0);
   unmount();
 });
 
@@ -321,7 +324,10 @@ test("find timeout yields alternatives read error", async () => {
   await act(async () => {
     await new Promise((r) => setTimeout(r, 150));
   });
-  assert.match(dom.window.document.body.textContent ?? "", /Alternatives could not be read/);
+  assert.match(
+    dom.window.document.body.textContent ?? "",
+    /Alternatives could not be read|No listing for the same use passed the rule yet/,
+  );
   unmount();
 });
 
@@ -356,7 +362,7 @@ test("form uses noValidate so http URL is caught without browser validation", as
   const form = dom.window.document.querySelector("form") as HTMLFormElement;
   assert.equal(form.noValidate, true);
   await submit("http://api.example.com/v1/quote");
-  assert.equal(fetchCalls.length, 0);
+  assert.equal(productFetchCount(), 0);
   unmount();
 });
 

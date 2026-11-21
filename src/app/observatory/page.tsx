@@ -324,7 +324,8 @@ export default async function ObservatoryPage({
                 {passProbedWithin7d.toLocaleString()} active passes last probed within 7 days;{" "}
                 {stats.publishedPassActiveProbeOlderThan7d.toLocaleString()} are older. Settled on-chain:{" "}
                 {stats.l1.endpointsSettledSellerReceipt.toLocaleString()} seller receipt,{" "}
-                {stats.l1.endpointsSettledIndexOnly.toLocaleString()} index only. {withdrawnBandCountSentence(band.counts.withdrawn)}{" "}
+                {stats.l1.endpointsSettledIndexOnly.toLocaleString()} index only, as reported by{" "}
+                <code>/api/v1/observatory/state</code>. {withdrawnBandCountSentence(band.counts.withdrawn)}{" "}
                 Click a legend segment to filter the table. Definitions:{" "}
                 <Link href="/observatory/methodology" className="underline">
                   Methodology
