@@ -137,6 +137,11 @@ A `serverInfo` line comes back on stdout. The package also installs a
 | `SOLANA_RPC_URL` | — | Solana RPC the payer reads one `getLatestBlockhash` from, only after an `ALLOW` (2026-09-15). |
 | `GRAPH_API_KEY` | — | Graph Gateway key for `pay_if_trusted` when `policy.evidence.source` is `"subgraph"` or `"both"`. Read from env only — never from tool input, so it never enters the model's context. Without it such a call refuses with `graph_key_not_configured` before reading anything (2026-09-06). |
 | `VOUCH_TIMEOUT_MS` | `10000` | Per-request timeout. Cannot be disabled — a lookup that never returns cannot be failed closed on. A malformed value falls back to the default rather than breaking every tool call. |
+| `VOUCH_SESSION_MAX_USD` | `10` (10× default per-tx ceiling) | Cumulative USD cap for `pay_if_trusted` in this process. Reservations are taken before signing; unsigned refusals release the reservation; successful signatures always count even when the cap is exceeded. |
+| `VOUCH_ALLOW_WAIVE_VET402` | unset | When `true`, the server may waive vet402 `WARN` only if env/tool floors are met. Tool input cannot waive on its own — it may only require stricter `requireVet402Allow: true` or raise floors. Floors use the **maximum** of env and tool values; evidence `source` may only **narrow** (e.g. env `both` + tool `subgraph` → `subgraph`). |
+| `VOUCH_MIN_L1_DELIVERIES` | — | With `VOUCH_ALLOW_WAIVE_VET402=true`, sets the operator's minimum delivered L1 purchases floor (integer ≥ 1). Merged with any higher floor from tool `policy.evidence`. |
+
+`pay_if_trusted` takes optional `onUnresolved`: `uncatalogued` (default, judge like any seller outside the catalogue) or `refuse` (stop on a shared host when the URL matches no listing).
 
 Requests to the vet402 API carry `User-Agent: vet402-mcp/<version>` (unreleased, lands with 0.3.1), so
 vet402 can count calls per client version. Sellers are not sent it.

@@ -83,7 +83,14 @@ import { DEFAULT_API_URL, decisionQueryString, type CallerPolicy } from "./vouch
 import { refusalReasonCodes } from "./decision.js";
 import { MCP_USER_AGENT } from "./version.js";
 import { authorizationResourceKey } from "./authorization-resource-key.js";
-import { clearLiveAuthorization, hasLiveAuthorization, rememberLiveAuthorization } from "./pending-payment.js";
+import {
+  SOLANA_LIVE_AUTH_SECONDS,
+  clearLiveAuthorization,
+  clearPendingAuthorization,
+  hasLiveAuthorization,
+  markPendingAuthorization,
+  rememberLiveAuthorization,
+} from "./pending-payment.js";
 import { createMcpBoundedFetch } from "./mcp-bounded-fetch.js";
 // 型だけ。値の import は ALLOW ブランチ内の動的 import に限る（第3層）。`import type` は
 // tsc が消すので、dist の拒否経路に `@vet402/sdk` への静的な参照は残らない。
@@ -521,6 +528,8 @@ async function payIfTrustedCore(input: PayIfTrustedInput, notes: string[]): Prom
     );
   }
 
+  if (authKey !== null) markPendingAuthorization(authKey);
+
   // --- 5. ここから先だけが支払い。実装は ALLOW ブランチ内の動的 import（第3層）---
   // payee の形でレールが決まる（SDK と同じ規則）。base58 なら Solana の署名者だけを渡し、EVM の signer には触らない。
   // 署名者の**有無**だけを見る（`=== undefined` は Proxy の get を起こさない）。
@@ -559,6 +568,8 @@ async function payIfTrustedCore(input: PayIfTrustedInput, notes: string[]): Prom
   const reasons = Array.isArray(paid.decision?.reason_codes) ? paid.decision.reason_codes : [];
   const merged = serverReasonCodes(refusalReasonCodes([...m.reason_codes, ...reasons]));
   if (paid.status === "refused") {
+    if (authKey !== null) clearPendingAuthorization(authKey);
+    if (authKey !== null && paid.signed !== true) clearLiveAuthorization(authKey);
     return {
       ...refuse(m, merged, `Do not pay: ${reasons.join(", ") || "the payment gate refused"}.`),
       signed: paid.signed,
@@ -567,9 +578,17 @@ async function payIfTrustedCore(input: PayIfTrustedInput, notes: string[]): Prom
     };
   }
   if (paid.status === "failed") {
-    const validBefore = paid.receipt?.retry?.authorization?.validBefore ?? null;
-    if (authKey !== null && validBefore !== null) {
-      rememberLiveAuthorization(authKey, Number(validBefore), paid.nonce ?? "");
+    const evmBefore = paid.receipt?.retry?.authorization?.validBefore ?? null;
+    const validBeforeSec =
+      solanaPayee
+        ? Math.floor(Date.now() / 1000) + SOLANA_LIVE_AUTH_SECONDS
+        : evmBefore !== null
+          ? Number(evmBefore)
+          : null;
+    if (authKey !== null && validBeforeSec !== null && Number.isFinite(validBeforeSec)) {
+      rememberLiveAuthorization(authKey, validBeforeSec, paid.nonce ?? "");
+    } else if (authKey !== null) {
+      clearPendingAuthorization(authKey);
     }
     // §4 E18: 署名は実在する。隠さない——認可は validBefore まで生きた金で、
     // 遅れて決済され得る。何に署名したか（nonce）が残らないと後から照合できない。
@@ -579,12 +598,12 @@ async function payIfTrustedCore(input: PayIfTrustedInput, notes: string[]): Prom
       refuse_reasons: merged,
       summary:
         "Settlement is unknown. The authorization stays live until validBefore — do not call pay_if_trusted again " +
-        `for this resource until then (validBefore=${validBefore ?? "unknown"}). Reconcile with the nonce below.`,
+        `for this resource until then (validBefore=${validBeforeSec ?? "unknown"}). Reconcile with the nonce below.`,
       signed: paid.signed,
       attested: false,
       txHash: paid.txHash,
       nonce: paid.nonce,
-      validBefore,
+      validBefore: validBeforeSec !== null ? String(validBeforeSec) : null,
       settlement: null,
       measurement: m,
       decision_record: paid.decision,
@@ -656,6 +675,10 @@ function refuse(
  * 別の理由に化けて、呼び手に原因が届かない。SDK 側の検査も生きているので、写しが古くなっても
  * 判定が緩くなることはない（`payOrRefuse` が同じ誤りを再び throw する）。
  */
+export function assertMcpPayPolicy(policy: PayIfTrustedPolicy | undefined): void {
+  assertPolicy(policy);
+}
+
 function assertPolicy(policy: PayIfTrustedPolicy | undefined): void {
   if (!policy) return;
   const evidence = policy.evidence;

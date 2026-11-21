@@ -28,6 +28,29 @@ const watched = () => {
   return { signer, signAccesses: () => accessed.filter((k) => k.startsWith("sign")) };
 };
 
+test("F1 default env + tool minL1 floor 5 + zero L1 deliveries → REFUSE before sign", async () => {
+  const w = watched();
+  const body = allowDecisionBody(ACCEPT, { facts: { l1: { n_delivered: 0, n_attempts: 0 } } });
+  const r = await payIfTrusted({
+    resourceId: "a".repeat(64),
+    signer: w.signer,
+    fetch: async (url) => {
+      const u = String(url);
+      if (u.includes("/decision")) {
+        return { ok: true, status: 200, json: async () => body, headers: new Map() };
+      }
+      return { ok: true, status: 200, json: async () => ({ resource: { resource_id: "a".repeat(64) } }), headers: new Map() };
+    },
+    resource: GRAPH_RESOURCE,
+    payee: GRAPH_PAYEE,
+    amountUsd: 0.01,
+    policy: { requireVet402Allow: true, evidence: { source: "vet402", minL1Deliveries: 5 } },
+  });
+  assert.equal(r.decision, "REFUSE");
+  assert.deepEqual(w.signAccesses(), []);
+  assert.ok(r.refuse_reasons.some((c) => /insufficient_delivery|evidence_unavailable/.test(c)), r.refuse_reasons.join(","));
+});
+
 test("G21a pay_if_trusted は ALLOW 以外で mock signer への参照が0", async () => {
   const w = watched();
   const r = await payIfTrusted({ resourceId: "a".repeat(64), signer: w.signer,

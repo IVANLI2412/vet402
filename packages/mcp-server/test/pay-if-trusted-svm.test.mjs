@@ -233,6 +233,40 @@ test("M3c 実プロセス: EVM の鍵しか無いサーバで base58 の payee �
   assert.deepEqual(seen.filter((u) => u.startsWith("/seller")), [], "402 を取りに行っていない（支払い先を SDK へ渡していない）");
 });
 
+test("Solana FAILED: second call while blockhash lives refuses with one signature", async () => {
+  let rpc = 0;
+  let signs = 0;
+  const fetch = async (url, init) => {
+    const u = String(url);
+    const resolved = resolveReply(u);
+    if (resolved) return resolved;
+    if (u.includes("/decision")) return { ok: true, status: 200, json: async () => decision(), headers: new Map() };
+    if (u === RPC_URL) {
+      rpc++;
+      return { ok: true, status: 200, json: async () => ({ jsonrpc: "2.0", id: 1, result: { value: { blockhash: BLOCKHASH } } }), headers: new Map() };
+    }
+    if (u.startsWith(RESOURCE)) {
+      const raw = (init?.headers ?? {})["PAYMENT-SIGNATURE"];
+      if (!raw) {
+        return { ok: false, status: 402, json: async () => ({}), headers: new Map([["payment-required", b64({ x402Version: 2, accepts: [SOL_ACCEPT] })]]) };
+      }
+      return { ok: false, status: 500, json: async () => ({}), headers: new Map() };
+    }
+    throw new Error(u);
+  };
+  const w = watchedSigners();
+  w.svmSigner.signTransaction = async (tx) => {
+    signs++;
+    tx.sign([PAYER]);
+    return tx;
+  };
+  const first = await payIfTrusted(input(w, { fetch, paid: [], rpcCalls: () => rpc }));
+  const second = await payIfTrusted(input(w, { fetch, paid: [], rpcCalls: () => rpc }));
+  assert.equal(first.decision, "FAILED");
+  assert.equal(second.decision, "REFUSE");
+  assert.equal(signs, 1);
+});
+
 test("M3d 実プロセス（対照）: 同じ EVM の鍵で 0x の payee は payer_not_configured にならず、資源の 402 を読みに行く", async () => {
   const args = { resourceId: "a".repeat(64), resource: "__ORIGIN__/seller/evm", payee: "0x79DC34E41B2b591078d3dE222C43EcaaBD52FcCB", amountUsd: 0.01 };
   const { msg, seen } = await callTool(args, { VOUCH_PAYER_PRIVATE_KEY: THROWAWAY_EVM_KEY });

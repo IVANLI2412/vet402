@@ -2,7 +2,7 @@
 export declare const MAX_PAID_SELLER_WAIT_MS = 120000;
 /** vet402 API ルートの origin（boundedFetch の照合に使う）。 */
 export declare function originOfVet402ApiRoot(apiRoot: string): string;
-/** vet402 へだけ AbortSignal.timeout を付ける fetch。 */
+/** vet402 API reads use AbortSignal.timeout; other unpaid fetches get the same cap in {@link createMcpBoundedFetch}. */
 export declare function vet402BoundedFetch(apiRoot: string, timeoutMs: number, baseFetch?: typeof fetch): typeof fetch;
 /** validBefore (unix seconds) from a signed PAYMENT-SIGNATURE / X-PAYMENT header, if readable. */
 export declare function validBeforeSecFromPaymentHeaders(headers: Headers): number | null;

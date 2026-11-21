@@ -72,3 +72,34 @@ test("paid seller retry returns when the seller answers before validBefore", asy
   const res = await wrapped("https://seller.example/item", { headers: { "payment-signature": header } });
   assert.equal(res.status, 200);
 });
+// payaudit-8: unpaid reads outside vet402 (the 402 probe, RPC) keep a time cap too.
+test("unpaid fetch to a non-vet402 host is aborted at the vet402 timeout", async () => {
+  let sawSignal = false;
+  const hanging = (url, init) =>
+    new Promise((_, reject) => {
+      const signal = init?.signal;
+      sawSignal = signal !== undefined;
+      signal?.addEventListener("abort", () => reject(signal.reason), { once: true });
+    });
+  const f = createMcpBoundedFetch("https://vet402.com/api/v1", 50, hanging);
+  const t0 = Date.now();
+  await assert.rejects(f("https://seller.example/item", { method: "GET" }));
+  const waited = Date.now() - t0;
+  assert.equal(sawSignal, true, "no signal on the unpaid seller read");
+  assert.ok(waited < 2000, `waited ${waited}ms`);
+});
+
+test("unpaid RPC POST outside vet402 keeps the caller's signal and the cap", async () => {
+  const caller = new AbortController();
+  let got;
+  const hanging = (url, init) =>
+    new Promise((_, reject) => {
+      got = init?.signal;
+      got?.addEventListener("abort", () => reject(got.reason), { once: true });
+    });
+  const f = createMcpBoundedFetch("https://vet402.com/api/v1", 10_000, hanging);
+  const p = f("https://rpc.example/", { method: "POST", body: "{}", signal: caller.signal });
+  caller.abort(new Error("caller stop"));
+  await assert.rejects(p, /caller stop/);
+  assert.notEqual(got, caller.signal, "caller signal must be combined with the cap, not passed alone");
+});

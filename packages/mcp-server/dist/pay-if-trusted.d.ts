@@ -222,3 +222,12 @@ export type PayIfTrustedResult = {
 };
 /** 判定を引き、全部の関門を通ったときにだけ signer へ到達する。 */
 export declare function payIfTrusted(input: PayIfTrustedInput): Promise<PayIfTrustedResult>;
+/**
+ * 呼び出し側の誤りを、通信の前に落とす。**正典は SDK の `assertEvidencePolicy` /
+ * `assertOverridePolicy`**（`packages/sdk/src/pay-or-refuse.ts`）で、語も同じにしてある。
+ * ここに写しがあるのは、SDK が ALLOW ブランチ内の動的 import でしか読み込まれないため——
+ * 写しが無いと、`requireVet402Allow: false` に床が無い誤りが `payment_target_unknown` 等の
+ * 別の理由に化けて、呼び手に原因が届かない。SDK 側の検査も生きているので、写しが古くなっても
+ * 判定が緩くなることはない（`payOrRefuse` が同じ誤りを再び throw する）。
+ */
+export declare function assertMcpPayPolicy(policy: PayIfTrustedPolicy | undefined): void;

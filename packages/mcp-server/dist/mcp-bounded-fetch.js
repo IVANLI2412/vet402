@@ -10,20 +10,22 @@ export function originOfVet402ApiRoot(apiRoot) {
         return apiRoot;
     }
 }
-/** vet402 へだけ AbortSignal.timeout を付ける fetch。 */
+function isVet402Url(apiRoot, apiOrigin, target) {
+    if (target.startsWith(apiRoot))
+        return true;
+    try {
+        return new URL(target).origin === apiOrigin;
+    }
+    catch {
+        return false;
+    }
+}
+/** vet402 API reads use AbortSignal.timeout; other unpaid fetches get the same cap in {@link createMcpBoundedFetch}. */
 export function vet402BoundedFetch(apiRoot, timeoutMs, baseFetch = fetch) {
     const apiOrigin = originOfVet402ApiRoot(apiRoot);
     return (url, init) => {
         const target = String(url);
-        let isVet402 = target.startsWith(apiRoot);
-        if (!isVet402) {
-            try {
-                isVet402 = new URL(target).origin === apiOrigin;
-            }
-            catch {
-                isVet402 = false;
-            }
-        }
+        const isVet402 = isVet402Url(apiRoot, apiOrigin, target);
         if (!isVet402) {
             return baseFetch(url, init);
         }
@@ -113,10 +115,18 @@ function combineAbortSignals(signals) {
  * authorization's validBefore (capped at 120 s) so a silent seller cannot hang the tool call.
  */
 export function createMcpBoundedFetch(apiRoot, vet402TimeoutMs, baseFetch = fetch, nowMs = () => Date.now()) {
+    const apiOrigin = originOfVet402ApiRoot(apiRoot);
     const vet402Fetch = vet402BoundedFetch(apiRoot, vet402TimeoutMs, baseFetch);
     return (url, init) => {
         const headers = new Headers(init?.headers);
         if (!hasPaidPaymentHeader(headers)) {
+            const target = String(url);
+            if (!isVet402Url(apiRoot, apiOrigin, target)) {
+                const timed = timeoutSignal(vet402TimeoutMs);
+                const caller = init?.signal ?? undefined;
+                const signal = caller === undefined ? timed : combineAbortSignals([caller, timed]);
+                return baseFetch(url, { ...(init ?? {}), ...(signal === undefined ? {} : { signal }) });
+            }
             return vet402Fetch(url, init);
         }
         const waitMs = paidSellerWaitMs(validBeforeSecFromPaymentHeaders(headers), nowMs());

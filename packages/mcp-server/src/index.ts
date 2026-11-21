@@ -5,15 +5,16 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { explainTrustScore } from "./explain.js";
 import { sanitizeToolError } from "./tool-errors.js";
-import { payIfTrusted, type PayIfTrustedSigner } from "./pay-if-trusted.js";
+import { assertMcpPayPolicy, payIfTrusted, type PayIfTrustedSigner } from "./pay-if-trusted.js";
 import { payerConfiguredFor, resolveSvmPayer, UNCONFIGURED_SVM_SIGNER } from "./payer.js";
 import { resolveMaxPerTxUsd, ceilingNotes, MAX_PER_TX_USD_ENV, DEFAULT_MAX_PER_TX_USD } from "./ceiling.js";
 import {
-  chargeSessionSpend,
   mergePolicyFromEnv,
   policyFromEnv,
+  releaseSessionSpend,
   sessionCapUsd,
-  sessionWouldExceed,
+  sessionSpentTotal,
+  tryReserveSessionSpend,
 } from "./policy-env.js";
 import { decideFromScore, decideFromFailure, refusalReasonCodes, type TrustDecision } from "./decision.js";
 import { resourceDecision, verifiedTermsNote } from "./resource-decision.js";
@@ -27,7 +28,7 @@ import {
 
 const server = new McpServer({
   name: "vouch-trust",
-  version: "0.3.2",
+    version: "0.3.3",
 });
 
 
@@ -507,8 +508,13 @@ server.tool(
       // env の天井で切り下げてから渡す。詳しくは ./ceiling.ts。
       const ceiling = resolveMaxPerTxUsd(maxPerTxUsd, process.env[MAX_PER_TX_USD_ENV]);
       const envPolicy = policyFromEnv(process.env);
+      assertMcpPayPolicy(policy);
       const effectivePolicy = mergePolicyFromEnv(envPolicy, policy);
-      if (typeof amountUsd === "number" && sessionWouldExceed(amountUsd, sessionCapUsd(process.env.VOUCH_SESSION_MAX_USD))) {
+      assertMcpPayPolicy(effectivePolicy);
+      const cap = sessionCapUsd(process.env.VOUCH_SESSION_MAX_USD);
+      const reserved =
+        typeof amountUsd !== "number" || tryReserveSessionSpend(amountUsd, cap);
+      if (!reserved) {
         return {
           content: [
             {
@@ -519,7 +525,7 @@ server.tool(
                   safe_to_pay: false,
                   refuse_reasons: ["price_above_ceiling"],
                   summary:
-                    `Session cumulative cap exceeded (env ${sessionCapUsd(process.env.VOUCH_SESSION_MAX_USD)} USD). ` +
+                    `Session cumulative cap exceeded (env ${cap} USD). ` +
                     "Waiver and floors are controlled by the server env, not tool input.",
                 },
                 null,
@@ -545,12 +551,10 @@ server.tool(
         // 常に上書きすることで、天井の入口を env の1本だけにする。
         ...(payerReady ? { resource, payee, amountUsd, method, maxPerTxUsd: ceiling.effective, solanaRpcUrl: svmPayer?.rpcUrl } : {}),
       });
-      if (
-        typeof amountUsd === "number" &&
-        (result.decision === "PAID" || (result.decision === "FAILED" && result.signed === true))
-      ) {
-        const cap = sessionCapUsd(process.env.VOUCH_SESSION_MAX_USD);
-        if (!chargeSessionSpend(amountUsd, cap)) {
+      if (typeof amountUsd === "number") {
+        const signed = result.decision === "PAID" || (result.decision === "FAILED" && result.signed === true);
+        if (!signed) releaseSessionSpend(amountUsd);
+        else if (sessionSpentTotal() > cap) {
           result.summary =
             `Session cumulative cap exceeded (env ${cap} USD) after this signed attempt. ` +
             [result.summary, "Waiver and floors are controlled by the server env, not tool input."].filter(Boolean).join(" ");
