@@ -36,6 +36,27 @@ test("prefetch navigation is not counted against the public score limit", async 
   assert.equal(normal, null, "after prefetches only, a normal request should still pass");
 });
 
+// 11/22 証明の監査 whitehat-R5-2 / adversary-N2: 先読みのヘッダで枠を丸ごと外さない。先読みは別の広い枠で数える。
+test("a client sending only 'Purpose: prefetch' is still limited (separate 60/min bucket)", async () => {
+  const { PUBLIC_SCORE_PREFETCH_RL_LIMIT, publicScoreRateLimitResponse } = await import("@/lib/scoring/public-page-limit");
+  assert.equal(PUBLIC_SCORE_PREFETCH_RL_LIMIT, 60);
+  const req = () =>
+    new Request("http://localhost/payee/0x1234567890123456789012345678901234567891", {
+      headers: { purpose: "prefetch", "x-real-ip": "203.0.113.45" },
+    });
+  // 同じ枠を前の試験の先読みも使い得るので、61 回のうちに 429 が出ることだけを見る（前は何回でも null）。
+  let limitedAt = -1;
+  for (let i = 0; i <= PUBLIC_SCORE_PREFETCH_RL_LIMIT; i++) {
+    const res = await publicScoreRateLimitResponse(req());
+    if (res !== null) {
+      assert.equal(res.status, 429);
+      limitedAt = i + 1;
+      break;
+    }
+  }
+  assert.ok(limitedAt > 0, `no 429 within ${PUBLIC_SCORE_PREFETCH_RL_LIMIT + 1} prefetch-only requests`);
+});
+
 test("public score limit is 10 per minute", async () => {
   const { PUBLIC_SCORE_RL_LIMIT, PUBLIC_SCORE_RL_WINDOW_MS, isPublicScorePagePath } = await import(
     "@/lib/scoring/public-page-limit"

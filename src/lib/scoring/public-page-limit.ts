@@ -7,6 +7,11 @@ import { rateLimitPageHtml } from "@/lib/sellers/page-limit";
 
 export const PUBLIC_SCORE_RL_LIMIT = 10;
 export const PUBLIC_SCORE_RL_WINDOW_MS = 60_000;
+/**
+ * 先読みは別の広い枠で数える。先読みのヘッダは呼び手が自由に付けられるので、枠を外す理由にはしない
+ * （11/22 証明の監査 whitehat-R5-2 / adversary-N2。前は数えずに通していた）。
+ */
+export const PUBLIC_SCORE_PREFETCH_RL_LIMIT = 60;
 
 /** Next のリンク先読み・RSC 先読みを枠に数えない（adversary-4）。 */
 export function isPublicScorePrefetch(request: Request): boolean {
@@ -31,11 +36,12 @@ export function isPublicScorePagePath(pathname: string): boolean {
 
 /** 通ってよければ null、上限なら 429（枠の判定不能なら 503）の HTML 頁。 */
 export async function publicScoreRateLimitResponse(request: Request): Promise<NextResponse | null> {
-  if (isPublicScorePrefetch(request)) return null;
+  const prefetch = isPublicScorePrefetch(request);
   const ip = getClientIp(request) ?? "unknown";
+  const limit = prefetch ? PUBLIC_SCORE_PREFETCH_RL_LIMIT : PUBLIC_SCORE_RL_LIMIT;
   const limited = await consumeIpRateLimit(
-    `public-score-page:${ip}`,
-    PUBLIC_SCORE_RL_LIMIT,
+    prefetch ? `public-score-prefetch:${ip}` : `public-score-page:${ip}`,
+    limit,
     PUBLIC_SCORE_RL_WINDOW_MS,
   );
   if (limited.allowed) return null;
@@ -47,7 +53,7 @@ export async function publicScoreRateLimitResponse(request: Request): Promise<Ne
     // 相対 URL など
   }
   const tooManyLead =
-    "This network has opened payee or agent score pages more than " + PUBLIC_SCORE_RL_LIMIT + " times in the last minute.";
+    "This network has opened payee or agent score pages more than " + limit + " times in the last minute.";
   return new NextResponse(
     rateLimitPageHtml({ waitSeconds: wait, unavailable: limited.unavailable, path, tooManyLead }),
     {
