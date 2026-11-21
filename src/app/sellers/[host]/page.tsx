@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import { breadcrumbJsonLd, pageMetadata, publisherOrg } from "@/lib/seo";
@@ -13,6 +14,11 @@ import {
   getSellerOtherChainsCached,
 } from "@/lib/sellers/cached";
 import { parseSellerHostParam } from "@/lib/sellers/host";
+import {
+  getReputationHostsCached,
+  reputationPageEligible,
+  reputationSellerPath,
+} from "@/lib/sellers/reputation";
 import {
   SellerDetailView,
   SellerOtherChainsView,
@@ -122,6 +128,13 @@ export default async function SellerPage({ params, searchParams }: Props) {
     );
   }
   const detail = data.detail;
+  const reputationSummaryHref = await getReputationHostsCached()
+    .then((allowed) =>
+      allowed?.includes(detail.host) && reputationPageEligible(detail)
+        ? reputationSellerPath(detail.host)
+        : null,
+    )
+    .catch(() => null);
   const { page: rawPage } = await searchParams;
   const page = Math.max(1, Math.trunc(Number(rawPage ?? "1")) || 1);
   // 構造化データ（2026-09-28 SEO 監査）: WebPage と BreadcrumbList。出し方は他の公開頁と同じ
@@ -180,6 +193,15 @@ export default async function SellerPage({ params, searchParams }: Props) {
         revalidateSec={PUBLIC_READ_REVALIDATE}
         afterSummary={
           <>
+            {reputationSummaryHref ? (
+              <p className="doc-p">
+                A shorter delivery summary for this host is on the{" "}
+                <Link href={reputationSummaryHref} className="underline">
+                  indexed reputation page
+                </Link>
+                .
+              </p>
+            ) : null}
             <SellerCalledVsDeliveredSection host={detail.host} />
             <SellerRefundSection host={detail.host} />
             <SellerErc8004Section host={detail.host} />

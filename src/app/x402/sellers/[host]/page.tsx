@@ -70,6 +70,12 @@ export function ReputationSellerArticle({ detail, nonce }: { detail: SellerDetai
         <script type="application/ld+json" nonce={nonce} suppressHydrationWarning dangerouslySetInnerHTML={{ __html: safeJsonLd(breadcrumb) }} />
 
         <h1 className="doc-title mt-8">{headline}</h1>
+        <p className="doc-p">
+          <Link href={sellerPath(host)} className="underline">
+            Full purchase record for {host}
+          </Link>{" "}
+          (per-listing results on Base).
+        </p>
         <p className="doc-p">{reputationSummarySentence(detail)}</p>
         {evidence.tier === "stale" ? (
           <p className="doc-p text-brand-lift">
@@ -134,11 +140,6 @@ export function ReputationSellerArticle({ detail, nonce }: { detail: SellerDetai
         <WatchSellersInterest recordId={latestRecordId} />
 
         <p className="doc-p mt-8 text-brand-lift">Records are measurements. They are not a guarantee.</p>
-        <p className="doc-p">
-          <Link href={sellerPath(host)} className="underline">
-            Full purchase record for {host}
-          </Link>
-        </p>
       </article>
     </main>
   );
