@@ -4,13 +4,13 @@ export function verdictNextStep(
   reasonCodes?: readonly string[],
 ): string {
   if (recommendation === "ALLOW") {
-    return "Pay only if the 402 in hand matches the verified terms of this record. A later payment can still fail.";
+    return "Pay only if what you are about to send matches this record: same recipient, network, and amount. Payment can still fail after you pay.";
   }
   if (recommendation === "WARN") {
     if (reasonCodes?.includes("l1_latest_failed")) {
       return "The latest paid call to this seller failed. Do not pay until a newer delivery is on record.";
     }
-    return "Do not treat this as a go. Evidence is old or inconclusive. Pay only under your own ceiling, or pick another URL.";
+    return "Treat this as uncertain. The record is old or incomplete. Pay only under your own ceiling, or pick another URL.";
   }
   return "Do not pay this URL on the current record.";
 }

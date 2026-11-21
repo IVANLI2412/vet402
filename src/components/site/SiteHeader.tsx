@@ -28,13 +28,24 @@ const NAV_ITEMS: NavItem[] = [
   { label: "Get API key", href: "/signup" },
 ];
 
+/** Seller-check and MCP docs pages: body copy is keyless; signup is for extra score quota. */
+const KEYLESS_DOC_PATHS = ["/connect", "/x402/check-a-seller", "/docs/mcp", "/docs/api"] as const;
+
+function navItemsFor(pathname: string): NavItem[] {
+  const keylessFocus = KEYLESS_DOC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  if (!keylessFocus) return NAV_ITEMS;
+  return NAV_ITEMS.map((item) =>
+    item.href === "/signup" ? { label: "Free key (extra scores)", href: "/signup" } : item,
+  );
+}
+
 function currentNav(pathname: string, href: string): "page" | undefined {
   if (href.includes("#")) return undefined;
   if (pathname === href || (href !== "/" && pathname.startsWith(`${href}/`))) return "page";
   return undefined;
 }
 
-function SiteHeaderMobileMenu({ pathname }: { pathname: string }) {
+function SiteHeaderMobileMenu({ pathname, items }: { pathname: string; items: NavItem[] }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuId = useId();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
@@ -87,7 +98,7 @@ function SiteHeaderMobileMenu({ pathname }: { pathname: string }) {
           }}
           className="absolute left-0 right-0 top-full z-40 flex max-h-[calc(100dvh-3.5rem)] flex-col overflow-y-auto overscroll-contain border-b border-brand-deep bg-paper px-5 py-3 md:hidden"
         >
-          {NAV_ITEMS.map((item) =>
+          {items.map((item) =>
             item.href === "/signup" ? (
               <TrackedLink
                 key={item.href}
@@ -120,10 +131,11 @@ function SiteHeaderMobileMenu({ pathname }: { pathname: string }) {
 
 export function SiteHeader() {
   const pathname = usePathname() ?? "";
+  const items = navItemsFor(pathname);
 
-  const mainNav = NAV_ITEMS.filter((item) => item.href !== "/signup" && item.href !== "/dashboard/login");
-  const dashboard = NAV_ITEMS.find((item) => item.href === "/dashboard/login")!;
-  const signup = NAV_ITEMS.find((item) => item.href === "/signup")!;
+  const mainNav = items.filter((item) => item.href !== "/signup" && item.href !== "/dashboard/login");
+  const dashboard = items.find((item) => item.href === "/dashboard/login")!;
+  const signup = items.find((item) => item.href === "/signup")!;
 
   return (
     <header
@@ -178,7 +190,7 @@ export function SiteHeader() {
             </TrackedLink>
           </div>
 
-          <SiteHeaderMobileMenu key={pathname} pathname={pathname} />
+          <SiteHeaderMobileMenu key={pathname} pathname={pathname} items={items} />
         </div>
       </div>
     </header>
