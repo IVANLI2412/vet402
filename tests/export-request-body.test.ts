@@ -33,6 +33,18 @@ import {
 import { requestBodyKindOf, requestBodySha256Of, requestBodyRecord, REQUEST_BODY_KINDS } from "@/lib/observatory/request-body";
 import { settlementSourceOf, settlementSourceSql, SETTLEMENT_SOURCES } from "@/lib/observatory/settlement-source";
 import { lateLinkOf } from "@/lib/observatory/settlement-verifier";
+import { after as __tmpAfter } from "node:test";
+import { rmSync as __tmpRm } from "node:fs";
+const __tmpDirs: string[] = [];
+const __tmp = (d: string): string => {
+  __tmpDirs.push(d);
+  return d;
+};
+// 2026-11-21: temp dirs were never removed (a 118MB fixture filled the disk). Remove them after this file.
+__tmpAfter(() => {
+  for (const d of __tmpDirs) __tmpRm(d, { recursive: true, force: true });
+});
+
 
 const ROOT = join(__dirname, "..");
 const read = (p: string) => readFileSync(join(ROOT, p), "utf8");
@@ -214,7 +226,7 @@ type Row = { at: string; key: string; status: string; http: number | ""; shape?:
 const line = (r: Row) =>
   [r.at, r.key, "eip155:8453", r.status, "1000", "1000", r.tx ?? "", r.http, "120", "", r.held ?? "", r.shape ?? "", "", r.src ?? "", "", ""].join(",");
 function runScript(csv: string, extra: string[] = []) {
-  const dir = mkdtempSync(join(tmpdir(), "vet402-before-after-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "vet402-before-after-")));
   const file = join(dir, "ledger.csv");
   writeFileSync(file, csv);
   return spawnSync(process.execPath, [SCRIPT, "--file", file, "--json", ...extra], { encoding: "utf8" });
@@ -273,7 +285,7 @@ test("B（レビュー C1）: 切替後だけの CSV は数えずに止まる—
     { at: "2026-09-19T04:00:00Z", key: "a.example/x", status: "settled", http: 200, shape: "declared", tx: "0x2", src: "seller_claim" },
   ];
   for (const extra of [[], ["--json"]] as string[][]) {
-    const dir = mkdtempSync(join(tmpdir(), "vet402-before-after-"));
+    const dir = __tmp(mkdtempSync(join(tmpdir(), "vet402-before-after-")));
     const file = join(dir, "ledger.csv");
     writeFileSync(file, [HEADER, ...rows.map(line)].join("\n") + "\n");
     const res = spawnSync(process.execPath, [SCRIPT, "--file", file, ...extra], { encoding: "utf8" });
@@ -357,7 +369,7 @@ test("B（レビュー W1）: 注記は compute の戻り値にあり、--json �
   assert.doesNotMatch(all, /\bmeasures how many\b/);
   assert.match(all, /is at most how many/);
   assert.ok(notes.some((n) => /http_status_paid/.test(n) && /blank/i.test(n) && /timeout|timed out/i.test(n)), "応答なしの行");
-  const dir = mkdtempSync(join(tmpdir(), "vet402-before-after-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "vet402-before-after-")));
   const file = join(dir, "ledger.csv");
   writeFileSync(file, csv);
   const human = spawnSync(process.execPath, [SCRIPT, "--file", file], { encoding: "utf8" });

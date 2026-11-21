@@ -6,6 +6,18 @@ import { tmpdir } from "node:os";
 import { join, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import http from "node:http";
+import { after as __tmpAfter } from "node:test";
+import { rmSync as __tmpRm } from "node:fs";
+const __tmpDirs = [];
+const __tmp = (d) => {
+  __tmpDirs.push(d);
+  return d;
+};
+// 2026-11-21: temp dirs were never removed (a 118MB fixture filled the disk). Remove them after this file.
+__tmpAfter(() => {
+  for (const d of __tmpDirs) __tmpRm(d, { recursive: true, force: true });
+});
+
 
 const {
   createVet402ReadHook,
@@ -483,7 +495,7 @@ test("payment parity guard rejects a hook that calls signX402Payment", async () 
 });
 
 test("unreachable vet402: payment still succeeds, snapshot empty, local records empty", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "vet402-hook-empty-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "vet402-hook-empty-")));
   const missingStore = join(dir, "nope.jsonl");
   const base = make402Then200Base();
   const spy = { n: 0 };
@@ -507,7 +519,7 @@ test("unreachable vet402: payment still succeeds, snapshot empty, local records 
 });
 
 test("local JSONL scan stops after read timeout and leaves no partial records", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "vet402-hook-deadline-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "vet402-hook-deadline-")));
   const store = join(dir, "decisions.jsonl");
   const line = JSON.stringify(minimalStoredRow({ resource: RESOURCE }));
   const { writeFile } = await import("node:fs/promises");
@@ -530,7 +542,7 @@ test("local JSONL scan stops after read timeout and leaves no partial records", 
 });
 
 test("decision store: matching resource rows, no writes, missing path, bad lines, Request input", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "vet402-hook-store-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "vet402-hook-store-")));
   const store = join(dir, "decisions.jsonl");
 
   await appendDecision(minimalStoredRow({ resource: RESOURCE, at: "2026-01-01T00:00:00.000Z" }), { store });
@@ -752,7 +764,7 @@ test("snapshot status truncated on oversized observatory response", async () => 
 });
 
 test("local status ok when JSONL rows match resource", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "vet402-hook-local-ok-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "vet402-hook-local-ok-")));
   const store = join(dir, "d.jsonl");
   await appendDecision(minimalStoredRow({ resource: RESOURCE }), { store });
   const wrapped = createVet402ReadHook({
@@ -765,7 +777,7 @@ test("local status ok when JSONL rows match resource", async () => {
 });
 
 test("local status none when JSONL has no matching resource", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "vet402-hook-local-none-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "vet402-hook-local-none-")));
   const store = join(dir, "d.jsonl");
   await appendDecision(minimalStoredRow({ resource: OTHER_RESOURCE }), { store });
   const wrapped = createVet402ReadHook({ store })(async () => new Response("ok"));
@@ -775,7 +787,7 @@ test("local status none when JSONL has no matching resource", async () => {
 });
 
 test("local status unreachable on missing store path", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "vet402-hook-local-unreach-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "vet402-hook-local-unreach-")));
   const store = join(dir, "missing.jsonl");
   const wrapped = createVet402ReadHook({ store })(async () => new Response("ok"));
   await wrapped(RESOURCE);
@@ -784,7 +796,7 @@ test("local status unreachable on missing store path", async () => {
 });
 
 test("oversized JSONL returns within readTimeoutMs as truncated", async () => {
-  const dir = mkdtempSync(join(tmpdir(), "vet402-hook-big-jsonl-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "vet402-hook-big-jsonl-")));
   const store = join(dir, "big.jsonl");
   const filler = JSON.stringify(minimalStoredRow({ resource: OTHER_RESOURCE }));
   const tailMatch = JSON.stringify(

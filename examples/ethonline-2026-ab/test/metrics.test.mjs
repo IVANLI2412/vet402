@@ -10,6 +10,18 @@ import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { grade } from "../src/grade.mjs";
 import { computeMetrics, loadVocabulary, readResultsDir, renderMarkdown } from "../src/metrics.mjs";
+import { after as __tmpAfter } from "node:test";
+import { rmSync as __tmpRm } from "node:fs";
+const __tmpDirs = [];
+const __tmp = (d) => {
+  __tmpDirs.push(d);
+  return d;
+};
+// 2026-11-21: temp dirs were never removed (a 118MB fixture filled the disk). Remove them after this file.
+__tmpAfter(() => {
+  for (const d of __tmpDirs) __tmpRm(d, { recursive: true, force: true });
+});
+
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const CLI = join(HERE, "..", "src", "metrics.mjs");
@@ -38,7 +50,7 @@ async function makeResultsDir({
   doctorSummary = null,
   storedGradeFor = null,
 } = {}) {
-  const base = await mkdtemp(join(tmpdir(), "ab-metrics-"));
+  const base = __tmp(await mkdtemp(join(tmpdir(), "ab-metrics-")));
   const dir = join(base, "2026-01-01T000000Z");
   await mkdir(dir);
   const trials = [];
@@ -94,7 +106,7 @@ async function makeResultsDir({
 
 /** 偽の語彙ファイル 2 本（vocabulary.ts と pay-or-refuse.ts の形だけ真似る）。 */
 async function makeVocabularyFiles() {
-  const base = await mkdtemp(join(tmpdir(), "ab-vocab-"));
+  const base = __tmp(await mkdtemp(join(tmpdir(), "ab-vocab-")));
   const vocabularyPath = join(base, "vocabulary.ts");
   const sdkPath = join(base, "pay-or-refuse.ts");
   await writeFile(
@@ -262,7 +274,7 @@ test("(e2) CLI は Markdown を印字し、--json で同じ数字を JSON で出
 });
 
 test("(b3) 語彙集合は SDK の定数配列 PAY_REFUSE_REASONS（新形・コメント混じり）からも読める", async () => {
-  const dir = await mkdtemp(join(tmpdir(), "metrics-vocab-"));
+  const dir = __tmp(await mkdtemp(join(tmpdir(), "metrics-vocab-")));
   const vocabularyPath = join(dir, "vocabulary.ts");
   const sdkPath = join(dir, "pay-or-refuse.ts");
   await writeFile(vocabularyPath, 'export const X = [{ term: "alpha" }];\n');

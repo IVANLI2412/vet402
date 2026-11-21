@@ -15,6 +15,18 @@ import assert from "node:assert/strict";
 import { Keypair, VersionedTransaction } from "@solana/web3.js";
 import { payOrRefuse } from "../dist/index.js";
 import { decisionFreshness, defaultVerifiedTerms, withAutoResolve } from "./_pay-or-refuse-harness.mjs";
+import { after as __tmpAfter } from "node:test";
+import { rmSync as __tmpRm } from "node:fs";
+const __tmpDirs = [];
+const __tmp = (d) => {
+  __tmpDirs.push(d);
+  return d;
+};
+// 2026-11-21: temp dirs were never removed (a 118MB fixture filled the disk). Remove them after this file.
+__tmpAfter(() => {
+  for (const d of __tmpDirs) __tmpRm(d, { recursive: true, force: true });
+});
+
 
 const b64 = (o) => btoa(JSON.stringify(o));
 
@@ -193,7 +205,7 @@ test("R4c 決定行の JSONL には receipt を足さない（0.7.0 の行の形
   const { mkdtempSync, readFileSync } = await import("node:fs");
   const { tmpdir } = await import("node:os");
   const { join } = await import("node:path");
-  const store = join(mkdtempSync(join(tmpdir(), "vet402-receipt-")), "decisions.jsonl");
+  const store = join(__tmp(mkdtempSync(join(tmpdir(), "vet402-receipt-"))), "decisions.jsonl");
   const w = watchedAccount();
   const f = evmWorld({ paidAnswer: sellerSays({ success: true, transaction: "0xtx", network: "eip155:8453" }) });
   const r = await payOrRefuse({ ...base, account: w.account, fetch: f.fetch, decisionStore: store });

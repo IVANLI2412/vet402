@@ -11,6 +11,18 @@ import { mkdtempSync, readFileSync, readdirSync, appendFileSync } from "node:fs"
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { after as __tmpAfter } from "node:test";
+import { rmSync as __tmpRm } from "node:fs";
+const __tmpDirs = [];
+const __tmp = (d) => {
+  __tmpDirs.push(d);
+  return d;
+};
+// 2026-11-21: temp dirs were never removed (a 118MB fixture filled the disk). Remove them after this file.
+__tmpAfter(() => {
+  for (const d of __tmpDirs) __tmpRm(d, { recursive: true, force: true });
+});
+
 
 const { exportLocalPurchaseCsv, LOCAL_PURCHASE_EXPORT_COLUMNS, payChecked, DEFAULT_DECISION_STORE } = await import("../dist/index.js");
 
@@ -98,7 +110,7 @@ test("D2 書き出しの列名と順番は、公開 export の凍結列と一致
 });
 
 function tempStore() {
-  const dir = mkdtempSync(join(tmpdir(), "vet402-d2-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "vet402-d2-")));
   return { dir, store: join(dir, "decisions.jsonl") };
 }
 

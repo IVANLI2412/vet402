@@ -7,11 +7,23 @@ import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, writeFileSync, chmodSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { after as __tmpAfter } from "node:test";
+import { rmSync as __tmpRm } from "node:fs";
+const __tmpDirs: string[] = [];
+const __tmp = (d: string): string => {
+  __tmpDirs.push(d);
+  return d;
+};
+// 2026-11-21: temp dirs were never removed (a 118MB fixture filled the disk). Remove them after this file.
+__tmpAfter(() => {
+  for (const d of __tmpDirs) __tmpRm(d, { recursive: true, force: true });
+});
+
 
 const SCRIPT = "contracts/stellar-roots/tools/commit-day.sh";
 
 test("writer_call puts --source and --network before the contract arguments", () => {
-  const dir = mkdtempSync(join(tmpdir(), "roots-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "roots-")));
   const log = join(dir, "calls.log");
   writeFileSync(
     join(dir, "stellar"),

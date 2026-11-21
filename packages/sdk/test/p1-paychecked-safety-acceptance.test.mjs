@@ -16,6 +16,18 @@ import { join } from "node:path";
 
 const { payChecked, readDemoDecisions, readL1Decisions } = await import("../dist/index.js");
 import { allowlistFetch, decisionFreshness, defaultVerifiedTerms } from "./_pay-or-refuse-harness.mjs";
+import { after as __tmpAfter } from "node:test";
+import { rmSync as __tmpRm } from "node:fs";
+const __tmpDirs = [];
+const __tmp = (d) => {
+  __tmpDirs.push(d);
+  return d;
+};
+// 2026-11-21: temp dirs were never removed (a 118MB fixture filled the disk). Remove them after this file.
+__tmpAfter(() => {
+  for (const d of __tmpDirs) __tmpRm(d, { recursive: true, force: true });
+});
+
 
 /** 第1層: signer への「参照」を記録する Proxy。回数ではなくアクセスを見る。 */
 function watchedAccount() {
@@ -80,7 +92,7 @@ const resolveBody = () => ({
 });
 
 function tempStore() {
-  return join(mkdtempSync(join(tmpdir(), "vet402-pay-checked-")), "decisions.jsonl");
+  return join(__tmp(mkdtempSync(join(tmpdir(), "vet402-pay-checked-"))), "decisions.jsonl");
 }
 
 const OPEN_RULES = { maxPerTxUsd: 1, requireAllow: true, minDeliveryRate: 0.9 };

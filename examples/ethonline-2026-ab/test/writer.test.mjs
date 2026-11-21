@@ -8,6 +8,18 @@ import { join } from "node:path";
 import { writeRun, verifyRunDir } from "../src/writer.mjs";
 import { runAbHarness } from "../src/harness.mjs";
 import { aggregate } from "../src/aggregate.mjs";
+import { after as __tmpAfter } from "node:test";
+import { rmSync as __tmpRm } from "node:fs";
+const __tmpDirs = [];
+const __tmp = (d) => {
+  __tmpDirs.push(d);
+  return d;
+};
+// 2026-11-21: temp dirs were never removed (a 118MB fixture filled the disk). Remove them after this file.
+__tmpAfter(() => {
+  for (const d of __tmpDirs) __tmpRm(d, { recursive: true, force: true });
+});
+
 
 const resources = { gatewayUrl: "https://example.invalid", apiList: "GET /a — a", recipe: "Recipe: x402-payee-verification\nbody" };
 const AT = new Date("2026-09-05T10:15:30Z");
@@ -16,7 +28,7 @@ async function makeRun(text = '{"verdict":"refuse","reason_codes":[]}') {
   return runAbHarness({ runAgent: async () => ({ text, model: "mock", temperature: 0 }), resources });
 }
 async function tmp() {
-  return mkdtemp(join(tmpdir(), "ab-writer-"));
+  return mkdtemp(join(tmpdir(), "ab-writer-")).then(__tmp);
 }
 
 test("タイムスタンプ付きディレクトリへ4ファイルを書く", async () => {

@@ -29,6 +29,18 @@ import {
   defaultVerifiedTerms,
   withAutoResolve,
 } from "./_pay-or-refuse-harness.mjs";
+import { after as __tmpAfter } from "node:test";
+import { rmSync as __tmpRm } from "node:fs";
+const __tmpDirs = [];
+const __tmp = (d) => {
+  __tmpDirs.push(d);
+  return d;
+};
+// 2026-11-21: temp dirs were never removed (a 118MB fixture filled the disk). Remove them after this file.
+__tmpAfter(() => {
+  for (const d of __tmpDirs) __tmpRm(d, { recursive: true, force: true });
+});
+
 
 // 会期中に実装する。Day 0 では存在しないので、**各テストが個別に赤くなる**ようスタブへ落とす
 // （import で1本落ちるだけだと「22本を書いた」記録が git に残らない）。
@@ -771,7 +783,7 @@ test("G-g EIP-712 ドメインは売り手からではなくトークンから�
 // 自明になり、テストが何も証明しなくなる。同じ store に混ぜて、**読み手が正しく分ける**
 // ことを要求してはじめて混線が検出できる。本番 DB へは一切書かない（会期中は実装凍結）。
 function tempStore() {
-  return join(mkdtempSync(join(tmpdir(), "vet402-decisions-")), "decisions.jsonl");
+  return join(__tmp(mkdtempSync(join(tmpdir(), "vet402-decisions-"))), "decisions.jsonl");
 }
 
 test("F19 デモの決定行は source: agent-demo で、L1 台帳へは書かない", async () => {

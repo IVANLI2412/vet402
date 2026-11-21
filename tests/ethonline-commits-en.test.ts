@@ -40,6 +40,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { after as __tmpAfter } from "node:test";
+import { rmSync as __tmpRm } from "node:fs";
+const __tmpDirs: string[] = [];
+const __tmp = (d: string): string => {
+  __tmpDirs.push(d);
+  return d;
+};
+// 2026-11-21: temp dirs were never removed (a 118MB fixture filled the disk). Remove them after this file.
+__tmpAfter(() => {
+  for (const d of __tmpDirs) __tmpRm(d, { recursive: true, force: true });
+});
+
 
 const ROOT = process.cwd();
 const SCRIPT = join(ROOT, "scripts", "ethonline-commits-en.mjs");
@@ -60,7 +72,7 @@ test("COMMITS_EN.md is what the script renders from the commit it names (a stale
 });
 
 test("a stale copy (one row dropped) is red with 'regenerate'", () => {
-  const dir = mkdtempSync(join(tmpdir(), "commits-en-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "commits-en-")));
   const body = readFileSync(FILE, "utf8");
   const rows = body.split("\n");
   const last = rows.map((l, i) => (l.startsWith("| [`") ? i : -1)).filter((i) => i >= 0).pop();
@@ -76,7 +88,7 @@ test("a stale copy (one row dropped) is red with 'regenerate'", () => {
 });
 
 test("a copy whose Generated row names a SHA that is not a commit is red", () => {
-  const dir = mkdtempSync(join(tmpdir(), "commits-en-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "commits-en-")));
   const body = readFileSync(FILE, "utf8");
   const forged = body.replace(/(\| Generated \| .* from `)[0-9a-f]{40}(` \|)/, `$1${"0".repeat(40)}$2`);
   assert.notEqual(forged, body, "Generated row not found");
@@ -96,7 +108,7 @@ test("a copy that is honestly behind (pinned before a commit that did not regene
   const lazy = all.find((sha) => !touched.has(sha));
   assert.ok(lazy, "every commit in the window regenerated COMMITS_EN.md — nothing to pin behind");
   const pin = git("rev-parse", `${lazy}^`);
-  const dir = mkdtempSync(join(tmpdir(), "commits-en-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "commits-en-")));
   const p = join(dir, "COMMITS_EN.md");
   const gen = run(["--ref", pin, "--out", p]);
   assert.equal(gen.code, 0, `generating from ${pin.slice(0, 7)} failed:\n${gen.text}`);
@@ -125,7 +137,7 @@ test("a Japanese subject with no translation is a note by default and red under 
   // root `npm test` went red and every session lost `push` — the same accident as d0346b3 on 2026-09-10, which
   // is exactly what the two grades exist to prevent. So measure the bare count first and assert bare + 1. The
   // meaning is unchanged: one hole must add exactly one untranslated row, and --strict must still be red.
-  const dir = mkdtempSync(join(tmpdir(), "commits-en-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "commits-en-")));
 
   // The bare count on this ref, asked of the generator itself (no --check — it only renders to a temp path).
   // No suffix in the summary means zero.

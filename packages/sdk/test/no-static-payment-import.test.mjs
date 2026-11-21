@@ -23,6 +23,18 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { decisionFreshness, defaultVerifiedTerms, withAutoResolve } from "./_pay-or-refuse-harness.mjs";
+import { after as __tmpAfter } from "node:test";
+import { rmSync as __tmpRm } from "node:fs";
+const __tmpDirs = [];
+const __tmp = (d) => {
+  __tmpDirs.push(d);
+  return d;
+};
+// 2026-11-21: temp dirs were never removed (a 118MB fixture filled the disk). Remove them after this file.
+__tmpAfter(() => {
+  for (const d of __tmpDirs) __tmpRm(d, { recursive: true, force: true });
+});
+
 
 const here = dirname(fileURLToPath(import.meta.url));
 const DIST = resolve(here, "../dist");
@@ -137,7 +149,7 @@ test("第3層: src 側も値としては静的 import していない（型だ�
 
 /** dist を tmp へ写し、x402-pay.js をロード即 throw に差し替えた入口の URL を返す。 */
 function isolatedDistWithPoisonedPaymentModule() {
-  const dir = mkdtempSync(join(tmpdir(), "vet402-sdk-poison-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "vet402-sdk-poison-")));
   for (const f of readdirSync(DIST).filter((f) => f.endsWith(".js"))) copyFileSync(join(DIST, f), join(dir, f));
   writeFileSync(join(dir, "x402-pay.js"), 'throw new Error("PAYMENT MODULE EVALUATED");\n');
   return pathToFileURL(join(dir, "index.js")).href;
@@ -229,7 +241,7 @@ test("第3層(SVM): dist のどこにも @solana/web3.js の静的 import もリ
 
 /** dist を tmp へ写し、`poison` に挙げたファイルをロード即 throw に差し替えた入口の URL を返す。 */
 function isolatedDist(poison = []) {
-  const dir = mkdtempSync(join(tmpdir(), "vet402-sdk-svm-"));
+  const dir = __tmp(mkdtempSync(join(tmpdir(), "vet402-sdk-svm-")));
   for (const f of readdirSync(DIST).filter((f) => f.endsWith(".js"))) copyFileSync(join(DIST, f), join(dir, f));
   for (const f of poison) writeFileSync(join(dir, f), `throw new Error("PAYMENT MODULE EVALUATED: ${f}");\n`);
   return { dir, entry: pathToFileURL(join(dir, "index.js")).href };

@@ -16,6 +16,18 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { after as __tmpAfter } from "node:test";
+import { rmSync as __tmpRm } from "node:fs";
+const __tmpDirs: string[] = [];
+const __tmp = (d: string): string => {
+  __tmpDirs.push(d);
+  return d;
+};
+// 2026-11-21: temp dirs were never removed (a 118MB fixture filled the disk). Remove them after this file.
+__tmpAfter(() => {
+  for (const d of __tmpDirs) __tmpRm(d, { recursive: true, force: true });
+});
+
 
 const SCRIPT = join(process.cwd(), "scripts", "refresh-numbers.mjs");
 
@@ -32,7 +44,7 @@ type Num = {
 };
 
 function fixture(opts: { docs: Record<string, string>; numbers: Num[] }) {
-  const root = mkdtempSync(join(tmpdir(), "refresh-numbers-"));
+  const root = __tmp(mkdtempSync(join(tmpdir(), "refresh-numbers-")));
   for (const [rel, body] of Object.entries(opts.docs)) {
     mkdirSync(join(root, rel, ".."), { recursive: true });
     writeFileSync(join(root, rel), body);

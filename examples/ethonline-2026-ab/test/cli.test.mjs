@@ -4,6 +4,18 @@ import { mkdtemp, readFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { parseArgs, main } from "../src/cli.mjs";
+import { after as __tmpAfter } from "node:test";
+import { rmSync as __tmpRm } from "node:fs";
+const __tmpDirs = [];
+const __tmp = (d) => {
+  __tmpDirs.push(d);
+  return d;
+};
+// 2026-11-21: temp dirs were never removed (a 118MB fixture filled the disk). Remove them after this file.
+__tmpAfter(() => {
+  for (const d of __tmpDirs) __tmpRm(d, { recursive: true, force: true });
+});
+
 
 test("既定は mock アダプタ", () => {
   assert.equal(parseArgs([]).agent, "mock");
@@ -19,7 +31,7 @@ test("知らないアダプタは投げる", () => {
 });
 
 test("mock で20試行を通し、書いて、検算して、集計表を返す", async () => {
-  const out = await mkdtemp(join(tmpdir(), "ab-cli-"));
+  const out = __tmp(await mkdtemp(join(tmpdir(), "ab-cli-")));
   const r = await main(["--agent", "mock", "--out", out]);
   assert.equal(r.run.trials.length, 20);
   assert.equal(r.verified.ok, true);
@@ -31,7 +43,7 @@ test("mock で20試行を通し、書いて、検算して、集計表を返す"
 });
 
 test("検算に失敗したら 0 で終われない（exitCode を立てる）", async () => {
-  const out = await mkdtemp(join(tmpdir(), "ab-cli-"));
+  const out = __tmp(await mkdtemp(join(tmpdir(), "ab-cli-")));
   const r = await main(["--agent", "mock", "--out", out]);
   assert.equal(r.exitCode, 0);
   assert.equal(r.verified.ok, true);
@@ -45,7 +57,7 @@ test("--mcp で Bazantic Gateway の MCP の口を上書きできる（既定は
 });
 
 test("実行のメタに Recipe の写しの出所が残る（審査員が原本と突き合わせられる）", async () => {
-  const out = await mkdtemp(join(tmpdir(), "ab-cli-"));
+  const out = __tmp(await mkdtemp(join(tmpdir(), "ab-cli-")));
   const r = await main(["--agent", "mock", "--out", out]);
   assert.equal(r.run.meta.recipeSource.platform, "bazantic.com");
   assert.equal(r.run.meta.recipeSource.mcpUrl, "https://2vjhqfgvw5dt5lja2zpjsjwrem.bazgateway.com/mcp");
@@ -55,7 +67,7 @@ test("実行のメタに Recipe の写しの出所が残る（審査員が原本
 });
 
 test("モックの実行では MCP を呼んでいないと明記される（呼んだふりをしない）", async () => {
-  const out = await mkdtemp(join(tmpdir(), "ab-cli-"));
+  const out = __tmp(await mkdtemp(join(tmpdir(), "ab-cli-")));
   const r = await main(["--agent", "mock", "--out", out]);
   assert.equal(r.run.meta.mcpUrl, null);
   const md = await readFile(join(r.dir, "summary.md"), "utf8");
