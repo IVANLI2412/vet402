@@ -1,8 +1,8 @@
 import type { Metadata } from "next";
 import { pageMetadata } from "@/lib/seo";
-import { boardAsOfDay, type SellerBoard } from "@/lib/sellers/board";
+import { boardAsOfDay } from "@/lib/sellers/board";
 import { getSellerBoardCached } from "@/lib/sellers/cached";
-import { FixFirstView, SellersNotice } from "@/components/site/sellers/SellersViews";
+import { FixFirstBoardClient } from "@/components/site/sellers/FixFirstBoardClient";
 import TrackView from "@/components/site/TrackView";
 
 /**
@@ -27,21 +27,11 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default async function FixFirstPage() {
-  let board: SellerBoard | null = null;
-  try {
-    board = await getSellerBoardCached();
-  } catch {
-    board = null;
-  }
+export default function FixFirstPage() {
   return (
     <main className="px-4 pt-8 pb-4 sm:px-6 md:px-8 md:pt-12">
       <TrackView event="fix_first_open" />
-      {board ? (
-        <FixFirstView board={board} />
-      ) : (
-        <SellersNotice title="What to fix first">Reading the ledger failed. Please reload in a minute.</SellersNotice>
-      )}
+      <FixFirstBoardClient />
     </main>
   );
 }
