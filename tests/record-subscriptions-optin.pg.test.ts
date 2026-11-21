@@ -103,9 +103,17 @@ if (!TEST_DB) {
       assert.equal((await row("pending@a.test")).last_verdict, "pass", "pending row was not advanced either");
     });
 
-    await t.test("GET では確定しない（ルートに GET が無い＝Next は 405）", async () => {
-      assert.equal((confirmRoute as Record<string, unknown>).GET, undefined);
-      assert.equal((unsubRoute as Record<string, unknown>).GET, undefined);
+    await t.test("GET では確定しない（GET は JSON の 405 を返すだけ）", async () => {
+      // 2026-11-21 C-6: every API route answers disallowed verbs with a JSON 405 instead of an empty one.
+      // The rule under test is unchanged: an email link prefetcher's GET must never confirm or unsubscribe.
+      for (const route of [confirmRoute, unsubRoute] as unknown as Array<Record<string, unknown>>) {
+        const get = route.GET as (() => Response) | undefined;
+        assert.equal(typeof get, "function");
+        const res = get!();
+        assert.equal(res.status, 405);
+        assert.equal(res.headers.get("allow"), "POST");
+        assert.equal(((await res.json()) as { error: string }).error, "method_not_allowed");
+      }
       assert.equal((await row("pending@a.test")).confirmed_at, null, "still pending after the email link was issued");
     });
 
