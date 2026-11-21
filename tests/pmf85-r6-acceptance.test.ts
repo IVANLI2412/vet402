@@ -66,9 +66,13 @@ test("stale seller reputation H1 and rows match check WARN", () => {
   const evidence = reputationHostEvidence(detail);
   assert.equal(evidence.tier, "stale");
   assert.equal(evidence.max_recommendation, "WARN");
-  assert.equal(reputationHeadline("stale.example", detail), "Does stale.example deliver? WARN");
+  assert.equal(
+    reputationHeadline("stale.example", detail),
+    "Does stale.example still deliver? Latest delivery is older than 30 days",
+  );
   const html = renderToStaticMarkup(createElement(ReputationSellerArticle, { detail }));
-  assert.match(html, /Does stale\.example deliver\? WARN/);
+  assert.match(html, /Latest delivery is older than 30 days/);
+  assert.doesNotMatch(html, /Does stale\.example deliver\? WARN/);
   assert.match(html, /last delivered 93\.5 days ago/);
   assert.equal((html.match(/\(stale\)/g) ?? []).length, 2);
   assert.match(html, /check answer for this host is WARN/);

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { headers } from "next/headers";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
 import { safeJsonLd } from "@/lib/util/json-ld";
 import { paymentChainLabel } from "@/lib/observatory/chains";
@@ -33,7 +33,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const host = parseSellerHostParam(raw);
   if (!host) notFound();
   const allowed = await getReputationHostsCached().catch(() => null);
-  if (!allowed?.includes(host)) notFound();
+  if (!allowed?.includes(host)) redirect(sellerPath(host));
   const detail = await getSellerDetailCached(host).catch(() => null);
   const title =
     detail && reputationPageEligible(detail)
@@ -149,10 +149,10 @@ export default async function ReputationSellerPage({ params }: Props) {
   const host = parseSellerHostParam(raw);
   if (!host) notFound();
   const allowed = await getReputationHostsCached().catch(() => null);
-  if (!allowed?.includes(host)) notFound();
+  if (!allowed?.includes(host)) redirect(sellerPath(host));
 
   const detail = await getSellerDetailCached(host).catch(() => null);
-  if (!detail || !reputationPageEligible(detail)) notFound();
+  if (!detail || !reputationPageEligible(detail)) redirect(sellerPath(host));
 
   const nonce = (await headers()).get("x-nonce") ?? undefined;
   return <ReputationSellerArticle detail={detail} nonce={nonce} />;

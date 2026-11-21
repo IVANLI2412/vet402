@@ -97,8 +97,9 @@ export function reputationSummarySentence(detail: SellerDetail): string {
 
 export function reputationHeadline(host: string, detail: SellerDetail): string {
   const evidence = reputationHostEvidence(detail);
-  if (evidence.allListingsStale && evidence.max_recommendation === "WARN") {
-    return `Does ${host} deliver? ${evidence.max_recommendation}`;
+  if (evidence.allListingsStale) {
+    const days = evidence.stale_after_days ?? L1_FRESH_DAYS;
+    return `Does ${host} still deliver? Latest delivery is older than ${days} days`;
   }
   return `Does ${host} deliver?`;
 }

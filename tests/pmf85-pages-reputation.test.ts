@@ -203,15 +203,22 @@ test("latestDeliveredRecordId: 全出品のうちいちばん新しい届いた�
   assert.equal(latestDeliveredRecordId(newer), "e2");
 });
 
-test("詳細が不適格なとき page は reputationPageEligible", () => {
+test("詳細が不適格なとき page は Base の売り手頁へ転送する", () => {
   const src = readFileSync(join(ROOT, "src/app/x402/sellers/[host]/page.tsx"), "utf8");
   assert.match(src, /!detail \|\| !reputationPageEligible\(detail\)/);
+  assert.match(src, /redirect\(sellerPath\(host\)\)/);
   assert.doesNotMatch(src, /\bfailed\b/i);
 });
 
 function notFoundError(err: unknown): boolean {
   const e = err as { digest?: string; message?: string };
   return String(e.digest ?? e.message ?? err).includes("404");
+}
+
+function redirectError(err: unknown): boolean {
+  const e = err as { digest?: string; message?: string };
+  const s = String(e.digest ?? e.message ?? err);
+  return s.includes("NEXT_REDIRECT") || s.includes("redirect");
 }
 
 test("条件外 host は reputation page を呼ぶと notFound", async () => {
@@ -222,13 +229,13 @@ test("条件外 host は reputation page を呼ぶと notFound", async () => {
   );
 });
 
-test("索引に無い host は reputation page を呼ぶと notFound", async () => {
+test("索引に無い host は Base の売り手頁へ転送する", async () => {
   const { default: ReputationSellerPage } = await import("@/app/x402/sellers/[host]/page");
   const { getReputationHostsCached } = await import("@/lib/sellers/reputation");
   const allowed = await getReputationHostsCached().catch(() => null);
   const host = "not-indexed.example";
   if (allowed?.includes(host)) return;
-  await assert.rejects(() => ReputationSellerPage({ params: Promise.resolve({ host }) }), notFoundError);
+  await assert.rejects(() => ReputationSellerPage({ params: Promise.resolve({ host }) }), redirectError);
 });
 
 test("評判 sitemap GET は 50 件以下の URL を出す", async () => {
