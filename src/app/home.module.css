@@ -997,6 +997,15 @@
   overflow: hidden;
   clip: rect(0, 0, 0, 0);
 }
+.pasteVerdictMarkNone {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 1px solid currentColor;
+  border-radius: 50%;
+  box-sizing: border-box;
+  opacity: 0.65;
+}
 .pasteCode pre,
 .pasteBlock pre {
   white-space: pre-wrap;

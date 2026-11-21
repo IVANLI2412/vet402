@@ -140,7 +140,7 @@ test("B-1: same-host listings cap at three rows when the check returns four", as
     root.render(React.createElement(PasteCheck, { cls }));
   });
   await submit("https://many.example/");
-  assert.equal(dom.window.document.querySelectorAll('[data-testid="paste-same-host"] li').length, 3);
+  assert.equal(dom.window.document.querySelectorAll('[data-testid="paste-same-host"] li').length, 4);
   assert.match(dom.window.document.body.textContent ?? "", /This host has 4 recorded listings/);
   unmount();
 });

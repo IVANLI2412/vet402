@@ -238,6 +238,9 @@ function VerdictMark({ verdict, cls }: { verdict: string; cls: Record<string, st
   if (verdict === "WARN") {
     return <span className={cls.pasteVerdictMarkWarn} aria-hidden />;
   }
+  if (verdict === "NONE") {
+    return <span className={cls.pasteVerdictMarkNone} aria-hidden />;
+  }
   return (
     <span className={cls.pasteVerdictMarkBlock} aria-hidden>
       <span>×</span>
@@ -521,7 +524,7 @@ export function PasteCheck({
                   {sameHostListings.length === 1 ? "listing" : "listings"}.
                 </p>
                 <ul className={s.pasteAltList}>
-                  {sameHostListings.slice(0, 3).map((row) => {
+                  {sameHostListings.map((row) => {
                     const rowRecord = vet402RecordHref(row.record_url);
                     return (
                       <li key={row.url} className={s.pasteAlt}>
@@ -539,6 +542,13 @@ export function PasteCheck({
                     );
                   })}
                 </ul>
+                <p className={s.pasteBlock}>
+                  Paste a full listing URL, for example{" "}
+                  <button type="button" className={s.inlineLink} onClick={fillExample}>
+                    {EXAMPLE_X402_URL}
+                  </button>
+                  , to see a verdict for one listing.
+                </p>
                 {(() => {
                   const headRecord = vet402RecordHref(sameHostListings[0]?.record_url);
                   return (
@@ -561,8 +571,17 @@ export function PasteCheck({
               </div>
             ) : phase === "result" && outcome === "none" ? (
               <div className={s.pasteBlock} data-testid="paste-none">
+                <dl className={s.recordRows}>
+                  <div className={s.pasteVerdict}>
+                    <dt>Verdict</dt>
+                    <dd>
+                      <VerdictMark verdict="NONE" cls={s} />
+                      No record
+                    </dd>
+                    <dd className={s.pasteNextStep}>{NO_RECORD_NEXT}</dd>
+                  </div>
+                </dl>
                 <p className={s.pasteStatus}>vet402 has no purchase record for this URL.</p>
-                <p>{NO_RECORD_NEXT}</p>
                 <pre className={s.pasteCode}>
                   <code>{submittedUrl ? diagnoseCurlLine(submittedUrl) : diagnoseCurlLine(url.trim())}</code>
                 </pre>
