@@ -1815,8 +1815,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                description: Same shape as MCP structuredContent for check_x402_seller.
+                $ref: "#/components/schemas/CheckSellerDocument"
         "400":
           description: invalid_query, invalid_url or invalid_method.
           content:
@@ -1862,7 +1861,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
+                $ref: "#/components/schemas/CheckSellerDocument"
         "400":
           description: invalid_query, invalid_url or invalid_method.
         "429": { description: Rate limited }
@@ -5136,6 +5135,40 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/ErrorResponse" }
 
+  /api/v1/health:
+    get:
+      operationId: getHealthV1
+      tags: [System]
+      summary: Liveness alias (same handler as GET /api/health)
+      description: |
+        Same response as `GET /api/health`. Prefer `/api/health` in new monitors;
+        this path exists for tools that assume every public route lives under
+        `/api/v1/`.
+      security: []
+      responses:
+        "200":
+          description: Up
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [ok]
+        "503":
+          description: Degraded or error
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [status]
+                properties:
+                  status:
+                    type: string
+                    enum: [degraded, error]
+
   /api/health:
     get:
       operationId: getHealth
@@ -5723,6 +5756,75 @@ components:
         evidence:
           type: array
           items: { $ref: "#/components/schemas/ReasonEvidenceRef" }
+
+    CheckSellerDocument:
+      type: object
+      description: >-
+        Structured content of MCP `check_x402_seller` and key-less GET
+        `/api/v1/check`. Matches src/lib/mcp/schemas.ts `checkSellerOutput`.
+      required:
+        [not_in_catalog, recommendation, reason_codes, reasons, same_host_listings, listing_sources, method_url, as_of, truncated, next_action]
+      properties:
+        evidence_age:
+          nullable: true
+          allOf:
+            - $ref: "#/components/schemas/EvidenceAge"
+        canonical_url: { type: string, nullable: true }
+        method: { type: string, nullable: true }
+        not_in_catalog: { type: boolean }
+        recommendation:
+          type: string
+          nullable: true
+          enum: [ALLOW, WARN, BLOCK, null]
+        reason_codes:
+          type: array
+          items: { type: string }
+        reasons:
+          type: array
+          items: { $ref: "#/components/schemas/ReasonExplanation" }
+        delivery:
+          type: object
+          nullable: true
+        refunds:
+          type: object
+          nullable: true
+        l0_status:
+          type: string
+          nullable: true
+          enum: [pass, fail, unverified, null]
+        verified_terms:
+          type: object
+          nullable: true
+        spending_halted: { type: boolean, nullable: true }
+        freshness:
+          type: object
+          nullable: true
+        l1_purchases:
+          type: array
+          items: { type: object }
+        same_host_listings:
+          type: array
+          items:
+            type: object
+            required: [url, method, catalog_status, record_url]
+            properties:
+              url: { type: string }
+              method: { type: string }
+              catalog_status: { type: string }
+              record_url: { type: string }
+        listing_sources:
+          type: array
+          items: { type: object }
+        note: { type: string, nullable: true }
+        record_url: { type: string, nullable: true }
+        diagnose_url: { type: string, nullable: true }
+        method_url: { type: string }
+        as_of: { type: string, format: date-time }
+        truncated: { type: boolean }
+        next_action:
+          type: string
+          nullable: true
+          description: Plain-language next step after ALLOW, WARN, or BLOCK (verdictNextStep).
 
     EvidenceAge:
       type: object

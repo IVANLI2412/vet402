@@ -802,6 +802,12 @@ api.example.com,521e929e-…,api.example.com/v1/x,delivered,,,,,2026-09-29T00:02
     note: "Liveness for an uptime poller. The public body is {\"status\":\"ok\"}, degraded, or error, from a probe of both scoring engines. degraded and error answer HTTP 503. ?deep=1 returns per-check detail and requires the admin bearer token. Without that token it answers 403. The plain call is key-less.",
     response: `HTTP 200 when the status is ok. HTTP 503 when the body is degraded or error.`,
   },
+  {
+    method: "GET",
+    path: "/api/v1/health",
+    note: "Same handler and response as GET /api/health for monitors that assume a /api/v1/ prefix.",
+    response: `Same as GET /api/health.`,
+  },
 ];
 
 export function apiEndpointId(ep: Pick<ApiDocEndpoint, "method" | "path">): string {
