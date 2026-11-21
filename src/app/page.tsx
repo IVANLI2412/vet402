@@ -330,9 +330,7 @@ export default async function Home() {
                   public state page
                 </Link>{" "}
                 at{" "}
-                <time dateTime={readAt}>
-                  {ledger.readDate} {ledger.readTime} UTC
-                </time>
+                <time dateTime={readAt}>{readAt}</time>
                 . Delivered means a non-empty 2xx. A 4xx is inconclusive, because it can come from the shape of
                 vet402&apos;s own request.
                 <HomeLivenessNote linkClassName={s.statusLink} />{" "}
