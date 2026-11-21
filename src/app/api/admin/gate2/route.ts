@@ -4,7 +4,7 @@ import { secureCompare } from "@/lib/util/secure-compare";
 import { consumeIpRateLimit, getClientIp } from "@/lib/api/ip-rate-limit";
 import { buildGate2Report, Gate2NotConfiguredError, Gate2SchemaMissingError } from "@/lib/gate2/report";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 /**
  * Admin-only Gate2 PMF report, computed inside the running production
@@ -72,4 +72,5 @@ export async function GET(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

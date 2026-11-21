@@ -4,7 +4,7 @@ import { parsePartyId, payeeId as toPartyId } from "@/lib/ids/canonical";
 import { endpointsByPayee } from "@/lib/resolve/lookup";
 import { SOLANA_MAINNET_CAIP2 } from "@/lib/observatory/sol402-payer";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 // §7.3 / §9.1: GET /api/v1/payees/{payee_id}/endpoints — 受取ウォレット → 店。
 // payee_id は chain:address（§5）。裸の 0x / base58 も受け、既定チェーンを補う。
@@ -46,4 +46,5 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

@@ -11,7 +11,7 @@ import { logServerErrorSafe, logServerWarnSafe } from "@/lib/util/log-safe";
 // payeeMessage to @/lib/verify-message so this route file no longer exports a
 // shared helper (Next 16 route-type contract — a route may only export handlers).
 import { isCanonicalName } from "@/lib/validation/canonical-name";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 import {
   isSafeBoundUrl,
   isValidIssuedAt,
@@ -210,4 +210,5 @@ export async function POST(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET", "POST"]);
-export const { HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

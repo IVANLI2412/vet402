@@ -8,7 +8,7 @@ import {
 import { getDecisionFeed } from "@/lib/observatory/decisions";
 import { computeSpendGuardBacktest } from "@/lib/observatory/backtest";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/observatory/decisions?days=30 — 実資金の判定フィード。
@@ -55,4 +55,5 @@ export async function GET(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

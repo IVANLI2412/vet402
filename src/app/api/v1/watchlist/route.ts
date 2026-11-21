@@ -4,7 +4,7 @@ import { applyRateLimit, authenticateApiRequest, withRateLimitHeaders } from "@/
 import { isValidAddress, parseAgentId } from "@/lib/chain/client";
 import { MAX_WATCHLIST_PER_KEY, addWatch, listWatchlist } from "@/lib/watchlist";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 // N-15 — GET lists this key's watches; POST adds one. Verdict changes arrive
 // via the `watch.verdict_changed` webhook (register one at /api/v1/webhooks).
@@ -69,4 +69,5 @@ export async function POST(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET", "POST"]);
-export const { HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

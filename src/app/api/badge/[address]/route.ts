@@ -9,7 +9,7 @@ import { payeeBadgeState, renderBadgeSvg, type PayeeBadgeScoreView } from "@/lib
 import { scorePayeeWallet } from "@/lib/scoring/payee-engine";
 import { scheduleBadgeFetch } from "@/lib/badge/fetch-stats";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 // N-16 — embeddable SVG badge. H-1/H-5 (2026-08-13 R4): the green "Verified
 // payee" is no longer minted by a self-signed claim alone — it is earned only
@@ -101,4 +101,5 @@ export async function GET(
   });
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

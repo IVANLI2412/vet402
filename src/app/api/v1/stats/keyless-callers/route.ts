@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { publicRateLimit } from "@/lib/api/public-route";
 import { statsDbUnavailableResponse } from "@/lib/api/stats-unavailable";
 import { readKeylessCallerStats } from "@/lib/api/keyless-callers";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 const RL_LIMIT = 30;
 const RL_WINDOW_MS = 60_000;
@@ -21,4 +21,5 @@ export async function GET(request: NextRequest) {
   });
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

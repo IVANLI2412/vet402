@@ -39,6 +39,7 @@ function allowedMethods(src: string): Set<string> {
       const m = raw.trim().replace(/['"]/g, "");
       if (m) allowed.add(m.toUpperCase());
     }
+    if (allowed.has("GET")) allowed.add("HEAD");
   }
   return allowed;
 }
@@ -91,6 +92,19 @@ test("disallowed HTTP methods return the shared method_not_allowed JSON", async 
     }
   }
   assert.deepEqual(failures, []);
+});
+
+test("GET routes answer HEAD without 405", async () => {
+  const savedDb = process.env.DATABASE_URL;
+  delete process.env.DATABASE_URL;
+  try {
+    const { HEAD } = await import("@/app/api/health/route");
+    const res = await HEAD(new NextRequest("http://localhost/api/health"));
+    assert.notEqual(res.status, 405, "HEAD must not be method_not_allowed on a GET route");
+  } finally {
+    if (savedDb === undefined) delete process.env.DATABASE_URL;
+    else process.env.DATABASE_URL = savedDb;
+  }
 });
 
 test("observatory export days redirect returns JSON moved body", async () => {

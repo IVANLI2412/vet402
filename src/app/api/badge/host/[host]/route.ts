@@ -8,7 +8,7 @@ import { parseSellerHostParam } from "@/lib/sellers/host";
 import { readHostBadgeStats, readPurchasedHosts, readSellerBoard } from "@/lib/sellers/reader";
 import { scheduleBadgeFetch } from "@/lib/badge/fetch-stats";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 const BADGE_LIMIT = 60;
 const BADGE_WINDOW_MS = 60_000;
@@ -67,4 +67,5 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

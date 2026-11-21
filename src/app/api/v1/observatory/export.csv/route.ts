@@ -19,7 +19,7 @@ import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { csvCell } from "@/lib/util/csv-write";
 import { acquireExportSlot, exportBusyResponse, rejectUnknownQuery } from "@/lib/api/export-guard";
 import { withNoindex } from "@/lib/api/public-read-robots";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/observatory/export.csv?days=90 — 購入台帳のCSVエクスポート
@@ -189,4 +189,5 @@ export async function GET(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

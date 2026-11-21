@@ -8,7 +8,7 @@ import {
 import { anchorThrough as defaultAnchorThrough } from "@/lib/observatory/anchors";
 import { sealTradeDisputeDay as defaultSealTradeDisputeDay } from "@/lib/observatory/trade-dispute-store";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 let anchorThroughFn: typeof defaultAnchorThrough = defaultAnchorThrough;
 let sealTradeDisputeDayFn: typeof defaultSealTradeDisputeDay = defaultSealTradeDisputeDay;
@@ -94,4 +94,5 @@ export async function GET(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

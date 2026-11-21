@@ -8,7 +8,7 @@ import { ReconstructionTimeout, TooBusy, cachedFacts } from "../../../../../../.
 import { tooLargeAnswer } from "../../../../../../../../packages/rwa/answers";
 import { NoStockTokenActivity, WalletTooLarge, type RwaFacts } from "../../../../../../../../packages/rwa/facts";
 import { factsHashHeader } from "../../../../../../../../packages/rwa/anchor";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 import {
   BadPayment,
   b64json,
@@ -155,4 +155,5 @@ function render(facts: RwaFacts): RwaFacts {
   return { ...facts, address: getAddress(facts.address) };
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

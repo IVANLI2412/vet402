@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeDashboardRequest } from "@/lib/dashboard/auth";
 import { getTrustEventLogs } from "@/lib/dashboard/data";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 export async function GET(request: NextRequest) {
   const auth = await authorizeDashboardRequest(request);
@@ -23,4 +23,5 @@ export async function GET(request: NextRequest) {
   });
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

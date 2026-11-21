@@ -15,7 +15,7 @@
 // ============================================================
 import { NextRequest, NextResponse } from "next/server";
 import { TOKYO_LIMITS, tokyoRateLimit } from "../_lib/rate-limit";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -182,4 +182,5 @@ export async function GET(request: NextRequest): Promise<Response> {
   );
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

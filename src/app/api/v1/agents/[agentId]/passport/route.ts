@@ -13,7 +13,7 @@ import { loadSellerFacts } from "@/lib/decision/seller-facts";
 import { buildFactsSummary, type FactsSummary } from "@/lib/decision/facts-summary";
 import { endpointsByPayee } from "@/lib/resolve/lookup";
 import { payeeId as toPartyId } from "@/lib/ids/canonical";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 // A-10 — the portable, third-party-verifiable passport. Key-less on purpose:
 // a counterparty deciding whether to transact with an agent must be able to
@@ -224,4 +224,5 @@ export async function GET(
   );
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

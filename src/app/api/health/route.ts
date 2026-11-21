@@ -9,7 +9,7 @@ import { evaluateLiveness, HEALTH_RATE_LIMIT, HEALTH_RATE_WINDOW_MS } from "@/li
 import { recordHealthSnapshotIfDue } from "@/lib/health/snapshot";
 import { composeDetail, probeSegment } from "@/lib/health/probe-detail";
 import { runAfterResponse } from "@/lib/util/after-response";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 function authorizeAdmin(request: NextRequest): boolean {
   const secret = process.env.ADMIN_SECRET;
@@ -169,4 +169,5 @@ export async function GET(request: NextRequest) {
   return NextResponse.json(payload, { status: statusCode });
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

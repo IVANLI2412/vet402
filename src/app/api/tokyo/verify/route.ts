@@ -2,7 +2,7 @@
 // 署名器も鍵も無い。/tokyo のページと同じ ../_lib/verify.ts を使う。
 import { TOKYO_LIMITS, tokyoRateLimit } from "../_lib/rate-limit";
 import { verifyName } from "../_lib/verify";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -16,4 +16,5 @@ export async function GET(request: Request) {
   return Response.json(r, { status, headers: { "Cache-Control": "no-store" } });
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

@@ -5,7 +5,7 @@ import { resolve } from "@/lib/resolve/lookup";
 import { ACCEPTED_QUERY_FORMS, classifyQuery, explainInvalidQuery } from "@/lib/resolve/classify";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { isKeylessRequest, recordClientUsage } from "@/lib/api/client-usage";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 import { rateLimitPolicyHeader } from "@/lib/api/ip-rate-limit";
 
 const KEYLESS_POLICY = rateLimitPolicyHeader(RESOLVE_KEYLESS_LIMIT, RESOLVE_KEYLESS_WINDOW_MS);
@@ -66,4 +66,5 @@ export async function GET(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

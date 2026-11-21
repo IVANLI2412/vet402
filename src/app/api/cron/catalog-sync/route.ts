@@ -3,7 +3,7 @@ import { authorizeCron } from "@/lib/cron/auth";
 import { runCatalogCursorCall } from "@/lib/observatory/catalog-cursor";
 import { notifyDelistedEvents } from "@/lib/observatory/notify";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 // vet402 Observatory L0 — CDP Bazaar catalog ingestion (2026-10-30 design v5, docs/catalog-staleness-contract.md).
 // The catalog (~100k listings, ~1,000 pages) does not fit one 300s function. Each run takes the cursor's lease,
@@ -58,4 +58,5 @@ export async function GET(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

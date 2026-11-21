@@ -12,7 +12,7 @@ import {
 } from "@/lib/observatory/corrections";
 import { UUID_RE } from "@/lib/validation/uuid";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 // §10: GET /api/v1/observatory/corrections?endpoint=<uuid>&reason=&limit=&cursor=
 // 公開判定が後から変わった記録（before/after）。自社に不利な訂正も同じ表から出す。
@@ -78,4 +78,5 @@ export async function GET(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

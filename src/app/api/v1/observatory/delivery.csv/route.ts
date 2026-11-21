@@ -14,7 +14,7 @@ import {
   resolveObservatoryExportDays,
 } from "@/lib/observatory/delivery-export";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/observatory/delivery.csv?days=90 — settled の行に delivery の 3 値を載せた CSV。
@@ -89,4 +89,5 @@ export async function GET(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

@@ -7,7 +7,7 @@ import {
 } from "@/lib/api/ip-rate-limit";
 import { withNoindex } from "@/lib/api/public-read-robots";
 import { buildNamedBuyerDeliveryForecastFromPinnedSnapshot } from "@/lib/v4/named-buyer-delivery-forecast";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 const RL_LIMIT = 60;
 const RL_WINDOW_MS = 60_000;
@@ -50,4 +50,5 @@ export async function GET(request: NextRequest) {
   );
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

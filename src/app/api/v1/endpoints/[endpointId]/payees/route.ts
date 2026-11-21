@@ -4,7 +4,7 @@ import { SHA256_HEX_RE } from "@/lib/ids/canonical";
 import { getEndpoint, payeesByEndpoint } from "@/lib/resolve/lookup";
 import { UUID_RE } from "@/lib/validation/uuid";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 // §7.3 / §9.1: GET /api/v1/endpoints/{endpoint_id}/payees — 店 → 受取ウォレット。
 export const dynamic = "force-dynamic";
@@ -33,4 +33,5 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

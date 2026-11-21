@@ -6,7 +6,7 @@ import { csvLines } from "@/lib/util/csv-write";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { acquireExportSlot, exportBusyResponse, rejectUnknownQuery } from "@/lib/api/export-guard";
 import { withNoindex } from "@/lib/api/public-read-robots";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/observatory/l0/export.csv — 出品ごとの最新の L0 公開判定（2026-09-29 監査 5 周目・データ記者の立場）。
@@ -62,4 +62,5 @@ export async function GET(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

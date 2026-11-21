@@ -4,7 +4,7 @@ import { stampNoindex, withNoindex } from "@/lib/api/public-read-robots";
 import { getCensusSummary, type CensusWindow } from "@/lib/settlements/census";
 import { toCaip2 } from "@/lib/observatory/chains";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 // §9.1: GET /api/v1/census/summary?chain=&window=7d|30d
 // 生値（raw）と実需（real = wash_flag none。self_deal / circular / test / measurement を除く）を同じ応答で両方返す。混ぜない（§7.2）。
@@ -33,4 +33,5 @@ export async function GET(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

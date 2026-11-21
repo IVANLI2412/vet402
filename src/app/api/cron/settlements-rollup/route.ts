@@ -4,7 +4,7 @@ import { authorizeCron } from "@/lib/cron/auth";
 import { acquireLeaseFailClosed } from "@/lib/cron/lease-fail-closed";
 import { runRollup } from "@/lib/settlements/rollup";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 // 2026-09-04 W15: 生行の保持期間を守る日次処理。7 日より古い UTC 日を
 // settlement_daily へ畳んで消す。index-settlements（13:00 UTC）の後、
@@ -36,4 +36,5 @@ export async function GET(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

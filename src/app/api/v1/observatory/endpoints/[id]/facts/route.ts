@@ -7,7 +7,7 @@ import { SHA256_HEX_RE } from "@/lib/ids/canonical";
 import { UUID_RE } from "@/lib/validation/uuid";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import type { Evidence, Freshness } from "@/lib/decision/types";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 // §9.1: GET /api/v1/observatory/endpoints/{id}/facts — L0–L2 の事実だけ。
 // スコアも判定も含めない（§8.3「trustScore を L0–L2 フィールドに入れて返すことを禁止」）。
@@ -64,4 +64,5 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

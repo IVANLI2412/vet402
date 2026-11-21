@@ -7,7 +7,7 @@ import {
   listApiKeysForOwner,
 } from "@/lib/db/api-keys";
 import { authorizeDashboardRequest } from "@/lib/dashboard/auth";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 export async function GET(request: NextRequest) {
   const auth = await authorizeDashboardRequest(request);
@@ -65,4 +65,5 @@ export async function POST(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET", "POST"]);
-export const { HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

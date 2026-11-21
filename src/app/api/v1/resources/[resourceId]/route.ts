@@ -3,7 +3,7 @@ import { publicRateLimit, PUBLIC_DISCLAIMER } from "@/lib/api/public-route";
 import { SHA256_HEX_RE } from "@/lib/ids/canonical";
 import { getResource, payeesByEndpoint } from "@/lib/resolve/lookup";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 // §9.1: GET /api/v1/resources/{resource_id} — Resource（§5 sha256）の参照。
 export const dynamic = "force-dynamic";
@@ -41,4 +41,5 @@ export async function GET(request: NextRequest, context: RouteContext) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

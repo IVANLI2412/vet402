@@ -10,7 +10,7 @@ import {
 } from "@/lib/observatory/erc8004-feedback";
 import { readPurchaseForErc8004Feedback } from "@/lib/observatory/erc8004-purchase-match";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 const RL_LIMIT = 60;
 const RL_WINDOW_MS = 60_000;
@@ -70,4 +70,5 @@ export async function GET(request: NextRequest, context: { params: Promise<{ pur
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

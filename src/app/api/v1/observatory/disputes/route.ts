@@ -6,7 +6,7 @@ import { TRADE_ID_RE } from "@/lib/observatory/trade-dispute";
 import { getTradeDisputeStore, publicJsonForTrade } from "@/lib/observatory/trade-dispute-store";
 import { isMissingSchemaError } from "@/lib/db/pg-errors";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 export const dynamic = "force-dynamic";
 
@@ -100,4 +100,5 @@ export async function POST(request: NextRequest) {
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET", "POST"]);
-export const { HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

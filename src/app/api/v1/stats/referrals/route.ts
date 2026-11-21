@@ -3,7 +3,7 @@ import { publicRateLimit } from "@/lib/api/public-route";
 import { parseStatsDaysParam } from "@/lib/api/stats-days";
 import { statsDbUnavailableResponse } from "@/lib/api/stats-unavailable";
 import { readReferralPageViews } from "@/lib/site-referral-stats";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 const RL_LIMIT = 30;
 const RL_WINDOW_MS = 60_000;
@@ -23,4 +23,5 @@ export async function GET(request: NextRequest) {
   });
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

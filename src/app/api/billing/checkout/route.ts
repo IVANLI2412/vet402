@@ -21,7 +21,7 @@ import { getAccountById, setAccountStripeIds, updateAccountPlan } from "@/lib/db
 import { ensureOwnerUserId } from "@/lib/db/api-keys";
 import { authorizeDashboardRequest } from "@/lib/dashboard/auth";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 const checkoutSchema = z.object({
   plan: z.enum(["pro", "scale"]),
@@ -156,4 +156,5 @@ export async function GET(request: NextRequest) {
   });
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET", "POST"]);
-export const { HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);

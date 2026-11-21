@@ -6,7 +6,7 @@ import {
 } from "@/lib/api/guard";
 import { parseAgentId } from "@/lib/chain/client";
 import { getScoreHistory } from "@/lib/db/persistence";
-import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { exportDisallowedMethodHandlers, headFromGet } from "@/lib/api/method-not-allowed";
 
 type RouteContext = { params: Promise<{ agentId: string }> };
 
@@ -46,4 +46,5 @@ export async function GET(request: NextRequest, context: RouteContext) {
   );
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
-export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const { POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
+export const HEAD = headFromGet(GET);
