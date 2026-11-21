@@ -407,9 +407,10 @@ async function verifyProofOnChain(
     classified = classifyPaymentNetwork(networkRaw ?? ERC8004_CHECK_CHAIN);
     if (classified.kind !== "supported" || !isReadableTx(proof.txHash!, classified.network)) {
       checks.tx_exists = proof.txHash ? "unknown" : "fail";
-      checks.to_matches_agent_payTo_or_wallet = proofTo ? (addressInPayTargets(proofTo, payTargets) ? "pass" : "unknown") : "unknown";
+      // 取引を読めない網では、申告の宛先だけで pass にせず、支払いも確かめていないと返す（証明の監査2 whitehat 中1・中2-B）。
+      checks.to_matches_agent_payTo_or_wallet = "unknown";
       checks.from_matches_client = "unknown";
-      return { hadPayment: false };
+      return { hadPayment: false, unreadable: proof.txHash ? true : undefined };
     }
     movement = await readPaymentOnChain(classified.network, proof.txHash!, payerForRead, readers);
     sources.push({

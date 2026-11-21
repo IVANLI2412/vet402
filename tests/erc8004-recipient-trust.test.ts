@@ -1,6 +1,8 @@
 // adversary-5: フィードバック本文が名乗った受取先は pass の根拠にしない（r3/adversary/a6）。
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { classifyRecipient, decideVerdict, evaluateRecipientCheck, triFromMatchesClient } from "@/lib/erc8004-check/verdict";
 import { declaredAgentPayees } from "@/lib/erc8004-check/feedback-uri";
 
@@ -64,4 +66,22 @@ test("classifyRecipient: with an index row the same payment is a fail (mismatch)
   const C = "0x00000000000000000000000000000000000000c3";
   assert.equal(classifyRecipient(C, null, "evm", () => false, { vet402IndexedPayTo: true }), "fail");
   assert.equal(evaluateRecipientCheck(C, null, "evm", () => false, { vet402IndexedPayTo: false }), "unknown");
+});
+
+// 11/22 証明の監査2 whitehat 中1: 本文が名乗る宛先（proofTo）だけでは pass にしない。取引の宛先が他人なら pass でない。
+test("declared recipient alone does not pass when the transaction paid someone else", () => {
+  const OWNER = "0x00000000000000000000000000000000000000a0";
+  const C = "0x00000000000000000000000000000000000000c3";
+  const inTargets = (to: string | null) => to !== null && to.toLowerCase() === OWNER;
+  assert.notEqual(classifyRecipient(C, OWNER, "evm", inTargets, { vet402IndexedPayTo: false }), "pass");
+  assert.equal(classifyRecipient(C, OWNER, "evm", inTargets, { vet402IndexedPayTo: true }), "fail");
+  assert.equal(classifyRecipient(OWNER, null, "evm", inTargets, { vet402IndexedPayTo: false }), "pass");
+});
+
+// 中2-B: 取引を読めない網の tx は、支払いを確かめていないので unreadable（verified_payment_* にしない）。
+test("unreadable network: run-check returns unreadable instead of a payment verdict", () => {
+  const src = readFileSync(join(process.cwd(), "src/lib/erc8004-check/run-check.ts"), "utf8");
+  const branch = src.slice(src.indexOf('if (classified.kind !== "supported" || !isReadableTx('), src.indexOf("movement = await readPaymentOnChain("));
+  assert.match(branch, /checks\.to_matches_agent_payTo_or_wallet = "unknown";/);
+  assert.match(branch, /unreadable: proof\.txHash \? true : undefined/);
 });

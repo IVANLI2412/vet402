@@ -56,7 +56,9 @@ export function classifyRecipient(
   inPayTargets: (to: string | null) => boolean,
   payTargets?: Pick<AgentPayTargets, "vet402IndexedPayTo">,
 ): Erc8004CheckTriState | "unconfirmed" {
-  if (inPayTargets(movementTo) || inPayTargets(proofTo)) return "pass";
+  // pass は取引から読んだ宛先の一致だけ。feedback の本文が名乗る宛先（proofTo）だけでは pass にしない
+  // （11/22 証明の監査2 whitehat 中1。申告を owner にして別の住所へ払った取引で verified が出ていた）。
+  if (inPayTargets(movementTo)) return "pass";
   if (!movementTo) return "unknown";
   if (paymentKind !== "evm" && paymentKind !== "tempo") {
     if (proofTo && addressesEqual(movementTo, proofTo)) return "unknown";
