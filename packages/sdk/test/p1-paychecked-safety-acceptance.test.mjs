@@ -8,7 +8,7 @@
 // 決まりで止めたときは sign* が 0。通ったときは signTypedData がちょうど 1 回。
 // 同じ呼び出しを冪等の鍵つきで 2 回しても、払うのは 1 回。
 // ============================================================
-import test from "node:test";
+import test, { mock } from "node:test";
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, writeFileSync, chmodSync, mkdirSync, appendFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -285,7 +285,20 @@ test("安全 7: 生きている持ち主のロックは、古くても外さな�
   writeFileSync(h.store, "");
   // 自分自身（生きている pid）が持つ、時刻の古いロックを置く。
   writeFileSync(h.store + ".lock", JSON.stringify({ pid: process.pid, at: Date.now() - 3_600_000, token: "held-by-someone" }));
-  const r = await call(h, { rules: COUNT_ONE });
+  // ロック待ちの上限（10 秒）を実時間で待たない。時計を進めて同じ道を通す（CI の変異の検査が時間切れになったため）。
+  mock.timers.enable({ apis: ["setTimeout", "Date"], now: Date.now() });
+  let r;
+  try {
+    let settled = false;
+    const p = call(h, { rules: COUNT_ONE }).then((v) => { settled = true; return v; }, (e) => { settled = true; throw e; });
+    for (let i = 0; i < 2000 && !settled; i++) {
+      await new Promise((res) => setImmediate(res));
+      mock.timers.tick(20);
+    }
+    r = await p;
+  } finally {
+    mock.timers.reset();
+  }
   assert.equal(r.paid, false, "生きている持ち主のロックを外して入らない");
   assert.equal(r.refusedBy, "store_unreadable");
   assert.deepEqual(h.w.signAccesses(), []);
