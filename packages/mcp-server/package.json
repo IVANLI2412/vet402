@@ -1,6 +1,6 @@
 {
   "name": "@vet402/mcp-server",
-  "version": "0.3.2",
+  "version": "0.3.3",
   "type": "module",
   "bin": {
     "vet402-mcp": "./dist/index.js"
@@ -13,7 +13,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.32.1",
-    "@vet402/sdk": "^0.10.1",
+    "@vet402/sdk": "^0.10.3",
     "zod": "^4.6.7"
   },
   "devDependencies": {

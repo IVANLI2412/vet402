@@ -13,5 +13,5 @@
  * reports stays a literal in `index.ts` (the repo-level `tests/docs-surface-parity.test.ts` reads it
  * there), so a release bumps three places: `package.json`, `index.ts` and this constant.
  */
-export const MCP_VERSION = "0.3.2";
+export const MCP_VERSION = "0.3.3";
 export const MCP_USER_AGENT = `vet402-mcp/${MCP_VERSION}`;
