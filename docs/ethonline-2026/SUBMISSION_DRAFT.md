@@ -157,7 +157,7 @@ AI. Claude (Opus / Fable, via Claude Code) wrote most of the code under human di
 | Node >= 20 / >= 22.18 | `SKILL.md` Prerequisites | 固定 |
 | eip155:8453 / USDC `0x8335…2913` / EIP-3009 / 120 s / nonce 32 bytes / "USD Coin" v2 | `WINDOW_PLAN.md` §3・§14・§14.1 | 固定 |
 | 10 requests/min per IP | `SKILL.md` Configure（AQ-053・09-07 実装） | 固定 |
-| `{{mutations}}` | `<!-- n:sdk_mutations -->`（`npm run refresh-numbers`） | 動く（09-10 記録値 50） |
+| `{{mutations}}` | `<!-- n:sdk_mutations -->`（`npm run refresh-numbers`） | 動く（09-10 記録値 51） |
 | `{{bazantic_tools}}` | `SKILL.md` "What is not built yet"（09-06 `tools/list` 実測 57） | 動く。提出日に `tools/list` で再確認 |
 | `x402AddressSummaries` / `totalPayments` / `role: RECIPIENT` / `_meta { block deployment }` / 鍵無しは 200＋GraphQL errors | `WINDOW_PLAN.md` §15（introspection で確定・実測） | 固定 |
 | 判定の 5 段の順序 | `packages/sdk/src/pay-or-refuse.ts` 冒頭コメント「判定の流れ（5行）」 | 固定 |
@@ -339,7 +339,7 @@ One keystore-related item was sent privately to support@bazantic.com on 2026-09-
 | `{{sdk_tests}}` | `cd packages/sdk && npm ci && npm test 2>&1 \| grep -E '^ℹ (tests\|fail)'` | 1679 / fail 0【`refresh-numbers.json` 09-11】 | I |
 | `{{mcp_tests}}` | `cd packages/mcp-server && npm ci && npm run build && npm test 2>&1 \| grep -E '^ℹ (tests\|fail)'` | 797 / fail 0【`refresh-numbers.json` 09-11】 | I |
 | `{{demo_tests}}` | `cd examples/ethonline-2026-demo && npm test 2>&1 \| grep -E '^ℹ (tests\|fail)'` | 189 / fail 0【`refresh-numbers.json` 09-08】 | I |
-| `{{mutations}}` | `npm run refresh-numbers` → `<!-- n:sdk_mutations -->` | 50【`refresh-numbers.json` 09-10】 | D |
+| `{{mutations}}` | `npm run refresh-numbers` → `<!-- n:sdk_mutations -->` | 51【`refresh-numbers.json` 09-10】 | D |
 | `{{bazantic_tools}}` | `curl -s -X POST https://2vjhqfgvw5dt5lja2zpjsjwrem.bazgateway.com/mcp -H 'content-type: application/json' -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \| python3 -c 'import sys,json;print(len(json.load(sys.stdin)["result"]["tools"]))'` | 57【一次・`SKILL.md` 09-06】 | D・J |
 | v2（旧 ab_v2_line） | `npm run metrics -- docs/ethonline-2026/ab/2026-09-10T233702Z` | **09-11 実走・置換済み**: A 7/10・B 5/10【実測】 | J |
 | `{{video_url}}` / `{{video_ab_timestamp}}` | 09-12 の編集後 | — | F・J |

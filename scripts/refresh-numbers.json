@@ -210,8 +210,8 @@
         "command": "grep -cE '^ +id: \"' packages/sdk/test-mutations.mjs | tr -d ' '",
         "why": "harness が印字する N は `rows.length` = 変異定義の数。2026-09-09 14:21 の `4b281ab` が M45 を足したのに記録値は 44 のままで、--check は 09-10 まで緑を出し続けた"
       },
-      "value": "50",
-      "updatedAt": "2026-10-13T23:38:37.989Z",
+      "value": "51",
+      "updatedAt": "2026-11-21T08:20:55.861Z",
       "literal": [
         {
           "doc": "docs/ethonline-2026/SUBMISSION_DRAFT.md",
