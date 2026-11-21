@@ -3,6 +3,7 @@ import { pageMetadata } from "@/lib/seo";
 import { boardAsOfDay } from "@/lib/sellers/board";
 import { getSellerBoardCached } from "@/lib/sellers/cached";
 import { FixFirstBoardClient } from "@/components/site/sellers/FixFirstBoardClient";
+import { FixFirstPreview } from "@/components/site/sellers/FixFirstPreview";
 import TrackView from "@/components/site/TrackView";
 
 /**
@@ -27,10 +28,22 @@ export async function generateMetadata(): Promise<Metadata> {
   });
 }
 
-export default function FixFirstPage() {
+export default async function FixFirstPage() {
+  const board = await getSellerBoardCached().catch(() => null);
   return (
     <main className="px-4 pt-8 pb-4 sm:px-6 md:px-8 md:pt-12">
       <TrackView event="fix_first_open" />
+      {board ? (
+        <FixFirstPreview board={board} />
+      ) : (
+        <article id="fix-first-ssr" className="sheet sheet-wide" aria-busy="true">
+          <h1 className="doc-title mt-8">What to fix first (Base)</h1>
+          <p className="doc-p">
+            The Base listings whose latest purchase did not deliver, grouped by what went wrong. The full board loads
+            next.
+          </p>
+        </article>
+      )}
       <FixFirstBoardClient />
     </main>
   );

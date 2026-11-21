@@ -8,6 +8,12 @@ export function FixFirstBoardClient() {
   const [board, setBoard] = useState<SellerBoard | null | undefined>(undefined);
 
   useEffect(() => {
+    if (board !== undefined) {
+      document.getElementById("fix-first-ssr")?.remove();
+    }
+  }, [board]);
+
+  useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
