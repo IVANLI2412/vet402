@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { loadPlaygroundCatalog, type PlaygroundCatalogLoad } from "./load-catalog";
 import { playgroundProbeEndpointId } from "./probe-endpoint";
@@ -43,6 +43,8 @@ export default function PlaygroundClient() {
   const [candidates, setCandidates] = useState<PlaygroundCandidate[]>([]);
   const [coverage, setCoverage] = useState<PlaygroundCatalogLoad["coverage"]>(null);
   const [selected, setSelected] = useState<string>("");
+  const [catalogPhase, setCatalogPhase] = useState<"idle" | "loading" | "ready" | "error">("loading");
+  const [catalogError, setCatalogError] = useState<string | null>(null);
   const [state, setState] = useState<
     | { phase: "idle" }
     | { phase: "running" }
@@ -52,36 +54,61 @@ export default function PlaygroundClient() {
 
   const chosen = candidates.find((c) => c.id === selected) ?? null;
 
-  async function ensureCatalog(): Promise<PlaygroundCatalogLoad | null> {
-    if (candidates.length > 0) {
-      return { candidates, coverage };
-    }
-    try {
-      const loaded = await loadPlaygroundCatalog();
-      setCandidates(loaded.candidates);
-      setCoverage(loaded.coverage);
-      const first = loaded.candidates[0]?.id ?? "";
-      setSelected((prev) => prev || first);
-      if (loaded.candidates.length === 0) {
-        setState({
-          phase: "error",
-          message: "The catalog reader is not reachable right now. The full register is at /observatory.",
-        });
-        return null;
-      }
-      return loaded;
-    } catch {
-      setState({ phase: "error", message: "The catalog reader did not answer. Reload and retry." });
+  const applyCatalogLoad = useCallback((loaded: PlaygroundCatalogLoad | null) => {
+    if (!loaded) {
+      setCatalogPhase("error");
+      setCatalogError("Could not load the catalog. Retry.");
       return null;
     }
-  }
+    setCandidates(loaded.candidates);
+    setCoverage(loaded.coverage);
+    const first = loaded.candidates[0]?.id ?? "";
+    setSelected((prev) => prev || first);
+    if (loaded.candidates.length === 0) {
+      setCatalogPhase("error");
+      setCatalogError("The catalog reader is not reachable right now. The full register is at /observatory.");
+      return null;
+    }
+    setCatalogPhase("ready");
+    setCatalogError(null);
+    return loaded;
+  }, []);
 
-  async function run() {
+  const loadCatalog = useCallback(async () => {
+    setCatalogPhase("loading");
+    setCatalogError(null);
+    try {
+      const loaded = await loadPlaygroundCatalog();
+      return applyCatalogLoad(loaded);
+    } catch {
+      return applyCatalogLoad(null);
+    }
+  }, [applyCatalogLoad]);
+
+  useEffect(() => {
+    let cancelled = false;
+    void (async () => {
+      try {
+        const loaded = await loadPlaygroundCatalog();
+        if (!cancelled) applyCatalogLoad(loaded);
+      } catch {
+        if (!cancelled) applyCatalogLoad(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [applyCatalogLoad]);
+
+  async function runProbe() {
     setState({ phase: "running" });
-    const hadCatalog = candidates.length > 0;
-    const loaded = await ensureCatalog();
-    if (!loaded) return;
-    const endpointId = playgroundProbeEndpointId(hadCatalog, selected, candidates, loaded.candidates);
+    const loaded =
+      catalogPhase === "ready" && candidates.length > 0 ? { candidates, coverage } : await loadCatalog();
+    if (!loaded) {
+      setState({ phase: "error", message: catalogError ?? "Could not load the catalog. Retry." });
+      return;
+    }
+    const endpointId = playgroundProbeEndpointId(true, selected, candidates, loaded.candidates);
     if (!endpointId) {
       setState({ phase: "error", message: "Pick an endpoint from the catalog." });
       return;
@@ -107,6 +134,22 @@ export default function PlaygroundClient() {
   return (
     <div className="mt-8">
       <p className="doc-caption">1. Pick a listed endpoint</p>
+      <p className="doc-note mt-2 max-w-[62ch]">
+        The catalog loads when you open this page. Probing reads the payment wall only. It does not pay anyone.
+      </p>
+      {catalogPhase === "loading" ? (
+        <p className="mt-3 text-brand" aria-live="polite">
+          Loading the catalog…
+        </p>
+      ) : null}
+      {catalogPhase === "error" && catalogError ? (
+        <p className="mt-3 font-semibold text-brand-deep" aria-live="polite">
+          {catalogError}{" "}
+          <button type="button" className="underline" onClick={() => void loadCatalog()}>
+            Retry
+          </button>
+        </p>
+      ) : null}
       <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-end">
         <label className="block min-w-0 flex-1 text-[0.84375rem]">
           <span className="doc-caption block">Endpoint (from the live catalog)</span>
@@ -121,7 +164,7 @@ export default function PlaygroundClient() {
             }}
           >
             {candidates.length === 0 ? (
-              <option value="">Press Run to load the catalog</option>
+              <option value="">Loading catalog…</option>
             ) : (
               candidates.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -134,11 +177,11 @@ export default function PlaygroundClient() {
         </label>
         <button
           type="button"
-          onClick={run}
-          disabled={state.phase === "running"}
+          onClick={() => void runProbe()}
+          disabled={state.phase === "running" || catalogPhase !== "ready"}
           className="doc-input shrink-0 cursor-pointer font-semibold disabled:cursor-wait disabled:opacity-60"
         >
-          {state.phase === "running" ? "Probing…" : "Run L0 verification"}
+          {state.phase === "running" ? "Probing…" : "Probe this payment wall (L0, no payment)"}
         </button>
       </div>
 
@@ -153,8 +196,7 @@ export default function PlaygroundClient() {
       <p className="doc-caption mt-8">2. Read the measurement</p>
       {state.phase === "idle" && (
         <p className="mt-3 max-w-[62ch] text-brand">
-          The first press loads the pass-only catalog, then sends a live HTTP request to the payment
-          wall. Later presses probe only.
+          Each probe sends a live HTTP request to the payment wall. No payment is attached.
         </p>
       )}
       {state.phase === "running" && (

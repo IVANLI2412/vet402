@@ -47,7 +47,7 @@ export default async function PlaygroundPage() {
           <div className="doc-head-col">
             <span>Independent Measurement</span>
             <span>Live demonstration: one endpoint, one probe</span>
-            <span>Candidates load when you press Run</span>
+            <span>Candidates load when you open this page</span>
           </div>
           <div className="doc-head-col">
             <span>vet402</span>
