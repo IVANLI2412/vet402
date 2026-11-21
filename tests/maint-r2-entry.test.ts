@@ -3,8 +3,10 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import { apiDocsPageText } from "./lib/api-docs-source";
 
 const ROOT = process.cwd();
+const apiDocs = () => apiDocsPageText();
 const file = (rel: string) => readFileSync(join(ROOT, rel), "utf8");
 
 function firstInstallPackageNames(text: string): string[] {
@@ -15,7 +17,7 @@ function firstInstallPackageNames(text: string): string[] {
 test("E-1: the first install line is npm install vet402 on home, docs Packages, connect, and llms.txt", () => {
   const surfaces = [
     { label: "home", text: file("src/components/site/home/paths.ts") },
-    { label: "docs/api packages", text: file("src/app/docs/api/page.tsx").split('id="packages"')[1]?.slice(0, 4000) ?? "" },
+    { label: "docs/api packages", text: apiDocs().split('id="packages"')[1]?.slice(0, 4000) ?? "" },
     { label: "connect TS intro", text: file("src/lib/connect/snippets.ts").match(/stack: "TypeScript"[\s\S]*?packages:/)?.[0] ?? "" },
     { label: "llms connect", text: file("public/llms.txt").split("\n").find((l) => l.includes("/connect")) ?? "" },
   ];
@@ -27,12 +29,12 @@ test("E-1: the first install line is npm install vet402 on home, docs Packages, 
 });
 
 test("E-1: docs Packages explains that vet402 bundles @vet402/sdk and @vet402/middleware", () => {
-  const sec = file("src/app/docs/api/page.tsx").split('id="packages"')[1]?.slice(0, 2500) ?? "";
+  const sec = apiDocs().split('id="packages"')[1]?.slice(0, 2500) ?? "";
   assert.match(sec, /vet402.*@vet402\/sdk.*@vet402\/middleware/s);
 });
 
 test("E-2: docs MCP section leads with hosted vet402.com/mcp and documents 0.3.1 URL input", () => {
-  const sec = file("src/app/docs/api/page.tsx").split("Hosted MCP (reads records)")[1]?.slice(0, 4500) ?? "";
+  const sec = apiDocs().split("Hosted MCP (reads records)")[1]?.slice(0, 4500) ?? "";
   const hosted = sec.indexOf("vet402.com/mcp");
   const npx = sec.indexOf("@vet402/mcp-server");
   assert.ok(hosted >= 0 && npx >= 0 && hosted < npx, "hosted MCP must appear before local npx package");

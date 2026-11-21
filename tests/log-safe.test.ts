@@ -108,7 +108,7 @@ test("src の凍結外ファイルは util/log を直接 import しない（esli
 const CONSOLE_CALL_RE = /\bconsole\s*\.\s*(?:error|warn|log|info|debug|trace)\s*\(/g;
 // 2026-10-21 A-07: 支払いの見本が判定の console.log / console.error と、
 // ウォレットスコア見本の console.log を足した。サーバでは実行されない。
-const CONSOLE_SAMPLE_FILES: Record<string, number> = { "src/app/docs/api/page.tsx": 6 };
+const CONSOLE_SAMPLE_FILES: Record<string, number> = { "src/components/docs/ApiDocsRest.tsx": 6 };
 
 /** ブロックコメントと行コメント（行頭から）を落とす。文字列の中の `//`（URL）は落とさない。 */
 function stripComments(text: string): string {
