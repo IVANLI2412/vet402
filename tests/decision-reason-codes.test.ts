@@ -279,9 +279,9 @@ test("/docs/api は表をそのまま描く（#verdicts と #reason-codes・旧�
   const src = apiDocsPageText();
   assert.match(src, /from "@\/lib\/decision\/reason-codes"/);
   assert.match(src, /REASON_CODES\.map\(/);
-  assert.match(src, /<section id="verdicts"/);
+  assert.match(src, /<DocBodySection id="verdicts"/);
   assert.match(src, /id="reason-codes"/);
-  assert.match(src, /<section id="score-bands"/);
+  assert.match(src, /<DocBodySection id="score-bands"/);
   assert.equal((src.match(/id="verdicts"/g) ?? []).length, 1);
   // 冒頭の認証の行（2026-09-29.3）: 判定と resolve は鍵不要
   assert.doesNotMatch(src, /Auth: <span className="text-signal">Bearer API key<\/span>/);
