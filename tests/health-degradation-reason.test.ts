@@ -281,7 +281,8 @@ test("degrade を記録する呼び出しが ctx を渡し忘れていない（�
 
 test("理由は公開本文にも /status にも出さない", () => {
   const route = readFileSync(join(process.cwd(), "src/app/api/health/route.ts"), "utf8");
-  assert.match(route, /NextResponse\.json\(\s*\{\s*status\s*\}\s*,\s*\{\s*status:\s*httpStatus\s*\}\s*\)/);
+  assert.match(route, /settlementsIndex \? \{ status, settlementsIndex \} : \{ status \}/);
+  assert.doesNotMatch(route, /NextResponse\.json\(\s*\{\s*status,\s*detail/);
   const page = readFileSync(join(process.cwd(), "src/app/status/page.tsx"), "utf8");
   assert.doesNotMatch(page, /detail/i);
   assert.doesNotMatch(page, /unavailable/i);

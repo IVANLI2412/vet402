@@ -6,7 +6,7 @@
 //   2. a measured interval 2x off either way is "drift" (Base 2 s -> 0.2 s would have tripped it),
 //   3. lag is the gap between two real block timestamps, not blocks x a constant,
 //   4. a chain that cannot be read says so ("chain not read"), never ok,
-//   5. /api/health and its two uptime monitors are untouched: freshness lives on /status.
+//   5. shallow /api/health may attach settlementsIndex; HTTP 200/503 mapping unchanged.
 // No RPC, no DB.
 // ============================================================
 import { test } from "node:test";
@@ -88,13 +88,13 @@ test("caught up: checkpoint at the tip is 0 s behind", async () => {
   assert.equal(r.secondsBehind, 0);
 });
 
-test("/status shows freshness by chain; /api/health public body is unchanged", () => {
+test("/status shows freshness by chain; shallow health may publish settlementsIndex", () => {
   const cached = readFileSync("src/lib/health/status-cached-reads.ts", "utf8");
   assert.match(cached, /readChainFreshness\(/);
   const status = readFileSync("src/app/status/page.tsx", "utf8");
   assert.match(status, /readChainFreshness\(/);
   assert.match(status, /Data freshness, by chain/);
   const health = readFileSync("src/app/api/health/route.ts", "utf8");
-  assert.match(health, /return NextResponse\.json\(\{ status \}, \{ status: httpStatus \}\);/);
-  assert.doesNotMatch(health, /chain-freshness/);
+  assert.match(health, /settlementsIndex/);
+  assert.match(health, /readPublicSettlementsIndex/);
 });
