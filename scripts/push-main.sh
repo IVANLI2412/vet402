@@ -178,6 +178,26 @@ else
   fail lint "$S" "eslint exit $LT — not pushing (same step CI runs after tsc)"
 fi
 
+# ---------------------------------------------------------------- 3e. production build
+# 2026-11-21: 9553a73 passed every local stage and went red on CI's "production build"
+# (next/dynamic ssr:false inside a Server Component). Vercel then kept the old deploy.
+# Same command and env as the CI job. Next 16.4 stops the first build once to show an
+# upgrade reminder (SecurityFatalError) and continues on the next run, so retry that once.
+S=$(date +%s)
+echo "build: npm run build (SKIP_CHAIN_READS=1) ..."
+BT=0
+SKIP_CHAIN_READS=1 npm run build >"$LOGDIR/build.log" 2>&1 || BT=$?
+if [ "$BT" -ne 0 ] && grep -q 'SecurityFatalError' "$LOGDIR/build.log"; then
+  BT=0; SKIP_CHAIN_READS=1 npm run build >"$LOGDIR/build.log" 2>&1 || BT=$?
+fi
+if [ "$BT" -eq 0 ]; then
+  echo "ok    build: next build clean"
+  record build 0 "$S"
+else
+  grep -E 'Error|error' "$LOGDIR/build.log" | head -20 | sed 's/^/  | /'
+  fail build "$S" "next build exit $BT — not pushing (same step as CI production build)"
+fi
+
 if [ "$FULL" -eq 1 ]; then
   S=$(date +%s)
   echo "root: npm test (TEST_DATABASE_URL unset) ..."
