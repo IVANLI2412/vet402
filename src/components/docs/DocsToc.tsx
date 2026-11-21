@@ -33,6 +33,12 @@ function flatten(items: TocItem[]): TocItem[] {
   return items.flatMap((i) => [i, ...(i.children ?? [])]);
 }
 
+function openDocSectionFromHash(href: string) {
+  const id = href.startsWith("#") ? href.slice(1) : href;
+  const el = document.getElementById(id);
+  if (el instanceof HTMLDetailsElement) el.open = true;
+}
+
 export default function DocsToc({ items }: { items: TocItem[] }) {
   const [activeHref, setActiveHref] = useState<string>("");
   const detailsRef = useRef<HTMLDetailsElement>(null);
@@ -128,7 +134,10 @@ export default function DocsToc({ items }: { items: TocItem[] }) {
               <a
                 href={item.href}
                 aria-current={item.href === activeHref ? "location" : undefined}
-                onClick={() => detailsRef.current && (detailsRef.current.open = false)}
+                onClick={() => {
+                  detailsRef.current && (detailsRef.current.open = false);
+                  openDocSectionFromHash(item.href);
+                }}
                 className={linkClass(item.href, false)}
               >
                 {item.label}
@@ -140,7 +149,10 @@ export default function DocsToc({ items }: { items: TocItem[] }) {
                       <a
                         href={child.href}
                         aria-current={child.href === activeHref ? "location" : undefined}
-                        onClick={() => detailsRef.current && (detailsRef.current.open = false)}
+                        onClick={() => {
+                          detailsRef.current && (detailsRef.current.open = false);
+                          openDocSectionFromHash(child.href);
+                        }}
                         className={linkClass(child.href, true)}
                       >
                         {child.label}
@@ -165,6 +177,7 @@ export default function DocsToc({ items }: { items: TocItem[] }) {
             <a
               href={item.href}
               aria-current={item.href === activeHref ? "location" : undefined}
+              onClick={() => openDocSectionFromHash(item.href)}
               className={linkClass(item.href, false)}
             >
               {item.label}

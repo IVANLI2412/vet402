@@ -28,6 +28,7 @@ import {
   DELIVERY_CSV_WHOSE_PURCHASES,
 } from "@/lib/observatory/delivery-export";
 import { MCP_DOCS_CONNECT_CURSOR } from "@/lib/docs/mcp-connect-cursor-json";
+import DocBodySection from "@/components/docs/DocBodySection";
 
 const SELLER_FIX_LABEL: Record<SellerCanFix, string> = { yes: "Yes", partly: "Partly", no: "No", "n/a": "—" };
 
@@ -64,8 +65,7 @@ export default function ApiDocsRest({ inviteRequired }: { inviteRequired: boolea
           </p>
         </div>
 
-      <section id="more-keyless-reads" className="scroll-mt-32 space-y-3">
-        <h2 className="sec-head">More keyless reads</h2>
+      <DocBodySection id="more-keyless-reads" title="More keyless reads" className="space-y-3">
         <p className="text-[0.84375rem] text-brand">
           After the two quickstart paths above, these curls read the same public records without a key.
         </p>
@@ -249,7 +249,7 @@ curl "${SITE_URL}/api/v1/resources/baad6a17bfaf57b11c0c1d8cfb0b38d3d01f09736b7d8
             or call the payee-score endpoint above (example 5).
           </p>
         </div>
-      </section>
+      </DocBodySection>
 
       {/* 2026-08-13 UX監査R1 [C4]: 3つのパッケージは npm に公開済み（いずれも
           0.1.0）なのに、サイト全体で "npm" の文字が0件だった。LP は「middleware
@@ -257,8 +257,7 @@ curl "${SITE_URL}/api/v1/resources/baad6a17bfaf57b11c0c1d8cfb0b38d3d01f09736b7d8
           試したい読者の導線が1本も無い。さらに npm には無関係の別ベンダーの
           `vouch-sdk` / `@getvouch/sdk` が実在するため、スコープ付きの正確な
           名前を名指しする必要がある（打ち間違いの行き先が他人のコードになる）。 */}
-      <section id="packages" className="scroll-mt-32 space-y-3">
-        <h2 className="sec-head">Packages</h2>
+      <DocBodySection id="packages" title="Packages" className="space-y-3">
         <p className="text-[0.84375rem] text-brand">
           The unscoped <code className="text-brand-deep">vet402</code> package on npm bundles{" "}
           <code className="text-brand-deep">@vet402/sdk</code> and{" "}
@@ -474,14 +473,13 @@ app.use("/api/paid", createExpressGate({
           <code>/api/v1/resolve</code> or the URL itself. Same fail-closed reading as the SDK: treat anything but{" "}
           <code>ALLOW</code> as &ldquo;do not pay yet&rdquo;.
         </p>
-      </section>
+      </DocBodySection>
 
       {/* 2026-09-29.3（監査 6 周目・重要度 高）: 売り手頁の「how the decision counts」は /docs/api#verdicts に飛ぶが、
           そこは旧スコア帯（0–100）の説明で、判定の理由コードの意味が HTML のどこにも無かった。#verdicts を判定の
           説明と理由コードの表に置き換え、スコア帯は #score-bands へ移した。表は src/lib/decision/reason-codes.ts が
           正典で、docs/openapi.yaml の DecisionReasonCode と tests/decision-reason-codes.test.ts が一致を固定する。 */}
-      <section id="verdicts" className="scroll-mt-32 space-y-3">
-        <h2 className="sec-head">Decision verdicts &amp; reason codes</h2>
+      <DocBodySection id="verdicts" title="Decision verdicts & reason codes" className="space-y-3">
         <p className="text-[0.84375rem] text-brand">
           <code className="text-brand-deep">GET /api/v1/resources/&#123;id&#125;/decision</code> answers{" "}
           <code>ALLOW</code>, <code>WARN</code> or <code>BLOCK</code> from vet402&rsquo;s own L0&ndash;L2
@@ -540,7 +538,7 @@ app.use("/api/paid", createExpressGate({
             </tbody>
           </table>
         </TableScroll>
-      </section>
+      </DocBodySection>
 
       {/* 2026-08-13 UX監査R1 [C6]: ALLOW/WARN/BLOCK は全ページに出ているのに、
           境界値がサイトのどこにも書いていなかった。運用者ペルソナは
@@ -548,8 +546,7 @@ app.use("/api/paid", createExpressGate({
           離脱している。閾値は src/lib/chain/config.ts の SCORE_THRESHOLDS を
           そのまま写す（記憶で書かない）。SDK 既定の fail-closed も、閾値と
           同じ場所で言わないと「WARN は通るのだろう」と読まれる。 */}
-      <section id="score-bands" className="scroll-mt-32 space-y-3">
-        <h2 className="sec-head">Score bands (agent, wallet and payee scores)</h2>
+      <DocBodySection id="score-bands" title="Score bands (agent, wallet and payee scores)" className="space-y-3">
         <p className="text-[0.84375rem] text-brand">
           Every scored response carries a numeric score and a{" "}
           <code className="text-brand-deep">recommendation</code>. The bands are fixed and the same
@@ -634,14 +631,13 @@ app.use("/api/paid", createExpressGate({
             a pass-on-WARN integration would pay those.
           </li>
         </ul>
-      </section>
+      </DocBodySection>
 
       {/* 2026-08-06: capacity planning. Quotas were on the pricing page but the
           burst behaviour was nowhere — a synchronous gate needs both to size a
           deployment. Values are read from the code (auth.ts PLAN_LIMITS,
           ip-rate-limit call sites), not asserted. */}
-      <section id="judgments" className="scroll-mt-32 space-y-3">
-        <h2 className="sec-head">Daily judgments (CDN JSON)</h2>
+      <DocBodySection id="judgments" title="Daily judgments (CDN JSON)" className="space-y-3">
         <p className="text-[0.84375rem] text-brand">
           <code>GET /api/v1/judgments/&#123;file&#125;</code> publishes one JSON judgment per active
           listing in the catalog, built once per UTC day from the same payer record as key-less{" "}
@@ -652,10 +648,9 @@ app.use("/api/paid", createExpressGate({
           then open <code>&#123;resource_id&#125;.json</code>. Each document carries <code>live</code> for the
           answer as of now. License CC-BY-4.0.
         </p>
-      </section>
+      </DocBodySection>
 
-      <section id="rate-limits" className="scroll-mt-32 space-y-3">
-        <h2 className="sec-head">Rate limits</h2>
+      <DocBodySection id="rate-limits" title="Rate limits" className="space-y-3">
         <p className="text-[0.84375rem] text-brand">
           Scoring is synchronous, so plan for both the monthly quota and the
           burst behaviour below.
@@ -770,17 +765,16 @@ app.use("/api/paid", createExpressGate({
           <code className="text-brand-deep">RateLimit-*</code> (IETF draft names) reports the
           short IP window. No route sets both families on the same response.
         </p>
-      </section>
+      </DocBodySection>
 
-      <section id="endpoints" className="scroll-mt-32 space-y-5">
+      <DocBodySection id="endpoints" title="Endpoints" className="space-y-5">
         <ApiEndpointsSection />
-      </section>
+      </DocBodySection>
 
-      <section id="score-breakdown" className="scroll-mt-32 space-y-3">
+      <DocBodySection id="score-breakdown" title="Score breakdown" className="space-y-3">
         {/* 2026-08-06 N-21: explainability. Integrators kept asking "why this
             number" — the breakdown answers it in the response itself, so a
             compliance log can record the arithmetic, not just the verdict. */}
-        <h2 className="sec-head">Score breakdown</h2>
         <p className="text-[0.84375rem] text-brand">
           Every scored verdict (agent and wallet endpoints, and each element of a
           batch) carries a <code className="text-brand-deep">breakdown</code>{" "}
@@ -948,15 +942,14 @@ app.use("/api/paid", createExpressGate({
             </li>
           </ul>
         </div>
-      </section>
+      </DocBodySection>
 
-      <section id="webhooks" className="scroll-mt-32 space-y-4">
+      <DocBodySection id="webhooks" title="Webhooks" className="space-y-4">
         {/* 2026-08-06 N-15/C-9 doc gap: the watchlist mentioned the
             watch.verdict_changed webhook but nothing documented registration,
             the payload envelope, or signature verification — the receiver could
             not prove a "ALLOW→BLOCK" notice was really from vet402. This section is
             written from src/lib/webhooks.ts, not from memory. */}
-        <h2 className="sec-head">Webhooks</h2>
         <p className="text-[0.84375rem] text-brand">
           vet402 is otherwise a pull API. Webhooks turn it into a monitoring
           service: register an endpoint once and vet402 POSTs you a signed event when
@@ -1101,15 +1094,14 @@ function verify(secret, rawBody, header, toleranceSec = 300) {
             </li>
           </ul>
         </div>
-      </section>
+      </DocBodySection>
 
-      <section id="availability" className="scroll-mt-32 space-y-3">
+      <DocBodySection id="availability" title="Availability" className="space-y-3">
         {/* 2026-08-06: B2B buyers ask for an SLA. Written to the real
             operational posture (single-operator closed beta on Vercel + Neon +
             Base RPC, daily deep health probe), not an aspirational number —
             same honesty discipline as the /accuracy page. Revise the target
             when the operating history and infrastructure justify a commitment. */}
-        <h2 className="sec-head">Availability</h2>
         {/* 2026-09-29 敵対的監査: 「closed beta」と書いていたが、本番は招待コードを求めず
             （GET /api/signup が inviteRequired:false）、無料キーは誰でも発行できる。
             招待制に戻したときに文言が嘘にならないよう、同じ関数（BETA_INVITE_CODE）で分ける。 */}
@@ -1175,10 +1167,9 @@ function verify(secret, rawBody, header, toleranceSec = 300) {
             directly. Your own uptime monitor can point at <code>/api/health</code>.
           </li>
         </ul>
-      </section>
+      </DocBodySection>
 
-      <section id="error-codes" className="scroll-mt-32 space-y-3">
-        <h2 className="sec-head">Error codes</h2>
+      <DocBodySection id="error-codes" title="Error codes" className="space-y-3">
         <TableScroll label="HTTP error codes returned by the vet402 API">
           <table className="fact-table">
             {/* 2026-08-06 a11y: caption + scope="col" bring this table up to the
@@ -1206,7 +1197,7 @@ function verify(secret, rawBody, header, toleranceSec = 300) {
         <p className="text-[0.84375rem] text-brand">
           Error bodies are shaped as <code className="text-brand-deep">{`{ "error": string, "details"?: object }`}</code>.
         </p>
-      </section>
+      </DocBodySection>
 
         <p className="text-[0.84375rem]">
           <Link href="/" className="doc-link">
