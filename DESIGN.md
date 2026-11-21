@@ -48,7 +48,7 @@ Body on `.lp`: `1rem`, line-height `1.6`, letter-spacing `-0.006em`. Type in use
 
 Spacing rhythm: wrap padding `24px` (`16px` under `640px`), top bar `64px`, hero gap `72px` and vertical padding `72px 0 56px`, lede offset `24px`, actions `32px` top and `12px` gap, sections `112px` top (`72px` mobile), body under headings `16px`. Radius: record card `14px`, buttons `999px`, focus ring `2px` with offset `3px`.
 
-Motion: one fade, `lpRise` `520ms` `cubic-bezier(0.2, 0.7, 0.2, 1)`, from opacity `0.001` and `translateY(6px)`. `.rise2` adds `90ms` delay. Runs only inside `@media (prefers-reduced-motion: no-preference)`.
+Motion: the purchase card and hero text do not rise on load (`lpRise` is a no-op opacity keyframes for the card shell). Only the paste-check result block uses `pasteRise` (`520ms`, `cubic-bezier(0.2, 0.7, 0.2, 1)`, from opacity `0.001` and `translateY(6px)`, with a `90ms` delay on `.rise2`). Runs only inside `@media (prefers-reduced-motion: no-preference)`.
 
 ### Front page rules
 
