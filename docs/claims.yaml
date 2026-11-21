@@ -369,91 +369,91 @@ claims:
     why_unverifiable: "見本だと書く編集方針で、公開 GET の数値そのものではない。枠が 980 を持たず example と書くことは tests/audit-text-batch2.test.ts が固定する"
     verified_at: 2026-10-21
   - id: api_every_scored_response_carries_a
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "Every scored response carries a numeric score and a"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_every_check_completed_and_nothing
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "Every check completed and nothing adverse was found."
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_of_n_agents_is_n
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "of N agents is N units. Every scored"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_seconds_always_under_60
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "(seconds, always under 60)"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_every_scored_verdict_agent_and
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "Every scored verdict (agent and wallet endpoints, and each element of a"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_can_never_disagree_with
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "can never disagree with"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_availability_flags_always_0_the
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "availability flags (always ≤ 0). The specific flags are in"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_what_lifts_a_payee_out
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "What lifts a payee out of &ldquo;thin&rdquo; is an observed fact, never a"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_catalog_on_a_complete_fetch
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "catalog on a complete fetch (daily observatory sync). Factual listing-state notice,"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_a_score_is_never_pushed
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "A score is never pushed — scores are computed on demand and pushing a"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_every_delivery_is_a_json
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "Every delivery is a JSON POST with this envelope."
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_accuracy_claims_they_never_measured
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "accuracy claims they never measured."
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
     why_unverifiable: "キー必須または POST の面で、読み取り専用・キー無しのカナリアからは判定できない。契約は tests/openapi-route-parity.test.ts と tests/openapi-schema-parity.test.ts が守る"
     verified_at: 2026-09-04
   - id: api_total_one_a_deeper_env
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "total one. A deeper env/DB/RPC probe runs on a daily cron and returns"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check:
@@ -461,7 +461,7 @@ claims:
       assert: "status == \"ok\""
     verified_at: 2026-09-04
   - id: api_only_on_a_critical_failure
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "only on a critical failure (indexer catch-up lag is"
     means: "API リファレンスが述べる契約仕様（レスポンスの形・レート・既定ポリシー）"
     check: null
@@ -1885,7 +1885,7 @@ claims:
       assert: "cite ~ \"^(?!.*\\\\{).*retrieved [0-9]\""
     verified_at: 2026-10-21
   - id: docs_api_vouchscore_scope_kept_for_existing_installs
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "in place only so existing installs keep resolving"
     means: "@vouchscore/* は旧名（2026-08 までの Vouch）で、発行元の npm アカウントは同じ。既存の install が解決し続けるためだけに残してあり、改名時の版で凍結していて @vet402/* とは揃っていない。正典のスコープは @vet402/*"
     check: null
@@ -2287,7 +2287,7 @@ claims:
     why_unverifiable: "キー無しの静的 JSON で、カナリアの 1 式では CDN とプロセスキャッシュの意味を全部検査できない。tests/judgments-cdn-1115.test.ts が固定する。"
     verified_at: 2026-11-15
   - id: api_daily_judgments_section
-    surface: src/app/docs/api/page.tsx
+    surface: src/components/docs/ApiDocsRest.tsx
     quote: "Daily judgments (CDN JSON)"
     means: "docs/api の judgments 節見出し。日次の判定 JSON を CDN で配る窓口を指す。"
     check: null

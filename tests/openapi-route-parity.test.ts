@@ -60,6 +60,7 @@ const ALLOWLIST = new Set([
   "/api/{unmatched}", // the 404 catch-all ([...unmatched]), not an endpoint
   "/api/v1/guarantee/quote", // DORMANT — must stay undiscoverable until enabled
   "/api/v1/site-events", // first-party page metrics beacon from vet402.com pages, not a public data API
+  "/api/v1/sellers/fix-first-board", // hydrates /sellers/fix-first client-side for smaller first HTML, not an integrator API
 ]);
 
 test("every public API route is documented in openapi.yaml", () => {

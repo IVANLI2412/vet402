@@ -309,7 +309,7 @@ test("observatory の説明は L0 の生存確認に agent payments の文を足
 
 test("鍵なしの回数は定数から作り、旗で止まることを書く", () => {
   for (const file of ["src/app/docs/api/page.tsx", "src/app/x402/check-a-seller/page.tsx"]) {
-    const src = read(file);
+    const src = file === "src/app/docs/api/page.tsx" ? apiDocsPageText() : read(file);
     assert.equal(src.includes("10 / 60"), false, file);
     assert.match(src, /keylessDecisionPerMinute\(\)/);
     assert.match(src, /KEYLESS_READ_STOP/);

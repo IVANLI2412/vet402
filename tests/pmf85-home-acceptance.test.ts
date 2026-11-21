@@ -83,12 +83,14 @@ test("A-1b: pricing surfaces name the monthly quota score lookups", () => {
     "src/app/page.tsx",
     "src/app/pricing/page.tsx",
     "src/app/signup/page.tsx",
-    "src/app/docs/api/page.tsx",
     "src/components/site/PricingSection.tsx",
   ]) {
     assert.match(read(f), SCORE_LOOKUPS, f);
     assert.doesNotMatch(read(f), SELLER_CHECK_MONTH, f);
   }
+  const apiDocs = apiDocsPageText();
+  assert.match(apiDocs, SCORE_LOOKUPS, "docs/api");
+  assert.doesNotMatch(apiDocs, SELLER_CHECK_MONTH, "docs/api");
 });
 
 test("item 3: hero lede states not a guarantee without a link in the hero column", () => {
