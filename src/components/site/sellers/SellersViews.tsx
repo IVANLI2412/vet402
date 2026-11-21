@@ -1134,7 +1134,12 @@ function ListingCard({
       {/* 2026-09-29 監査 7 周目: 購入していない出品にも判定 API の答えを出す（未プローブ・unverified の BLOCK が見えなかった）。 */}
       {l.resourceId && (
         <div className="mt-2 text-[0.84375rem]">
-          <DecisionAnswer resourceId={l.resourceId} auto={autoDecision} sellerSide={r?.bucket === "seller"} />
+          <DecisionAnswer
+            resourceId={l.resourceId}
+            auto={autoDecision}
+            sellerSide={r?.bucket === "seller"}
+            noBasePurchase={!r}
+          />
         </div>
       )}
       {l0Line && <span className="mt-1 block text-[0.84375rem]">{l0Line}</span>}
@@ -1341,7 +1346,7 @@ export function SellerDetailView({
 
       <h2 className="sec-head">
         <span className="sec-no">1.</span>
-        <span>Your listings</span>
+        <span>Listings for this host</span>
       </h2>
       <ol aria-label="Base listings of this seller, most recent purchase first" className="mt-4 list-none border-t border-hair p-0">
         {shown.map((l) => (

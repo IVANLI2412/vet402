@@ -202,7 +202,7 @@ test("未購入・L0 未プローブ（path_template）は WARN（BLOCK にし�
   const { detail, exportRow } = sellersOf(f);
   assert.equal(exportRow.outcome, "not_tried");
   const html = renderToStaticMarkup(createElement(SellerDetailView, { detail, page: 1, now: NOW, revalidateSec: 300 }));
-  assert.match(html, /Decision API now:/);
+  assert.match(html, /No paid test on Base yet/);
   assert.match(html, /Latest L0 check \(the 402 to an unpaid request\): none yet/);
   assert.match(html, /Not probed is not a failure/);
   assert.match(html, /Dispute this record/);

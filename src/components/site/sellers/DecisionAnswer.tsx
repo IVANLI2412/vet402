@@ -251,14 +251,17 @@ export default function DecisionAnswer({
   resourceId,
   auto,
   sellerSide,
+  noBasePurchase = false,
 }: {
   resourceId: string;
   /** 描画の直後に自動で問い合わせる（頁の先頭の数件だけ）。 */
   auto: boolean;
   /** 頁がこの出品の最新の失敗を売り手の側（確定）に置いている。置いていなければ WARN / BLOCK に 1 文を添える。 */
   sellerSide: boolean;
+  /** Base でまだ購入していない出品。WARN 語彙ではなく「記録なし」に近い言い方にする（persona G3-002）。 */
+  noBasePurchase?: boolean;
 }) {
-  const [state, setState] = useState<State>(auto ? { kind: "loading" } : { kind: "idle" });
+  const [state, setState] = useState<State>(auto && !noBasePurchase ? { kind: "loading" } : { kind: "idle" });
 
   async function ask() {
     setState({ kind: "loading" });
@@ -266,7 +269,7 @@ export default function DecisionAnswer({
   }
 
   useEffect(() => {
-    if (!auto) return;
+    if (!auto || noBasePurchase) return;
     let live = true;
     void fetchAnswer(resourceId).then((next) => {
       if (live) setState(next);
@@ -274,13 +277,26 @@ export default function DecisionAnswer({
     return () => {
       live = false;
     };
-  }, [auto, resourceId]);
+  }, [auto, noBasePurchase, resourceId]);
 
   const full = (
     <a href={decisionApiHref(resourceId)} className={TAP} rel="nofollow">
       the full answer
     </a>
   );
+
+  if (noBasePurchase) {
+    return (
+      <span className="block text-brand-lift">
+        <strong>No paid test on Base yet.</strong> vet402 has not signed a paid attempt against this URL. That is not a
+        seller-side failure on this page.{" "}
+        <button type="button" onClick={() => void ask()} className={`${TAP} cursor-pointer`}>
+          Read the decision API
+        </button>{" "}
+        · {full}
+      </span>
+    );
+  }
 
   if (state.kind !== "done") {
     return (
