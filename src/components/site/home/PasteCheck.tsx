@@ -476,6 +476,13 @@ export function PasteCheck({
         </div>
       </form>
 
+      {phase === "loading" ? (
+        <div className={s.pasteLive} aria-live="polite">
+          <p className="sr-only" data-testid="paste-live-loading">
+            Checking
+          </p>
+        </div>
+      ) : null}
       {phase === "result" && (
         <>
           <div className={s.pasteLive} aria-live="polite">
@@ -505,7 +512,7 @@ export function PasteCheck({
               </p>
             ) : null}
           </div>
-          <div className={`${s.pasteResult} ${phase === "result" ? s.pasteResultRise : ""}`}>
+          <div className={`${s.pasteResult} ${s.pasteResultRise}`}>
             {phase === "result" && outcome === "same_host" && sameHostListings ? (
               <div className={s.pasteBlock} data-testid="paste-same-host">
                 <p data-testid="paste-same-host-summary">

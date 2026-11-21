@@ -6,11 +6,12 @@ import { join } from "node:path";
 
 const read = (rel: string) => readFileSync(join(process.cwd(), rel), "utf8");
 
-test("home paste: 391–1024px keeps placeholder font at 0.8125rem beside Check", () => {
+test("home paste: URL field keeps 16px so iOS does not zoom on focus (persona C1-003)", () => {
   const css = read("src/app/home.module.css");
-  assert.match(css, /@media \(min-width: 391px\) and \(max-width: 1024px\)/);
-  const block = css.slice(css.indexOf("@media (min-width: 391px)"), css.indexOf("@media (min-width: 391px)") + 120);
-  assert.match(block, /\.pasteInput[\s\S]*font-size:\s*0\.8125rem/);
+  assert.match(css, /\.pasteInput\s*\{[^}]*font-size:\s*1rem/);
+  assert.doesNotMatch(css, /\.pasteInput\s*\{[^}]*0\.8125rem/);
+  const narrow = css.slice(css.indexOf("@media (max-width: 390px)"), css.indexOf("@media (max-width: 640px)"));
+  assert.doesNotMatch(narrow, /\.pasteInput/);
 });
 
 test("methodology §10: short JSON-LD stays; full OBSERVATORY_VOCABULARY loads on the client", () => {

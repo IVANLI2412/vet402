@@ -205,15 +205,25 @@ export default async function Home() {
 
       <header className={s.wrap}>
         <div className={s.bar}>
-          <Link href="/" className={s.mark} aria-label="vet402 home">
+          <Link href="/" className={s.mark} aria-label="vet402 home" tabIndex={-1}>
             <span>vet</span>
             <span>402</span>
           </Link>
           <nav aria-label="Main navigation" className={s.nav}>
-            <TrackedLink href="#lp-paste-url" event="nav_click" props={{ label: "Check", position: "lp_bar" }}>
+            <TrackedLink
+              href="#lp-paste-url"
+              event="nav_click"
+              props={{ label: "Check", position: "lp_bar" }}
+              tabIndex={-1}
+            >
               Check
             </TrackedLink>
-            <TrackedLink href="/observatory" event="lp_cta_click" props={{ position: "hero_observatory" }}>
+            <TrackedLink
+              href="/observatory"
+              event="lp_cta_click"
+              props={{ position: "hero_observatory" }}
+              tabIndex={-1}
+            >
               Records
             </TrackedLink>
           </nav>

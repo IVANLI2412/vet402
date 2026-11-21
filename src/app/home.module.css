@@ -78,16 +78,28 @@
   }
 }
 
-/* The shared skip link keeps working on the front page, drawn in the same greys. */
-:global(body):has(.lp) > a[href="#main-content"] {
+/* The shared skip links keep working on the front page, drawn in the same greys. */
+:global(body):has(.lp) > a[href="#main-content"],
+:global(body):has(.lp) > a[href="#lp-paste-url"] {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 0 1rem;
+  border: 1px solid #000000;
+  border-radius: 999px;
   background: #000000;
-  border-color: #000000;
   color: #ffffff;
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-decoration: none;
 }
 @media (prefers-color-scheme: dark) {
-  :global(body):has(.lp) > a[href="#main-content"] {
-    background: #f7f7f7;
+  :global(body):has(.lp) > a[href="#main-content"],
+  :global(body):has(.lp) > a[href="#lp-paste-url"] {
     border-color: #f7f7f7;
+    background: #f7f7f7;
     color: #090909;
   }
 }
@@ -372,9 +384,6 @@
     border-top: 1px solid var(--lp-rule);
     border-radius: 0 0 11px 11px;
     width: 100%;
-  }
-  .pasteInput {
-    font-size: 0.8125rem;
   }
 }
 @media (max-width: 640px) {
@@ -893,17 +902,7 @@
 .pasteInput:focus {
   outline: none;
 }
-@media (max-width: 390px) {
-  .pasteInput {
-    font-size: 0.8125rem;
-  }
-}
-/* 391–1024: paste row stays horizontal; 16px mono overflows the field beside Check (FIX_UX5). */
-@media (min-width: 391px) and (max-width: 1024px) {
-  .pasteInput {
-    font-size: 0.8125rem;
-  }
-}
+/* 16px+ on the URL field avoids iOS focus zoom; row stacks below 960px when space is tight. */
 .pasteRow .pasteGo {
   flex-shrink: 0;
   min-height: 46px;

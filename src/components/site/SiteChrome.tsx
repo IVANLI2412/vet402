@@ -62,10 +62,7 @@ export function SiteChrome({
       {isHome ? (
         <a
           href="#lp-paste-url"
-          className={buttonClass({
-            className:
-              "sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-16 focus:z-50",
-          })}
+          className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-16 focus:z-50"
         >
           Skip to the URL check
         </a>

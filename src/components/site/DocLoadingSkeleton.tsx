@@ -6,12 +6,25 @@
 export function DocLoadingSkeleton({
   rows = 6,
   label,
+  pageTitle,
 }: {
   rows?: number;
   label: string;
+  /** Visible page title so loading streams with a proper h1 (axe page-has-heading-one). */
+  pageTitle?: string;
 }) {
   return (
-    <main className="px-4 pt-8 pb-4 sm:px-6 md:px-8 md:pt-12" aria-busy="true" aria-live="polite">
+    <main
+      className="px-4 pt-8 pb-4 sm:px-6 md:px-8 md:pt-12"
+      aria-busy="true"
+      aria-live="polite"
+      aria-labelledby={pageTitle ? "doc-loading-title" : undefined}
+    >
+      {pageTitle ? (
+        <h1 id="doc-loading-title" className="doc-title mt-8">
+          {pageTitle}
+        </h1>
+      ) : null}
       <div className="sheet" role="status">
         <span className="sr-only">{label}</span>
         <div className="doc-skel w-1/3" />

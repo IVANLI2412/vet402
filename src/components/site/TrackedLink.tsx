@@ -21,6 +21,7 @@ export default function TrackedLink({
   children,
   onClick: after,
   ariaCurrent,
+  tabIndex,
 }: {
   href: string;
   event: string;
@@ -29,6 +30,7 @@ export default function TrackedLink({
   children: React.ReactNode;
   onClick?: () => void;
   ariaCurrent?: "page";
+  tabIndex?: number;
 }) {
   const onClick = () => {
     track(event, props);
@@ -46,13 +48,20 @@ export default function TrackedLink({
         target="_blank"
         rel="noopener noreferrer"
         aria-current={ariaCurrent}
+        tabIndex={tabIndex}
       >
         {children}
       </a>
     );
   }
   return (
-    <Link href={href} onClick={onClick} className={className} aria-current={ariaCurrent}>
+    <Link
+      href={href}
+      onClick={onClick}
+      className={className}
+      aria-current={ariaCurrent}
+      tabIndex={tabIndex}
+    >
       {children}
     </Link>
   );
