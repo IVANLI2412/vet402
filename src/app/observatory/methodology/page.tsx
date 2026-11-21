@@ -32,11 +32,8 @@ import {
   getObservatoryStatsCached,
   getUnverifiedBreakdownCached,
 } from "@/lib/observatory/cached-reads";
-import {
-  OBSERVATORY_VOCABULARY,
-  VOCABULARY_GROUP_LABELS,
-  vocabularyJsonLd,
-} from "@/lib/observatory/vocabulary";
+import { OBSERVATORY_VOCABULARY, vocabularyJsonLd } from "@/lib/observatory/vocabulary";
+import MethodologyVocabularyFold from "@/components/observatory/MethodologyVocabularyFold";
 import { MAX_PER_PURCHASE_UNITS } from "@/lib/observatory/x402-payer";
 import {
   DECLARED_QUERY_MAX_BYTES,
@@ -1543,23 +1540,7 @@ export default async function ObservatoryMethodologyPage() {
           without reconstructing it from a paragraph. The same list is published as structured data
           on this page and in <code>/llms-full.txt</code>.
         </p>
-        {(Object.keys(VOCABULARY_GROUP_LABELS) as (keyof typeof VOCABULARY_GROUP_LABELS)[]).map(
-          (group) => (
-            <div key={group} className="mt-6">
-              <p className="text-brand-deep">{VOCABULARY_GROUP_LABELS[group]}</p>
-              <dl className="mt-2 max-w-[70ch]">
-                {OBSERVATORY_VOCABULARY.filter((t) => t.group === group).map((t) => (
-                  <div key={t.term} className="mt-3">
-                    <dt id={`term-${t.term}`} className="text-brand-deep">
-                      <code>{t.term}</code>
-                    </dt>
-                    <dd className="doc-p mt-1">{t.definition}</dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          ),
-        )}
+        <MethodologyVocabularyFold termCount={OBSERVATORY_VOCABULARY.length} />
       </article>
     </main>
   );
