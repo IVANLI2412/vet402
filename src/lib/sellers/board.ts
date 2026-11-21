@@ -238,10 +238,14 @@ export function buildSellerBoard(
  * 一覧の「いつの結果か」（2026-09-29 第2巡: /sellers と fix-first の表題に日付を入れる）。
  * 最新の試行（どの売り手でも）の UTC の日付。試行が無ければ null。
  */
-export function boardAsOfDay(board: Pick<SellerBoard, "sellers">): string | null {
+export function boardAsOfDay(board: Pick<SellerBoard, "fetchedAt"> & Partial<Pick<SellerBoard, "sellers">>): string | null {
   let latest: string | null = null;
-  for (const s of board.sellers) if (s.lastAttemptAt && (!latest || s.lastAttemptAt > latest)) latest = s.lastAttemptAt;
-  return latest && /^\d{4}-\d{2}-\d{2}/.test(latest) ? latest.slice(0, 10) : null;
+  if (board.sellers) {
+    for (const s of board.sellers) if (s.lastAttemptAt && (!latest || s.lastAttemptAt > latest)) latest = s.lastAttemptAt;
+  }
+  if (latest && /^\d{4}-\d{2}-\d{2}/.test(latest)) return latest.slice(0, 10);
+  const fetchedAt = "fetchedAt" in board ? board.fetchedAt : null;
+  return fetchedAt && /^\d{4}-\d{2}-\d{2}/.test(fetchedAt) ? fetchedAt.slice(0, 10) : null;
 }
 
 /**

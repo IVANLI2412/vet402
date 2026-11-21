@@ -1596,7 +1596,7 @@ function GroupCard({ g, i }: { g: FixGroup; i: number }) {
   );
 }
 
-export function FixFirstView({ board }: { board: SellerBoard }) {
+export function FixFirstView({ board }: { board: Pick<SellerBoard, "fetchedAt" | "totals" | "groups"> }) {
   const seller = board.groups.filter((g) => g.side === "seller");
   const ours = board.groups.filter((g) => g.side === "vet402");
   const unsorted = board.groups.filter((g) => g.side === "unsorted");

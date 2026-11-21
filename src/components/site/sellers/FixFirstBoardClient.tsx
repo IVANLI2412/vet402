@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { SellerBoard } from "@/lib/sellers/board";
+import type { FixFirstBoardPayload } from "@/app/api/v1/sellers/fix-first-board/route";
 import { FixFirstView, SellersNotice } from "@/components/site/sellers/SellersViews";
 
 export function FixFirstBoardClient() {
-  const [board, setBoard] = useState<SellerBoard | null | undefined>(undefined);
+  const [board, setBoard] = useState<FixFirstBoardPayload | null | undefined>(undefined);
 
   useEffect(() => {
     if (board !== undefined) {
@@ -22,7 +22,7 @@ export function FixFirstBoardClient() {
           if (!cancelled) setBoard(null);
           return;
         }
-        const data = (await res.json()) as SellerBoard;
+        const data = (await res.json()) as FixFirstBoardPayload;
         if (!cancelled) setBoard(data);
       } catch {
         if (!cancelled) setBoard(null);
