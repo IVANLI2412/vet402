@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getClientIp } from "@/lib/api/client-ip";
 import { consumeIpRateLimit, ipRateLimitHeaders } from "@/lib/api/ip-rate-limit";
 import { verifyVerdictReceipt } from "@/lib/receipts/verdict-receipt";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * POST /api/v1/receipts/verify
@@ -44,3 +45,5 @@ export async function POST(request: NextRequest) {
   }
   return NextResponse.json(result, { status: 200, headers: perCaller });
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

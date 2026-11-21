@@ -4,6 +4,7 @@ import { consumeIpRateLimit, ipRateLimitHeaders } from "@/lib/api/ip-rate-limit"
 import { getDb } from "@/lib/db/client";
 import { waitlistEntries } from "@/lib/db/schema";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * POST /api/v1/waitlist — 有償面の意思表明の受け皿（C11）。
@@ -57,3 +58,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "waitlist_unavailable" }, { status: 503, headers: perCaller });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

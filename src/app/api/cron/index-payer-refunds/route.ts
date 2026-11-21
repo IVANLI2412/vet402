@@ -3,6 +3,7 @@ import { authorizeCron } from "@/lib/cron/auth";
 import { acquireLeaseFailClosed } from "@/lib/cron/lease-fail-closed";
 import { indexPayerRefundsOrSkip } from "@/lib/sellers/refund-index";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 export const maxDuration = 300;
 
@@ -29,3 +30,5 @@ export async function GET(request: NextRequest) {
     await lease.release();
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

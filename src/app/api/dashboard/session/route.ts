@@ -11,6 +11,7 @@ import { ensureOwnerUserId } from "@/lib/db/api-keys";
 import { createDashboardSession, deleteDashboardSession } from "@/lib/dashboard/session";
 import { cookies } from "next/headers";
 import { DASHBOARD_COOKIE } from "@/lib/dashboard/session";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 const loginSchema = z.object({
   apiKey: z.string().min(1),
@@ -59,3 +60,5 @@ export async function DELETE(request: NextRequest) {
   const response = NextResponse.json({ ok: true });
   return clearDashboardSessionCookie(response);
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST", "DELETE"]);
+export const { GET, HEAD, PUT, PATCH, OPTIONS } = __disallowed;

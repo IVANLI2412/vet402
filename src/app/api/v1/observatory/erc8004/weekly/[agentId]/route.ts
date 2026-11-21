@@ -11,6 +11,7 @@ import {
 } from "@/lib/observatory/erc8004-feedback";
 import { readPurchasesForErc8004AgentWeek } from "@/lib/observatory/erc8004-purchase-match";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 const RL_LIMIT = 30;
 const RL_WINDOW_MS = 60_000;
@@ -74,3 +75,5 @@ export async function GET(request: NextRequest, context: { params: Promise<{ age
     return NextResponse.json({ error: "observatory_unavailable" }, { status: 503, headers: perCaller });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

@@ -8,6 +8,7 @@ import {
 } from "@/lib/observatory/e6-anchors";
 import { getTradeDisputeStore } from "@/lib/observatory/trade-dispute-store";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 export const dynamic = "force-dynamic";
 
@@ -69,3 +70,5 @@ export async function GET(request: NextRequest) {
     return disputesUnavailable(perCaller);
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

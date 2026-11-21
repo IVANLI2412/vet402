@@ -10,6 +10,7 @@ import { persistScoreResult } from "@/lib/db/persistence";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { scoreWallet } from "@/lib/scoring/engine";
 import { withScoreDeprecationBody, withScoreDeprecationHeaders } from "@/lib/api/score-deprecation";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 type RouteContext = { params: Promise<{ address: string }> };
 
@@ -44,3 +45,5 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "scoring_unavailable" }, { status: 503 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

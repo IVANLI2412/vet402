@@ -13,6 +13,7 @@ import { getCoverageWeekly } from "@/lib/observatory/coverage-report";
 import { SITE_URL } from "@/lib/site-url";
 import { withNoindex } from "@/lib/api/public-read-robots";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/accuracy — public, unauthenticated accuracy report.
@@ -189,3 +190,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

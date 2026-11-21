@@ -12,6 +12,7 @@ import {
   observatoryWatchMessage,
 } from "@/lib/verify-message";
 import { logServerErrorSafe, logServerWarnSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * Observatory watch registration (design §6.1) — the claim join.
@@ -253,3 +254,5 @@ export async function DELETE(request: NextRequest) {
     );
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET", "POST", "DELETE"]);
+export const { HEAD, PUT, PATCH, OPTIONS } = __disallowed;

@@ -8,6 +8,7 @@ import { emptyAnswer, failureAnswer, tooLargeAnswer } from "../../../../../../..
 import { FREE_DEADLINE_MS, ReconstructionTimeout, TooBusy, cachedFacts, pendingFacts } from "../../../../../../../packages/rwa/cache";
 import { NoStockTokenActivity, WalletTooLarge, type RwaFacts } from "../../../../../../../packages/rwa/facts";
 import { factsHashHeader } from "../../../../../../../packages/rwa/anchor";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/rwa/facts/:address?chain=4663 — public facts (docs/rwa/SPEC.md §7).
@@ -108,3 +109,5 @@ function keepReading(address: string): void {
 function render(facts: RwaFacts): RwaFacts {
   return { ...facts, address: getAddress(facts.address) };
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

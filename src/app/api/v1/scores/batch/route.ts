@@ -12,6 +12,7 @@ import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { scoreAgentById } from "@/lib/scoring/engine";
 import { mapWithConcurrency } from "@/lib/util/concurrency";
 import { withScoreDeprecationBody, withScoreDeprecationHeaders } from "@/lib/api/score-deprecation";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 const BATCH_CONCURRENCY = 3;
 
@@ -104,3 +105,5 @@ export async function POST(request: NextRequest) {
     ),
   );
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

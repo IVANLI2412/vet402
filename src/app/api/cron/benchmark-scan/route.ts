@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authorizeCron } from "@/lib/cron/auth";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { benchmarkScanFailed, runBenchmarkScan } from "@/lib/benchmark/runner";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * Operator benchmark heartbeat (2026-08-06). WEEKLY on purpose — see
@@ -39,3 +40,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

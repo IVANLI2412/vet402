@@ -9,6 +9,7 @@ import { agentBadgeState, renderBadgeSvg, type AgentBadgeScoreView } from "@/lib
 import { scoreAgentById } from "@/lib/scoring/engine";
 import { scheduleBadgeFetch } from "@/lib/badge/fetch-stats";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 // A-10 — embeddable SVG badge for an agent passport, the twin of the payee
 // badge (/api/badge/[address]). H-1/H-5 (2026-08-13 R4): the same trust
@@ -87,3 +88,5 @@ export async function GET(
     },
   });
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

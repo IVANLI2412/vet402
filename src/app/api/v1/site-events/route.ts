@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getClientIp } from "@/lib/api/client-ip";
 import { consumeIpRateLimit, ipRateLimitHeaders } from "@/lib/api/ip-rate-limit";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 import {
   homeResultStateSource,
   pathGroup,
@@ -69,3 +70,5 @@ export async function POST(request: NextRequest) {
 
   return new NextResponse(null, { status: 204, headers: { "cache-control": "no-store" } });
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

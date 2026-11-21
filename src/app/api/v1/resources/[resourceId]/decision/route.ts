@@ -16,6 +16,7 @@ import { lookupCallerMaterial } from "@/lib/decision/lookup-caller";
 import { recordClientUsage } from "@/lib/api/client-usage";
 import { recordDecisionUsage, usageChainOf } from "@/lib/api/decision-usage";
 import { attachVerdictReceipt, decisionReceiptSignInput } from "@/lib/receipts/verdict-receipt";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 export { DECISION_KEYLESS_LIMIT };
 
@@ -263,3 +264,5 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return fail(caller, 503, "decision_unavailable");
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

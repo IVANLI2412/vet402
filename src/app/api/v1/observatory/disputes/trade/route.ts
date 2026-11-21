@@ -6,6 +6,7 @@ import { submitTradeDisputeLeg } from "@/lib/observatory/trade-dispute-submit";
 import { getTradeDisputeStore } from "@/lib/observatory/trade-dispute-store";
 import { TRADE_ID_RE } from "@/lib/observatory/trade-dispute";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 export const dynamic = "force-dynamic";
 
@@ -140,3 +141,5 @@ export async function POST(request: NextRequest) {
 
   return NextResponse.json({ error: "invalid_request" }, { status: 400, headers: perCaller });
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

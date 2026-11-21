@@ -4,6 +4,7 @@ import { SHA256_HEX_RE } from "@/lib/ids/canonical";
 import { getEndpoint, payeesByEndpoint } from "@/lib/resolve/lookup";
 import { UUID_RE } from "@/lib/validation/uuid";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 // §9.1: GET /api/v1/endpoints/{endpoint_id} — sha256（§5）でも既存 uuid でも引ける。
 export const dynamic = "force-dynamic";
@@ -40,3 +41,5 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "unavailable" }, { status: 503, headers: gate.headers });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

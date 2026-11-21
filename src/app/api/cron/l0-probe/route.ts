@@ -10,6 +10,7 @@ import { runL0ProbeBatch } from "@/lib/observatory/probe-runner";
 import { TOTAL_LIMIT_EXCEEDED, withTotalLimit } from "@/lib/observatory/reprobe-priority";
 import { drainVerificationRequests } from "@/lib/observatory/requests";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 // vet402 Observatory L0 — no-purchase probe.
 //
@@ -63,3 +64,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "probe_failed" }, { status: 500 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

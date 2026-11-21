@@ -3,6 +3,7 @@ import { publicRateLimit } from "@/lib/api/public-route";
 import { parseStatsDaysParam } from "@/lib/api/stats-days";
 import { statsDbUnavailableResponse } from "@/lib/api/stats-unavailable";
 import { readReferralPageViews } from "@/lib/site-referral-stats";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 const RL_LIMIT = 30;
 const RL_WINDOW_MS = 60_000;
@@ -21,3 +22,5 @@ export async function GET(request: NextRequest) {
     headers: { ...gate.headers, ...gate.cacheHeaders, "cache-control": "public, s-maxage=60, stale-while-revalidate=300" },
   });
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

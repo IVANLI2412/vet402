@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authorizeApiRequest, withRateLimitHeaders } from "@/lib/api/guard";
 import { computeHistoryFlags } from "@/lib/scoring/history-flags";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/payees/{address}/history-flags — 履歴フラグ v0（キー付き）。
@@ -35,3 +36,5 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "flags_unavailable" }, { status: 503 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

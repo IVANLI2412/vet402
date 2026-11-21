@@ -11,6 +11,7 @@ import {
 import { authorizeDashboardRequest } from "@/lib/dashboard/auth";
 import { invalidateScoreCacheForListChange } from "@/lib/scoring/cache-invalidation";
 import { parseListCsv } from "@/lib/util/csv";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 const LIST_MUTATION_LIMIT = 30;
 const LIST_MUTATION_WINDOW_MS = 60 * 60 * 1000;
@@ -117,3 +118,5 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ error: "import_failed" }, { status: 400 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET", "POST", "PUT"]);
+export const { HEAD, PATCH, DELETE, OPTIONS } = __disallowed;

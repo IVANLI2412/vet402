@@ -3,6 +3,7 @@ import { authorizeCron } from "@/lib/cron/auth";
 import { L0_COVERAGE_RUN_LIMIT, L0_CRON_CONCURRENCY, l0RunDeadlineAt } from "@/lib/observatory/l0-coverage7d";
 import { runL0ProbeBatch } from "@/lib/observatory/probe-runner";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 // vet402 Observatory L0 — coverage の回（2026-11-10・coverage7d）。
 //
@@ -32,3 +33,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "probe_failed" }, { status: 500 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

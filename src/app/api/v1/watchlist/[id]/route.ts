@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { authenticateApiRequest } from "@/lib/api/guard";
 import { removeWatch } from "@/lib/watchlist";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 // 2026-09-02 監査: 静的化された route handler が prerender から古い判定を返すのを防ぐ（09c1fa0 と同じ欠陥）。
 export const dynamic = "force-dynamic";
@@ -26,3 +27,5 @@ export async function DELETE(
     return NextResponse.json({ error: "watchlist_unavailable" }, { status: 503 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["DELETE"]);
+export const { GET, HEAD, POST, PUT, PATCH, OPTIONS } = __disallowed;

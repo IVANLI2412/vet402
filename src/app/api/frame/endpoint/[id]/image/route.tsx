@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { publicRateLimit } from "@/lib/api/public-route";
 import { getEndpointPurchases } from "@/lib/observatory/reader";
 import { UUID_RE } from "@/lib/validation/uuid";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * Farcaster Frame 用の 1200×630 PNG（Phase 2.4）。エンドポイントの
@@ -65,3 +66,5 @@ export async function GET(request: NextRequest, ctx: { params: Promise<{ id: str
     { width: 1200, height: 630, headers: gate.cacheHeaders },
   );
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

@@ -4,6 +4,7 @@ import { isMissingSchemaError } from "@/lib/db/pg-errors";
 import { readSpendingHaltState, setSpendingHalt } from "@/lib/observatory/kill-switch";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { secureCompare } from "@/lib/util/secure-compare";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * /api/admin/spending-halt — L1 実購入の**実行時**停止スイッチ（2026-09-05 監査 P0）。
@@ -115,3 +116,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "internal_error" }, { status: 500 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET", "POST"]);
+export const { HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

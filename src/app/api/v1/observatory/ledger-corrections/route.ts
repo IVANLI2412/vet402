@@ -13,6 +13,7 @@ import { ledgerCorrectionStore } from "@/lib/observatory/ledger-corrections-stor
 import { readLedgerRowFingerprint } from "@/lib/observatory/anchors";
 import { getDb } from "@/lib/db/client";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * /api/v1/observatory/ledger-corrections（2026-11-10 公平審査 3.8 の 6c）。
@@ -137,3 +138,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "ledger_corrections_unavailable" }, { status: 503, headers: gate.headers });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET", "POST"]);
+export const { HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

@@ -8,6 +8,7 @@ import { readRecordSides } from "@/lib/sellers/reader";
 import { scheduleBadgeFetch } from "@/lib/badge/fetch-stats";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { UUID_RE } from "@/lib/validation/uuid";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * Embeddable SVG receipt badge for one x402 endpoint (seller-outreach hook,
@@ -118,3 +119,5 @@ export async function GET(
     return svgResponse(renderReceiptBadgeSvg(badge), "public, max-age=60");
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

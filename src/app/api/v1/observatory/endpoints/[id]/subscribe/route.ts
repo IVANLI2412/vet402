@@ -11,6 +11,7 @@ import {
   validateSubscription,
 } from "@/lib/observatory/record-subscriptions";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * POST /api/v1/observatory/endpoints/[id]/subscribe — 段 2「名前を取る」。
@@ -84,3 +85,5 @@ export async function POST(request: NextRequest, ctx: Ctx) {
     return NextResponse.json({ error: "subscribe_unavailable" }, { status: 503, headers: perCaller });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

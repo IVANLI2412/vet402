@@ -3,6 +3,7 @@ import { getClientIp } from "@/lib/api/client-ip";
 import { consumeIpRateLimit, ipRateLimitHeaders } from "@/lib/api/ip-rate-limit";
 import { submitContribution } from "@/lib/observatory/contributions";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * POST /api/v1/observatory/contributions — 外部L0観測の受け取り（Phase 3.3 v0）。
@@ -69,3 +70,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "contributions_unavailable" }, { status: 503, headers: perCaller });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

@@ -14,6 +14,7 @@ import {
   listWebhooks,
 } from "@/lib/webhooks";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * GET  /api/v1/webhooks — list this key's endpoints (secrets never returned).
@@ -119,3 +120,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "webhooks_unavailable" }, { status: 503 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET", "POST"]);
+export const { HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

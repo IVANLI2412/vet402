@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { handleJudgmentFile } from "@/lib/judgments/handler";
 import { judgmentReaders } from "@/lib/judgments/daily-reader";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -14,3 +15,5 @@ export async function GET(request: NextRequest, context: RouteContext) {
     now: () => new Date(),
   });
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

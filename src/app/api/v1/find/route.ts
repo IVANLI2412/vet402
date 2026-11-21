@@ -7,6 +7,7 @@ import { publicRateLimit } from "@/lib/api/public-route";
 import { getDb } from "@/lib/db/client";
 import { withNoindex } from "@/lib/api/public-read-robots";
 import { NextResponse } from "next/server";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -40,3 +41,5 @@ export async function GET(request: NextRequest) {
   for (const [k, v] of Object.entries(rateHeaders)) headers.set(k, v);
   return new Response(res.body, { status: res.status, headers });
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

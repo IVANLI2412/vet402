@@ -11,6 +11,7 @@ import { recordX402Payment } from "@/lib/db/x402-payments";
 import { invalidateScoreCacheForListChange } from "@/lib/scoring/cache-invalidation";
 import { invalidatePayeeScoreCache } from "@/lib/scoring/payee-engine";
 import { logServerErrorSafe, logServerWarnSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 const TX_HASH_RE = /^0x[a-fA-F0-9]{64}$/;
 
@@ -182,3 +183,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "payment_ingest_unavailable" }, { status: 503 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

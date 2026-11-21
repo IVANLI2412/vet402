@@ -5,6 +5,7 @@ import { resolve } from "@/lib/resolve/lookup";
 import { ACCEPTED_QUERY_FORMS, classifyQuery, explainInvalidQuery } from "@/lib/resolve/classify";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { isKeylessRequest, recordClientUsage } from "@/lib/api/client-usage";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 // §7.3 / §9.1: GET /api/v1/resolve?q={url|domain|address|tx|payee_id}[&method=GET|POST|…]
 // キー不要。ID を持たない呼び手が「この URL / この受取先 / この tx は何か」を
@@ -53,3 +54,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "resolve_unavailable" }, { status: 503, headers: gate.headers });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

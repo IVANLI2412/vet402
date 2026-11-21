@@ -1,4 +1,5 @@
 import { getSellerBoardCached, SellersUnavailable } from "@/lib/sellers/cached";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 export const dynamic = "force-dynamic";
 
@@ -16,3 +17,5 @@ export async function GET() {
     throw e;
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

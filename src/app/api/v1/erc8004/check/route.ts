@@ -4,6 +4,7 @@ import { rejectUnknownQuery } from "@/lib/api/export-guard";
 import { publicRateLimit } from "@/lib/api/public-route";
 import { ERROR_TEXT } from "@/lib/mcp/text";
 import { ERC8004_CHECK_CACHE_SECONDS, erc8004CheckCacheMaxAgeSeconds, getErc8004CheckCached } from "@/lib/erc8004-check/cache";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 const RL_LIMIT = 30;
 const RL_WINDOW_MS = 60_000;
@@ -69,3 +70,5 @@ export async function GET(request: NextRequest) {
     },
   });
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

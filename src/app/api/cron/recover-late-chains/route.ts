@@ -4,6 +4,7 @@ import { acquireLeaseFailClosed } from "@/lib/cron/lease-fail-closed";
 import { createSolanaLateReadCache, makeChainNonceReader, makeChainTransferReader, recoverLateSettlements } from "@/lib/settlements/recover-late";
 import { readAuthorizationNonces, readAuthorizationState } from "@/lib/observatory/settlement-verify";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 // 遅延回収のチェーン直読み——Tempo・Arc・Solana のレーン（2026-11-03・数字の監査 結論 #1 型 (a)）。
 //
@@ -51,3 +52,5 @@ export async function GET(request: NextRequest) {
     await lease.release();
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

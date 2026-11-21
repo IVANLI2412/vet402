@@ -4,6 +4,7 @@ import { isValidAddress } from "@/lib/chain/client";
 import { peekPayeeScoreCache } from "@/lib/scoring/payee-engine";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { withScoreDeprecationBody, withScoreDeprecationHeaders } from "@/lib/api/score-deprecation";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/payees/{address}/verdict-fast — verify-at-settle 高速面（C6）。
@@ -74,3 +75,5 @@ export async function GET(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "verdict_unavailable" }, { status: 503 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

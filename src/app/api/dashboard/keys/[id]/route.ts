@@ -3,6 +3,7 @@ import { canManageApiKey, revokeApiKey } from "@/lib/db/api-keys";
 import { authorizeDashboardRequest } from "@/lib/dashboard/auth";
 import { deleteDashboardSessionsForApiKey } from "@/lib/dashboard/session";
 import { UUID_RE } from "@/lib/validation/uuid";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -39,3 +40,5 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
   return NextResponse.json({ ok: true });
 }
+const __disallowed = exportDisallowedMethodHandlers(["DELETE"]);
+export const { GET, HEAD, POST, PUT, PATCH, OPTIONS } = __disallowed;

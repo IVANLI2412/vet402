@@ -3,6 +3,7 @@ import { getClientIp } from "@/lib/api/client-ip";
 import { consumeIpRateLimit, ipRateLimitHeaders } from "@/lib/api/ip-rate-limit";
 import { enqueueVerificationRequest } from "@/lib/observatory/requests";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * POST /api/v1/observatory/requests — 検証リクエストの受付（C9・無償）。
@@ -54,3 +55,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "requests_unavailable" }, { status: 503, headers: perCaller });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { getClientIp } from "@/lib/api/client-ip";
 import { consumeIpRateLimit } from "@/lib/api/ip-rate-limit";
 import { getDb } from "@/lib/db/client";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/observatory/live — 観測のライブフィード（C10・SSE）。
@@ -106,3 +107,5 @@ export async function GET(request: NextRequest) {
     },
   });
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

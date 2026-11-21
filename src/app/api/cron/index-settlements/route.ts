@@ -11,6 +11,7 @@ import { indexXrpl } from "@/lib/settlements/index-xrpl";
 import { makeChainTransferReader, recoverLateSettlements } from "@/lib/settlements/recover-late";
 import { readAuthorizationNonces, readAuthorizationState } from "@/lib/observatory/settlement-verify";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 // §7.2 決済索引（日次）。3 経路を順に流す。各段は締切と件数上限を持ち、
 // 未読は次回に持ち越す。lease で二重起動を防ぐ（l1-purchase と同じ設計）。
@@ -67,3 +68,5 @@ export async function GET(request: NextRequest) {
     await lease.release();
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

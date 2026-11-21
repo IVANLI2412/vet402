@@ -3,6 +3,7 @@ import Stripe from "stripe";
 import { planFromStripePriceId } from "@/lib/billing/plans";
 import { resolveAccountPlanFromStripe } from "@/lib/billing/subscription-status";
 import { getStripe } from "@/lib/billing/stripe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 import {
   getAccountByStripeCustomerId,
   setAccountStripeIds,
@@ -123,3 +124,5 @@ function subscriptionIdFromInvoice(invoice: Stripe.Invoice): string | null {
   }
   return null;
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

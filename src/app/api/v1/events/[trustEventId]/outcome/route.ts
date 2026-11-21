@@ -4,6 +4,7 @@ import { authorizeApiRequest, withRateLimitHeaders } from "@/lib/api/guard";
 import { isValidAddress } from "@/lib/chain/client";
 import { getTrustEventById, recordPartnerOutcome } from "@/lib/db/outcome-writer";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 const UUID_RE = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
@@ -200,3 +201,5 @@ export async function POST(request: NextRequest, context: RouteContext) {
     return NextResponse.json({ error: "outcome_ingest_unavailable" }, { status: 503 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

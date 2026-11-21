@@ -6,6 +6,7 @@ import { z } from "zod";
 import { isValidAddress } from "@/lib/chain/client";
 import { addCustomerListEntry, removeGlobalBlacklistEntry } from "@/lib/db/customer-lists";
 import { invalidateScoreCacheForListChange } from "@/lib/scoring/cache-invalidation";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 const bodySchema = z.object({
   wallet: z.string(),
@@ -106,3 +107,5 @@ export async function DELETE(request: NextRequest) {
 
   return NextResponse.json({ removed }, { status: 200 });
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST", "DELETE"]);
+export const { GET, HEAD, PUT, PATCH, OPTIONS } = __disallowed;

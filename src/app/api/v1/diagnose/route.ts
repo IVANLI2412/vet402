@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { handleDiagnose } from "@/lib/api/diagnose-handler";
 import { DIAGNOSE_KEYLESS_LIMIT, DIAGNOSE_KEYLESS_WINDOW_MS } from "@/lib/api/keyless-limits";
 import { publicRateLimit } from "@/lib/api/public-route";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -16,3 +17,5 @@ export async function GET(request: NextRequest) {
   for (const [key, value] of Object.entries(rateHeaders)) headers.set(key, value);
   return new Response(res.body, { status: res.status, headers });
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

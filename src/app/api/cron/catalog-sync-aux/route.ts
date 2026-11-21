@@ -5,6 +5,7 @@ import { syncMppDirectory } from "@/lib/observatory/mpp-directory";
 import { syncRail402Discovery } from "@/lib/observatory/snapshot-only-catalogs";
 import { refreshSolanaDiscoveryPayees } from "@/lib/settlements/discovery-payees";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 // The catalog-side jobs that used to run inside /api/cron/catalog-sync (moved 2026-10-07 so the
 // Bazaar fetch there gets the function's time): the PayAI discovery payees for the settlement index,
@@ -50,3 +51,5 @@ export async function GET(request: NextRequest) {
   }
   return NextResponse.json({ ok: true, discoveryPayees, mppDirectory, circleDiscovery, rail402Discovery });
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

@@ -8,6 +8,7 @@ import {
 import { anchorThrough as defaultAnchorThrough } from "@/lib/observatory/anchors";
 import { sealTradeDisputeDay as defaultSealTradeDisputeDay } from "@/lib/observatory/trade-dispute-store";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 let anchorThroughFn: typeof defaultAnchorThrough = defaultAnchorThrough;
 let sealTradeDisputeDayFn: typeof defaultSealTradeDisputeDay = defaultSealTradeDisputeDay;
@@ -92,3 +93,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ ok: false, error: "rollup_failed" }, { status: 500 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

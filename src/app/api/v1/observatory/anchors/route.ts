@@ -11,6 +11,7 @@ import { verifyPublishedDayTriple, type DayTripleResult } from "@/lib/observator
 import { utcDayString } from "@/lib/observatory/metrics-rollup";
 import { getDb } from "@/lib/db/client";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/observatory/anchors?days=30 — 台帳ハッシュチェーン、データとして。
@@ -99,3 +100,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "observatory_unavailable" }, { status: 503, headers: perCaller });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

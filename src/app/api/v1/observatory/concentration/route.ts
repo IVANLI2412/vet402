@@ -7,6 +7,7 @@ import {
 } from "@/lib/api/ip-rate-limit";
 import { computeConcentration } from "@/lib/observatory/concentration";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/observatory/concentration — 受取構造の集計（名指しゼロ）。
@@ -38,3 +39,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "observatory_unavailable" }, { status: 503, headers: perCaller });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

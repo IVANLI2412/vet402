@@ -6,6 +6,7 @@ import { persistPayeeScoreResult, persistScoreResult } from "@/lib/db/persistenc
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { scoreAgentById } from "@/lib/scoring/engine";
 import { scorePayeeWallet } from "@/lib/scoring/payee-engine";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 const lookupSchema = z.object({
   agentId: z.string().optional(),
@@ -65,3 +66,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "scoring_unavailable" }, { status: 503 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

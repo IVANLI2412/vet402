@@ -10,6 +10,7 @@ import { publicL1Summary, runL1Batch } from "@/lib/observatory/l1-runner";
 import { getEndpointPurchases } from "@/lib/observatory/reader";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { UUID_RE } from "@/lib/validation/uuid";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * POST /api/v1/demo/verify — /playground のライブL0検証（Phase 0.1）。
@@ -208,3 +209,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "demo_unavailable" }, { status: 503, headers: perCaller });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

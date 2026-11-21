@@ -11,6 +11,7 @@ import { getEndpointPurchases } from "@/lib/observatory/reader";
 import { readRecordSides } from "@/lib/sellers/reader";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { UUID_RE } from "@/lib/validation/uuid";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/observatory/endpoints/{id}/purchases — the receipt, as data.
@@ -97,3 +98,5 @@ export async function GET(
     );
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

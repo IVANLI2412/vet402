@@ -3,6 +3,7 @@ import { removeCustomerListEntry } from "@/lib/db/customer-lists";
 import { authorizeDashboardRequest } from "@/lib/dashboard/auth";
 import { invalidateScoreCacheForListChange } from "@/lib/scoring/cache-invalidation";
 import { UUID_RE } from "@/lib/validation/uuid";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -30,3 +31,5 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
 
   return NextResponse.json({ ok: true });
 }
+const __disallowed = exportDisallowedMethodHandlers(["DELETE"]);
+export const { GET, HEAD, POST, PUT, PATCH, OPTIONS } = __disallowed;

@@ -10,6 +10,7 @@ import {
   USAGE_MONTHLY_UNAVAILABLE_MESSAGE,
 } from "@/lib/api/decision-usage";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 // 判定 API の月次件数。鍵ありを区分の合計だけ返す。鍵・メール・名前は返さない。
 // 鍵なしはチェーンごとに数えないので、ここには出さない。
@@ -62,3 +63,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

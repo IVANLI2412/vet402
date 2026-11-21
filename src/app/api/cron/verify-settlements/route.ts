@@ -4,6 +4,7 @@ import { authorizeCron } from "@/lib/cron/auth";
 import { acquireLeaseFailClosed } from "@/lib/cron/lease-fail-closed";
 import { runSettlementVerification } from "@/lib/observatory/settlement-verifier";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 // vet402 Observatory — 決済主張のオンチェーン照合（2026-08-23 監査 C-4）。
 //
@@ -53,3 +54,5 @@ export async function GET(request: NextRequest) {
     await lease.release();
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

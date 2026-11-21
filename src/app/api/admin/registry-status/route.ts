@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { secureCompare } from "@/lib/util/secure-compare";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/admin/registry-status — ERC-8004 Validation Registry の運用者ウォレットの
@@ -45,3 +46,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ enabled, key: "set", error: error instanceof Error ? error.name : "unknown" }, { status: 503 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

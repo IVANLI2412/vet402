@@ -4,6 +4,7 @@ import { authorizeCron } from "@/lib/cron/auth";
 import { acquireLeaseFailClosed } from "@/lib/cron/lease-fail-closed";
 import { runL1Batch } from "@/lib/observatory/l1-runner";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 // vet402 Observatory L1 — daily paid-purchase batch (design §5 W3).
 // The weekly full sweep of the real-demand set emerges from the daily $25
@@ -45,3 +46,5 @@ export async function GET(request: NextRequest) {
     await lease.release();
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

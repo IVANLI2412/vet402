@@ -3,6 +3,7 @@ import { authorizeCron } from "@/lib/cron/auth";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { isProduction } from "@/lib/config/env";
 import { runIdentityIndexes } from "@/lib/indexer/identity-index-run";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 export const maxDuration = 300;
 
@@ -43,3 +44,5 @@ export async function GET(request: NextRequest) {
     );
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

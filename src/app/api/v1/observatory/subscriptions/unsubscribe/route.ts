@@ -8,6 +8,7 @@ import {
 } from "@/lib/observatory/record-subscriptions";
 import { readTokenBody } from "@/lib/observatory/subscription-token-body";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * POST /api/v1/observatory/subscriptions/unsubscribe — 通知の配信停止（2026-09-28 監査）。
@@ -46,3 +47,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "subscribe_unavailable" }, { status: 503, headers: perCaller });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

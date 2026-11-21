@@ -2,6 +2,7 @@
 import { handleReset } from "../_lib/button";
 import { realButtonDeps } from "../_lib/deps";
 import { TOKYO_LIMITS, tokyoRateLimit } from "../_lib/rate-limit";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -11,3 +12,5 @@ export async function POST(request: Request) {
   if (limited) return limited;
   return handleReset(request, realButtonDeps(), { check: new URL(request.url).searchParams.get("check") !== "0" });
 }
+const __disallowed = exportDisallowedMethodHandlers(["POST"]);
+export const { GET, HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

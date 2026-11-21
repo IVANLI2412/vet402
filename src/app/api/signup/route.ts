@@ -3,6 +3,7 @@ import { validateDashboardOrigin } from "@/lib/dashboard/csrf";
 import { setDashboardSessionCookie } from "@/lib/dashboard/auth";
 import { getClientIp } from "@/lib/api/ip-rate-limit";
 import { inviteRequired, runSignup } from "@/lib/dashboard/signup-core";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 // JSON signup endpoint for the JS fetch path. The core (rate limit, schema,
 // invite gate, account/key/session creation) lives in signup-core.ts and is
@@ -43,3 +44,5 @@ export async function GET() {
     plans: ["free", "pro", "scale"],
   });
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET", "POST"]);
+export const { HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

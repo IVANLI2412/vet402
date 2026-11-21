@@ -6,6 +6,7 @@ import {
   sharedCacheRateLimitHeaders,
 } from "@/lib/api/ip-rate-limit";
 import { withNoindex } from "@/lib/api/public-read-robots";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 import {
   loadDeliveryHitRateYardstick,
   publicDeliveryHitRateYardstick,
@@ -44,3 +45,5 @@ export async function GET(request: NextRequest) {
     { headers: shared },
   );
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

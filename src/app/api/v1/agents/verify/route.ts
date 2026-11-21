@@ -22,6 +22,7 @@ import {
   matchSignatureForm,
 } from "@/lib/verify-message";
 import { logServerErrorSafe, logServerWarnSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 // A-10 — agent passport self-verification, the symmetric twin of N-16
 // (verified payees). Where a payee signs with a receiving wallet, an agent
@@ -245,3 +246,5 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "store_unavailable" }, { status: 503, headers: rlHeaders });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET", "POST"]);
+export const { HEAD, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

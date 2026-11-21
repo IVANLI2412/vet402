@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeDashboardRequest } from "@/lib/dashboard/auth";
 import { getDashboardOverview } from "@/lib/dashboard/data";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 export async function GET(request: NextRequest) {
   const auth = await authorizeDashboardRequest(request);
@@ -13,3 +14,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "database_unavailable" }, { status: 503 });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;

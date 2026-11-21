@@ -6,6 +6,7 @@ import { readDayVerificationInputs } from "@/lib/observatory/anchors";
 import { verifyPublishedDayTriple } from "@/lib/observatory/ledger-day-verify";
 import { getDb } from "@/lib/db/client";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
+import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
 
 /**
  * GET /api/v1/observatory/anchors/day?day=YYYY-MM-DD — その日の公開ファイル（2026-11-10 公平審査 3.8 の 6c-1）。
@@ -73,3 +74,5 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: "observatory_unavailable" }, { status: 503, headers });
   }
 }
+const __disallowed = exportDisallowedMethodHandlers(["GET"]);
+export const { HEAD, POST, PUT, PATCH, DELETE, OPTIONS } = __disallowed;
