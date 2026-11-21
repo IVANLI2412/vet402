@@ -8,6 +8,10 @@ import { TableScroll } from "@/components/site/TableScroll";
 import { buttonClass } from "@/components/ui/Button";
 import { getObservatoryOverviewCached, getObservatoryStatsCached } from "@/lib/observatory/cached-reads";
 import { parseObservatorySearchParams, observatoryHref, observatoryRateFilters } from "@/lib/observatory/query";
+import {
+  OBSERVATORY_NETWORK_OPTIONS,
+  observatoryNetworkSelectValue,
+} from "@/lib/observatory/network-filter-options";
 import { networkFilterCellLabel, networkFilterCellTitle } from "@/lib/observatory/chains";
 import TrackView from "@/components/site/TrackView";
 import { L1Ratio, VerdictShareBar, VerdictWord } from "@/components/site/Figures";
@@ -215,13 +219,19 @@ export default async function ObservatoryPage({
             </label>
             <label className="block basis-full text-[0.84375rem] sm:basis-auto sm:min-w-[16ch] sm:flex-none">
               <span className="doc-caption block">Network</span>
-              <input
+              <select
                 data-clarity-mask="true"
                 name="network"
-                defaultValue={query.network ?? ""}
-                placeholder="eip155:8453"
+                defaultValue={observatoryNetworkSelectValue(query.network)}
                 className="doc-input mt-1 w-full max-sm:text-[1.0625rem] sm:min-w-[13ch]"
-              />
+              >
+                {OBSERVATORY_NETWORK_OPTIONS.map((opt) => (
+                  <option key={opt.value || "all"} value={opt.value}>
+                    {opt.label}
+                    {"hint" in opt && opt.hint ? ` (${opt.hint})` : ""}
+                  </option>
+                ))}
+              </select>
             </label>
             {/* 2026-08-23 UX: underline のテキストリンクに見えており、フィルタを
                 確定する主操作だと分からなかった。既存の buttonClass（紙面の
@@ -310,20 +320,14 @@ export default async function ObservatoryPage({
             }
             caption={
               <>
-                Published L0 verdict, {band.total.toLocaleString()} endpoints on record (includes
-                delisted; {stats.activeEndpoints.toLocaleString()} active, meaning not closed; {stats.publishedPassActive.toLocaleString()}{" "}
-                of the passes are active
-                {stats.latestSnapshot
-                  ? `; the latest full read of the Bazaar saw ${stats.latestSnapshot.fetchedCount.toLocaleString()} listings`
-                  : ""}
-                ). Of those active passes, {passProbedWithin7d.toLocaleString()} were last probed within 7 days and{" "}
-                {stats.publishedPassActiveProbeOlderThan7d.toLocaleString()} were last probed more than 7 days ago. Settled on-chain counts endpoints with at least one purchase
-                vet402 re-read on-chain, active or not: {stats.l1.endpointsSettledSellerReceipt.toLocaleString()} with a transaction the
-                seller named in its own settlement receipt and {stats.l1.endpointsSettledIndexOnly.toLocaleString()}{" "}
-                where the seller returned no receipt and vet402&apos;s own settlements index found the settled
-                transfers or Circle&apos;s Gateway API named the batch, as reported by <code>/api/v1/observatory/state</code>.{" "}
-                {withdrawnBandCountSentence(band.counts.withdrawn)} Select a
-                legend entry to filter the table.
+                Published L0 verdict across {band.total.toLocaleString()} endpoints on record ({stats.activeEndpoints.toLocaleString()} active).{" "}
+                {passProbedWithin7d.toLocaleString()} active passes last probed within 7 days;{" "}
+                {stats.publishedPassActiveProbeOlderThan7d.toLocaleString()} are older. {withdrawnBandCountSentence(band.counts.withdrawn)}{" "}
+                Click a legend segment to filter the table. Definitions:{" "}
+                <Link href="/observatory/methodology" className="underline">
+                  Methodology
+                </Link>
+                .
               </>
             }
           />
