@@ -31,6 +31,7 @@ const ROOT = dirname(fileURLToPath(import.meta.url));
 const PAY = "src/pay-or-refuse.ts";
 const SUB = "src/subgraph-evidence.ts";
 const X402 = "src/x402-pay.ts";
+const SVM = "src/svm-pay.ts";
 /** 判定語と品質欄の読み方（2 経路の共有規則）。 */
 const VERDICT = "src/verdict-shape.ts";
 /** 壊れた形の表（テスト側の資産）。表を痩せさせる変異も殺せることを見る。 */
@@ -298,7 +299,7 @@ const MUTATIONS = [
     file: PAY,
     edits: [
       {
-        find: '  const { executeX402Payment } = await import("./x402-pay.js");',
+        find: '  const { executeX402Payment, MAX_AUTHORIZATION_WINDOW_SECONDS } = await import("./x402-pay.js");',
         replace: "  /* MUTANT: import hoisted */",
       },
       {
@@ -484,6 +485,54 @@ const MUTATIONS = [
     replace:
       "  if (/* MUTANT */ decision.recommendation === \"ALLOW\" && hasKey && vtRaw !== null && vtRaw !== undefined && isPlainObject(vtRaw)) {",
   },
+  {
+    id: "M52",
+    what: "verified_terms が null のとき facts.payees を照合しない",
+    rule: "whitehat S7/S9 payees 照合",
+    file: PAY,
+    find: "  const payeeErr = payeesCheck();\n  if (payeeErr) return payeeErr;\n  return [\"price_unverified\"];",
+    replace: "  /* MUTANT */ return [\"price_unverified\"];",
+  },
+  {
+    id: "M53",
+    what: "別レールの verified を payee_unverified ではなく payee_mismatch にする",
+    rule: "adversary T3 payee_unverified_on_rail",
+    file: PAY,
+    find: '      if (!inFacts) return ["payee_unverified_on_rail"];',
+    replace: '      if (!inFacts) return /* MUTANT */ ["payee_mismatch"];',
+  },
+  {
+    id: "M54",
+    what: "decimals 不明でも raw 単位で額を比べる",
+    rule: "whitehat S10 price_unverified",
+    file: PAY,
+    find: '    const decimalsKnown = vtDecimals === null || vtDecimals === USDC_DECIMALS;',
+    replace: "    const decimalsKnown = /* MUTANT */ true;",
+  },
+  {
+    id: "M55",
+    what: "支払いつき再送に期限 signal を付けない",
+    rule: "payaudit-3 validBefore 期限",
+    file: X402,
+    find: "  const sellerSignal = args.sellerWaitOwnedByFetch === true ? undefined : signalUntilDeadline(undefined, waitMs);",
+    replace: "  const sellerSignal = /* MUTANT */ undefined;",
+  },
+  {
+    id: "M56",
+    what: "sameRail でなくても price_above_declared だけ見る",
+    rule: "price_unverified on cross-asset",
+    file: PAY,
+    find: '    if (sameRail) {\n      if (BigInt(accept.amount) > BigInt(amount)) return ["price_above_declared"];\n    } else {\n      return ["price_unverified"];\n    }',
+    replace: '    if (sameRail) {\n      if (BigInt(accept.amount) > BigInt(amount)) return ["price_above_declared"];\n    } else {\n      /* MUTANT */ if (BigInt(accept.amount) > BigInt(amount)) return ["price_above_declared"];\n    }',
+  },
+  {
+    id: "M57",
+    what: "Solana の支払いつき再送に期限 signal を付けない",
+    rule: "payaudit-3 blockhash の寿命",
+    file: SVM,
+    find: "      signal: signalUntilDeadline(undefined, SVM_BLOCKHASH_LIFETIME_MS),\n",
+    replace: "      /* MUTANT: no deadline */\n",
+  },
 ];
 
 // ---------- 実行器 ----------
@@ -493,13 +542,24 @@ const TEST_FILES = (await readdir(join(ROOT, "test")))
   .map((f) => `test/${f}`);
 const TSC = join(ROOT, "node_modules", ".bin", "tsc");
 
+/** 1 回の実行の上限。変異で試験が待ち続けても、実行器ごと止まらない（11/22 に M55 で 3 時間止まった）。 */
+const RUN_TIMEOUT_MS = 300_000;
+
 function run(cmd, args) {
   return new Promise((resolve) => {
     const child = spawn(cmd, args, { cwd: ROOT, stdio: ["ignore", "pipe", "pipe"] });
     let out = "";
+    let timedOut = false;
+    const timer = setTimeout(() => {
+      timedOut = true;
+      child.kill("SIGKILL");
+    }, RUN_TIMEOUT_MS);
     child.stdout.on("data", (d) => (out += d));
     child.stderr.on("data", (d) => (out += d));
-    child.on("close", (code) => resolve({ code, out }));
+    child.on("close", (code) => {
+      clearTimeout(timer);
+      resolve({ code: timedOut ? 124 : code, out: timedOut ? `${out}\n# fail timeout\n` : out, timedOut });
+    });
   });
 }
 
@@ -515,7 +575,7 @@ async function buildAndTest() {
 
 async function countMutantMarkers() {
   let n = 0;
-  for (const f of [PAY, SUB, X402, SHAPES]) n += (await readFile(join(ROOT, f), "utf8")).split("MUTANT").length - 1;
+  for (const f of [PAY, SUB, X402, SVM, SHAPES]) n += (await readFile(join(ROOT, f), "utf8")).split("MUTANT").length - 1;
   return n;
 }
 

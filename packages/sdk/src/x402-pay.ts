@@ -284,6 +284,22 @@ export function encodePaymentHeader(input: {
 }
 
 /** ヘッダ名の大小を問わずに読む（実 Headers は case-insensitive、テストの Map はそうでない）。 */
+function sellerRetryWaitMs(validBefore: string, nowSec: number): number {
+  const vb = Number(validBefore);
+  if (!Number.isFinite(vb)) return MAX_AUTHORIZATION_WINDOW_SECONDS * 1000;
+  const remainingMs = Math.max(0, vb - nowSec) * 1000;
+  return Math.min(remainingMs, MAX_AUTHORIZATION_WINDOW_SECONDS * 1000);
+}
+
+function signalUntilDeadline(caller: AbortSignal | undefined, waitMs: number): AbortSignal {
+  // setTimeout（AbortSignal.timeout ではなく）にして、試験で時計を進められるようにする。
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(new DOMException("seller wait deadline", "TimeoutError")), waitMs);
+  (timer as { unref?: () => void }).unref?.();
+  if (caller === undefined) return ctrl.signal;
+  return (AbortSignal as { any: (signals: AbortSignal[]) => AbortSignal }).any([caller, ctrl.signal]);
+}
+
 function readHeader(headers: unknown, name: string): string | null {
   const get = (headers as { get?: (k: string) => string | null } | undefined)?.get;
   if (typeof get !== "function") return null;
@@ -364,6 +380,8 @@ export async function executeX402Payment(args: {
   profile?: ChainProfile;
   x402Version: 1 | 2;
   fetch: typeof fetch;
+  /** When true, the supplied `fetch` already caps the paid seller wait (e.g. `pay()` with `source: "sdk-pay"`). */
+  sellerWaitOwnedByFetch?: boolean;
   onSigned?: (info: { nonce: string; authorization: Eip3009Authorization; signature: string }) => void;
 }): Promise<X402PayResult> {
   assertHttpsSellerResource(args.resource);
@@ -402,11 +420,14 @@ export async function executeX402Payment(args: {
     responseStatus: null,
   };
 
+  const waitMs = sellerRetryWaitMs(authorization.validBefore, Math.floor(Date.now() / 1000));
+  const sellerSignal = args.sellerWaitOwnedByFetch === true ? undefined : signalUntilDeadline(undefined, waitMs);
   let response: Awaited<ReturnType<typeof fetch>>;
   try {
     response = await args.fetch(args.resource, {
       method: args.method,
       redirect: "error",
+      ...(sellerSignal === undefined ? {} : { signal: sellerSignal }),
       headers: {
         accept: "application/json",
         [header.headerName]: header.headerValue,

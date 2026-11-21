@@ -212,6 +212,8 @@ export const PAY_REFUSE_REASONS = [
   //    取りに行ったが届かず（接続不能・HTTP 5xx）、呼び手の ENS の床が免除した経路で出た決定行に載る（G5）
   "insufficient_ens_attestations",
   "vet402_unreachable",
+  "payee_unverified_on_rail",
+  "price_unverified",
 ] as const;
 
 export type PayRefuseReason = (typeof PAY_REFUSE_REASONS)[number];
@@ -571,7 +573,7 @@ export type PayOrRefuseResult = {
   txHash: string | null;
   /**
    * 署名した EIP-3009 認可の nonce。**我々しか作れない一回性の値**で、
-   * 「その決済 tx はこの購入のものか」を後から確かめる唯一の手段（監査の nonce 束縛）。
+   * 「その決済 tx はこの購入のものか」を呼び手が後から確かめる手がかり（attest に載せるが、サーバは保存しない）。
    * 署名していない拒否経路では null——そこが「署名が存在しない」ことの機械可読な印になる。
    */
   nonce: string | null;
@@ -689,6 +691,22 @@ function payeeMatchesDeclared(payee: string, acceptPayTo: string, acceptNetwork:
 
 /** Initial seller GET for the 402 challenge (audit R3: bounded wait). */
 const SELLER_READ_TIMEOUT_MS = 10_000;
+const SVM_BLOCKHASH_LIFETIME_MS = 90_000;
+
+function paidSellerFetch(base: typeof fetch, waitMs: number): typeof fetch {
+  return (resource, init) => {
+    const headers = new Headers(init?.headers);
+    const paid = headers.has("payment-signature") || headers.has("x-payment");
+    if (!paid) return base(resource, init);
+    const deadline = AbortSignal.timeout(waitMs);
+    const caller = init?.signal ?? undefined;
+    const merged =
+      caller === undefined
+        ? deadline
+        : (AbortSignal as { any: (signals: AbortSignal[]) => AbortSignal }).any([caller, deadline]);
+    return base(resource, { ...init, signal: merged });
+  };
+}
 
 const RESOURCE_ID_RE = /^[0-9a-f]{64}$/;
 
@@ -759,47 +777,69 @@ function payeesFromFacts(decision: DecisionResult | null): string[] {
 /**
  * vet402 が記録した payTo・額と accept を照合する。
  * `verified_terms` があるときは判定語（ALLOW かどうか）や WARN 免除に関わらず照合する（N7）。
- * `verified_terms` が無く ALLOW のときだけ `facts.payees` に落ちる。
- * `verified_terms.network` が払うチェーンと違っても payTo と amount は照合する（検証チェーンと支払いチェーンが違う記録がある）。
+ * `verified_terms` が null のときは recommendation に関わらず `facts.payees` で照合する。
  */
 function matchDeclaredPayTerms(
   decision: DecisionResult | null,
   accept: X402Accept,
   profile: ChainProfile,
+  requireVet402Allow: boolean,
 ): PayRefuseReason[] | null {
   if (decision === null) return null;
   const body = decision as DecisionResult & { verified_terms?: unknown };
   const hasKey = Object.hasOwn(body, "verified_terms");
   const vtRaw = body.verified_terms;
+
+  const payeesCheck = (): PayRefuseReason[] | null => {
+    const payees = payeesFromFacts(decision);
+    if (payees.length === 0) return ["evidence_unavailable"];
+    if (!payees.some((p) => payeeMatchesDeclared(p, accept.payTo, profile.network))) return ["payee_mismatch"];
+    return null;
+  };
+
   if (hasKey && vtRaw !== null && vtRaw !== undefined && isPlainObject(vtRaw)) {
     const payTo = typeof vtRaw.pay_to === "string" ? vtRaw.pay_to : null;
     const amount = typeof vtRaw.amount === "string" ? vtRaw.amount : null;
+    const vtNetwork = typeof vtRaw.network === "string" ? vtRaw.network : null;
+    const vtDecimals = typeof vtRaw.decimals === "number" && Number.isInteger(vtRaw.decimals) ? vtRaw.decimals : null;
+
+    if (vtNetwork !== null && vtNetwork !== accept.network) {
+      const payees = payeesFromFacts(decision);
+      if (payees.length === 0) return ["evidence_unavailable"];
+      const inFacts = payees.some((p) => payeeMatchesDeclared(p, accept.payTo, profile.network));
+      if (!inFacts) return ["payee_unverified_on_rail"];
+      return ["price_unverified"];
+    }
+
     if (payTo === null || amount === null || !isDecimalUnits(amount)) {
       return ["evidence_unavailable"];
     }
     if (!sameAddress(accept.payTo, payTo) && !payeeMatchesDeclared(payTo, accept.payTo, profile.network)) {
       return ["payee_mismatch"];
     }
-    if (BigInt(accept.amount) > BigInt(amount)) return ["price_above_declared"];
-    const vtNetwork = typeof vtRaw.network === "string" ? vtRaw.network : null;
-    const sameChain = vtNetwork === null || vtNetwork === profile.network;
+
+    const decimalsKnown = vtDecimals === null || vtDecimals === USDC_DECIMALS;
+    const sameRail =
+      (vtNetwork === null || vtNetwork === accept.network) &&
+      (typeof vtRaw.asset !== "string" || sameAddress(accept.asset, vtRaw.asset)) &&
+      decimalsKnown;
+    if (sameRail) {
+      if (BigInt(accept.amount) > BigInt(amount)) return ["price_above_declared"];
+    } else {
+      return ["price_unverified"];
+    }
+
+    const sameChain = vtNetwork === null || vtNetwork === accept.network;
     if (sameChain) {
       if (typeof vtRaw.asset === "string" && !sameAddress(accept.asset, vtRaw.asset)) return ["chain_or_asset_mismatch"];
       if (typeof vtRaw.scheme === "string" && accept.scheme !== vtRaw.scheme) return ["chain_or_asset_mismatch"];
     }
     return null;
   }
-  if (decision.recommendation !== "ALLOW") return null;
-  if (!hasKey) {
-    const payees = payeesFromFacts(decision);
-    if (payees.length === 0) return ["evidence_unavailable"];
-    if (!payees.some((p) => payeeMatchesDeclared(p, accept.payTo, profile.network))) return ["payee_mismatch"];
-    return null;
-  }
-  const payees = payeesFromFacts(decision);
-  if (payees.length === 0) return ["evidence_unavailable"];
-  if (!payees.some((p) => payeeMatchesDeclared(p, accept.payTo, profile.network))) return ["payee_mismatch"];
-  return null;
+
+  const payeeErr = payeesCheck();
+  if (payeeErr) return payeeErr;
+  return ["price_unverified"];
 }
 
 /**
@@ -1647,7 +1687,7 @@ async function decideAndPay(input: DecideInput, facts: ReceiptFacts): Promise<Pa
   }
 
   if (input.policy?.skipVerifiedTermsCheck !== true) {
-    const termsMismatch = matchDeclaredPayTerms(decision, accept, profile);
+    const termsMismatch = matchDeclaredPayTerms(decision, accept, profile, requireVet402Allow);
     if (termsMismatch !== null) {
       return refuse([...pathReasons, ...selectionReasons, ...termsMismatch], evidenceVerdictSource, decision, null, accept);
     }
@@ -1750,7 +1790,10 @@ async function decideAndPay(input: DecideInput, facts: ReceiptFacts): Promise<Pa
       accept,
       resource: input.resource,
       method,
-      fetch: fetchFn,
+      fetch:
+        input.source === "sdk-pay"
+          ? fetchFn
+          : paidSellerFetch(fetchFn, SVM_BLOCKHASH_LIFETIME_MS),
       onSigned: ({ memo, recentBlockhash, payer }) => {
         svmMemo = memo;
         facts.svmBlockhash = recentBlockhash;
@@ -1849,7 +1892,11 @@ async function decideAndPay(input: DecideInput, facts: ReceiptFacts): Promise<Pa
     };
   }
 
-  const { executeX402Payment } = await import("./x402-pay.js");
+  const { executeX402Payment, MAX_AUTHORIZATION_WINDOW_SECONDS } = await import("./x402-pay.js");
+  const paymentFetch =
+    input.source === "sdk-pay"
+      ? fetchFn
+      : paidSellerFetch(fetchFn, MAX_AUTHORIZATION_WINDOW_SECONDS * 1000);
   // 署名の直後に nonce を確定させる。ここから先で落ちても「何に署名したか」は残る。
   let signedNonce: string | null = null;
   const paid = await executeX402Payment({
@@ -1860,7 +1907,8 @@ async function decideAndPay(input: DecideInput, facts: ReceiptFacts): Promise<Pa
     chainId: profile.chainId,
     profile,
     x402Version,
-    fetch: fetchFn,
+    fetch: paymentFetch,
+    sellerWaitOwnedByFetch: input.source === "sdk-pay",
     onSigned: ({ nonce, authorization }) => {
       signedNonce = nonce;
       // 何に署名したか（validBefore を含む認可の全体）を控える。署名そのものは控えない。
@@ -1926,8 +1974,8 @@ async function decideAndPay(input: DecideInput, facts: ReceiptFacts): Promise<Pa
           amount: accept.amount,
           network: accept.network,
           resource: input.resource,
-          // 監査の nonce 束縛（本番 settlement-verify.ts）。attest がこれを載せて初めて、
-          // 「その決済 tx はこの購入のものか」を第三者が確かめられる。
+          // attest に載せて送るが、サーバは購入行に保存しない（nonce 束縛の約束はしない）。
+          // 支払いの追跡は txHash と呼び手の手元の nonce で行う。
           authNonce: paid.nonce,
           source,
         }),

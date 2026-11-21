@@ -790,26 +790,38 @@ export async function payChecked(input) {
         ({ payment, delivered } = await executePayment(input, fetchImpl, payer, prepared.payTo, prepared.resourceId));
     }
     catch (error) {
-        await appendRow(store, decisionRow({
-            recommendation: "REFUSE",
-            reasonCodes: ["evidence_unavailable"],
-            atMs: prepared.spentAt,
-            status: "failed",
-            url: input.url,
-            txHash: null,
-            nonce: null,
-            checked: {
-                state: "failed",
-                pendingId: prepared.pendingId,
-                idempotencyKey: key,
-                rulesJson,
-                amountUsd: input.amountUsd,
+        const paymentErrorResult = {
+            paid: false,
+            delivered: false,
+            refusedBy: "payment_error",
+            receipt: null,
+            evidenceUrl,
+        };
+        try {
+            await withStoreLock(store, () => appendRow(store, decisionRow({
+                recommendation: "REFUSE",
+                reasonCodes: ["payment_error"],
+                atMs: prepared.spentAt,
+                status: "failed",
                 url: input.url,
-                spend: null,
-                result: unpaid("store_unreadable", evidenceUrl),
-            },
-        }));
-        throw error;
+                txHash: null,
+                nonce: null,
+                checked: {
+                    state: "failed",
+                    pendingId: prepared.pendingId,
+                    idempotencyKey: key,
+                    rulesJson,
+                    amountUsd: input.amountUsd,
+                    url: input.url,
+                    spend: null,
+                    result: paymentErrorResult,
+                },
+            })));
+        }
+        catch {
+            return { ...paymentErrorResult, recordError: errorText(error) };
+        }
+        return paymentErrorResult;
     }
     const signed = payment.signed === true || payment.status === "paid";
     const result = {

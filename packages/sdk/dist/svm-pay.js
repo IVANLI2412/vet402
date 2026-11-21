@@ -7,6 +7,17 @@ export const MEMO_PROGRAM_ADDRESS = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXgDLGmfcHr
 export const SVM_COMPUTE_UNIT_LIMIT = 60_000;
 export const SVM_COMPUTE_UNIT_PRICE_MICROLAMPORTS = 1;
 const BASE58_RE = /^[1-9A-HJ-NP-Za-km-z]{32,44}$/;
+/** Solana recent blockhash validity (ms) — paid seller retry must not hang past this. */
+export const SVM_BLOCKHASH_LIFETIME_MS = 90_000;
+function signalUntilDeadline(caller, waitMs) {
+    // setTimeout（AbortSignal.timeout ではなく）にして、試験で時計を進められるようにする。
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(new DOMException("seller wait deadline", "TimeoutError")), waitMs);
+    timer.unref?.();
+    if (caller === undefined)
+        return ctrl.signal;
+    return AbortSignal.any([caller, ctrl.signal]);
+}
 /**
  * web3.js を読む。**変数指定子**にしてあるのは、tsc / バンドラが静的依存として辿らないため
  * （MCP サーバが viem を読むのと同じ手）。入っていなければ署名の前に、原因を名指しで throw する。
@@ -193,6 +204,7 @@ export async function executeSvmPayment(args) {
         response = await args.fetch(args.resource, {
             method: args.method,
             redirect: "error",
+            signal: signalUntilDeadline(undefined, SVM_BLOCKHASH_LIFETIME_MS),
             headers: {
                 accept: "application/json",
                 [header.headerName]: header.headerValue,

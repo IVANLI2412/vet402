@@ -389,6 +389,18 @@ test("決済後の 500（レシートヘッダ無し）でも同じ鍵の 2 回�
   assert.equal(h.s.paid.length, 1);
 });
 
+test("決済段で throw したとき payment_error を記録し、同じ冪等鍵で安定した応答を返す", async () => {
+  const h = harness();
+  const opts = { idempotencyKey: "pay-throw-2", rules: OPEN_RULES, baseUrl: "http://evil.example/api/v1" };
+  const r = await payChecked({ url: base.resource, amountUsd: base.amountUsd, account: h.w.account, fetch: h.f.fetch, store: h.store, ...opts });
+  assert.equal(r.paid, false);
+  assert.equal(r.refusedBy, "payment_error");
+  const lines = readFileSync(h.store, "utf8").trim().split("\n").filter(Boolean);
+  const failed = lines.map((l) => JSON.parse(l)).find((row) => row.payChecked?.state === "failed");
+  assert.ok(failed?.payChecked?.result?.refusedBy === "payment_error");
+  assert.deepEqual(h.w.signAccesses(), []);
+});
+
 test("記録した支払いは次の呼び出しの時間窓に入る", async () => {
   const h = harness();
   const first = await call(h, { rules: { maxPerTxUsd: 1, maxCountPerHour: 1, requireAllow: true } });

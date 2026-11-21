@@ -217,6 +217,8 @@ export declare function executeX402Payment(args: {
     profile?: ChainProfile;
     x402Version: 1 | 2;
     fetch: typeof fetch;
+    /** When true, the supplied `fetch` already caps the paid seller wait (e.g. `pay()` with `source: "sdk-pay"`). */
+    sellerWaitOwnedByFetch?: boolean;
     onSigned?: (info: {
         nonce: string;
         authorization: Eip3009Authorization;

@@ -46,6 +46,8 @@ export declare const MEMO_PROGRAM_ADDRESS = "MemoSq4gqABAXKb96qnH8TysNcWxMyWCqXg
 /** Production values (`sol402-payer.ts`): 60k CU, and 1 microlamport/CU — inside the spec's ≤ 5. */
 export declare const SVM_COMPUTE_UNIT_LIMIT = 60000;
 export declare const SVM_COMPUTE_UNIT_PRICE_MICROLAMPORTS = 1;
+/** Solana recent blockhash validity (ms) — paid seller retry must not hang past this. */
+export declare const SVM_BLOCKHASH_LIFETIME_MS = 90000;
 /**
  * web3.js を読む。**変数指定子**にしてあるのは、tsc / バンドラが静的依存として辿らないため
  * （MCP サーバが viem を読むのと同じ手）。入っていなければ署名の前に、原因を名指しで throw する。

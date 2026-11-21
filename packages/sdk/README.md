@@ -30,6 +30,8 @@ const payee = await vouch.getPayeeScore("0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96
 console.log(payee.score, payee.recommendation, payee.dataDepth);
 
 // After an x402 payment settles, feed it back (weights future scores).
+// `payOrRefuse` may send `authNonce` and `source` on the attest body; the server accepts them
+// on the wire but does not persist them as nonce binding — track the payment by txHash / memo instead.
 await vouch.attestX402Payment({
   wallet: "0xd8dA6BF26964aF9D7eEd9e03E53415D37aA96045",
   txHash: "0x" + "11".repeat(32),
@@ -48,8 +50,10 @@ L0–L2 **facts** and the `ALLOW` / `WARN` / `BLOCK` **recommendation** in the s
 document. `resolve` turns whatever you hold (a URL, a domain, an address, a tx hash,
 a `chain:address` payee id) into the resource id that `getDecision` takes.
 
+Pass the **full URL including query** to `resolve` and to `getDecision` when you resolve yourself (`?q=` must carry the exact query string the seller uses — vet402 canonicalizes method and query, and dropping query can point at a different resource id).
+
 ```typescript
-const found = await vouch.resolve("https://api.example.com/v1/quote");
+const found = await vouch.resolve("https://api.example.com/v1/quote?symbol=BTC");
 const resourceId = found.resource?.resource_id; // sha256 hex, or undefined when unlisted
 if (resourceId) {
   const d = await vouch.getDecision(resourceId, { role: "payer", callerDialect: "v2" });
@@ -194,7 +198,8 @@ const r = await payOrRefuse({
 - The 402 must offer `scheme: "exact"`, network `solana:5eykt4UsFv8P8NJdTREpY1vzqKqZKvdp`, asset
   `EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v` (exact match), x402 v2, and an `extra.feePayer` that is
   neither `payTo` nor your signer. `payTo` must equal `payee` exactly — base58 is case-sensitive.
-  Otherwise: `chain_or_asset_mismatch` / `payee_mismatch` / `price_above_ceiling` / `price_above_declared`.
+  Otherwise: `chain_or_asset_mismatch` / `payee_mismatch` / `payee_unverified_on_rail` / `price_unverified` /
+  `price_above_ceiling` / `price_above_declared`.
 - On `ALLOW` the SDK builds the transaction itself (compute-unit limit, compute-unit price ≤ 5,
   `TransferChecked` to the ATA of `payTo`, a memo it generates), asks your signer to sign, and re-sends it to
   the seller. If the signed transaction's message is not byte-identical to what it built, nothing is sent.

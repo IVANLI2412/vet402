@@ -61,7 +61,12 @@ export type PayCheckedInput = {
 } & ({ account: PayerAccount; svm?: undefined } | { svm: SvmPayOptions; account?: undefined });
 
 /** Why `payChecked` did not pay, when the reason is not a spend rule. */
-export type PayCheckedStop = "store_unreadable" | "payment_pending" | "payee_unknown" | "decision_unavailable";
+export type PayCheckedStop =
+  | "store_unreadable"
+  | "payment_pending"
+  | "payee_unknown"
+  | "decision_unavailable"
+  | "payment_error";
 
 export type PayCheckedResult = {
   /** True only when `payOrRefuse` returned `status: "paid"`. */
@@ -912,29 +917,42 @@ export async function payChecked(input: PayCheckedInput): Promise<PayCheckedResu
   try {
     ({ payment, delivered } = await executePayment(input, fetchImpl, payer, prepared.payTo, prepared.resourceId));
   } catch (error) {
-    await appendRow(
-      store,
-      decisionRow({
-        recommendation: "REFUSE",
-        reasonCodes: ["evidence_unavailable"],
-        atMs: prepared.spentAt,
-        status: "failed",
-        url: input.url,
-        txHash: null,
-        nonce: null,
-        checked: {
-          state: "failed",
-          pendingId: prepared.pendingId,
-          idempotencyKey: key,
-          rulesJson,
-          amountUsd: input.amountUsd,
-          url: input.url,
-          spend: null,
-          result: unpaid("store_unreadable", evidenceUrl),
-        },
-      }),
-    );
-    throw error;
+    const paymentErrorResult: PayCheckedResult = {
+      paid: false,
+      delivered: false,
+      refusedBy: "payment_error",
+      receipt: null,
+      evidenceUrl,
+    };
+    try {
+      await withStoreLock(store, () =>
+        appendRow(
+          store,
+          decisionRow({
+            recommendation: "REFUSE",
+            reasonCodes: ["payment_error"],
+            atMs: prepared.spentAt,
+            status: "failed",
+            url: input.url,
+            txHash: null,
+            nonce: null,
+            checked: {
+              state: "failed",
+              pendingId: prepared.pendingId,
+              idempotencyKey: key,
+              rulesJson,
+              amountUsd: input.amountUsd,
+              url: input.url,
+              spend: null,
+              result: paymentErrorResult,
+            },
+          }),
+        ),
+      );
+    } catch {
+      return { ...paymentErrorResult, recordError: errorText(error) };
+    }
+    return paymentErrorResult;
   }
   const signed = payment.signed === true || payment.status === "paid";
   const result: PayCheckedResult = {

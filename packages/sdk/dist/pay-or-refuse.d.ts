@@ -100,7 +100,7 @@ export declare const DEFAULT_MAX_PER_TX_USD = 1;
  *    $1 の 402 を上限内だからと払うのは、上限は守っても名乗りを破っている。サーバの
  *    `caller_policy` は 402 を見ないのでこの語を出せない（SDK だけの語・parity テストが固定）
  */
-export declare const PAY_REFUSE_REASONS: readonly ["price_above_ceiling", "price_above_declared", "payee_mismatch", "chain_or_asset_mismatch", "evidence_unavailable", "payee_recommendation_block", "payee_recommendation_not_allow", "insufficient_delivery_evidence", "insufficient_subgraph_evidence", "resource_uncatalogued", "resource_unresolved_host_known", "decision_stale", "subgraph_evidence_unavailable", "no_eligible_accept", "allowed_by_caller_policy", "insufficient_chain_evidence", "chain_evidence_unavailable", "ens_name_unresolved", "ens_offer_missing", "ens_offer_malformed", "ens_offer_mismatch", "ens_attestation_missing", "ens_attestation_malformed", "ens_attestation_signer_mismatch", "ens_attestation_stale", "ens_attester_unresolved", "ens_attester_unpinned", "ens_attester_anchor_changed", "ens_record_changed_after_attestation", "ens_evidence_unavailable", "insufficient_ens_attestations", "vet402_unreachable"];
+export declare const PAY_REFUSE_REASONS: readonly ["price_above_ceiling", "price_above_declared", "payee_mismatch", "chain_or_asset_mismatch", "evidence_unavailable", "payee_recommendation_block", "payee_recommendation_not_allow", "insufficient_delivery_evidence", "insufficient_subgraph_evidence", "resource_uncatalogued", "resource_unresolved_host_known", "decision_stale", "subgraph_evidence_unavailable", "no_eligible_accept", "allowed_by_caller_policy", "insufficient_chain_evidence", "chain_evidence_unavailable", "ens_name_unresolved", "ens_offer_missing", "ens_offer_malformed", "ens_offer_mismatch", "ens_attestation_missing", "ens_attestation_malformed", "ens_attestation_signer_mismatch", "ens_attestation_stale", "ens_attester_unresolved", "ens_attester_unpinned", "ens_attester_anchor_changed", "ens_record_changed_after_attestation", "ens_evidence_unavailable", "insufficient_ens_attestations", "vet402_unreachable", "payee_unverified_on_rail", "price_unverified"];
 export type PayRefuseReason = (typeof PAY_REFUSE_REASONS)[number];
 /** 証拠源。`payOrRefuse` の判定が「誰の台帳を読んだか」を機械可読で残す。 */
 export type PayEvidenceSource = "vet402" | "subgraph" | "chain" | "ens";
@@ -437,7 +437,7 @@ export type PayOrRefuseResult = {
     txHash: string | null;
     /**
      * 署名した EIP-3009 認可の nonce。**我々しか作れない一回性の値**で、
-     * 「その決済 tx はこの購入のものか」を後から確かめる唯一の手段（監査の nonce 束縛）。
+     * 「その決済 tx はこの購入のものか」を呼び手が後から確かめる手がかり（attest に載せるが、サーバは保存しない）。
      * 署名していない拒否経路では null——そこが「署名が存在しない」ことの機械可読な印になる。
      */
     nonce: string | null;

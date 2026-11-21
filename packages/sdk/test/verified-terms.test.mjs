@@ -221,6 +221,119 @@ test("V7 WARN 免除＋床＋verified_terms 一致 → paid", async () => {
   assert.equal(signed.length, 1);
 });
 
+test("S7 WARN+allowWarn verified_terms:null payees name GOOD 402 payTo=EVIL → refused・署名0", async () => {
+  const signed = [];
+  const acc = { ...account, signTypedData: async () => (signed.push(1), "0x" + "00".repeat(65)) };
+  const body = {
+    ...decisionBody(null, [`eip155:8453:${GOOD}`]),
+    recommendation: "WARN",
+    reason_codes: ["l1_latest_failed"],
+    facts: { payees: [`eip155:8453:${GOOD}`], l1: { n_delivered: 3, n_attempts: 4 } },
+  };
+  const fetch = async (input, init = {}) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.includes("/decision")) return new Response(JSON.stringify(body), { status: 200 });
+    return stubFetch(null, EVIL, "1000000")(input, init);
+  };
+  const r = await pay(RESOURCE, undefined, { account: acc, fetch, allowWarn: true });
+  assert.equal(r.status, "refused");
+  assert.equal(signed.length, 0);
+  assert.ok(r.reasonCodes.includes("payee_mismatch"));
+});
+
+test("S9 ALLOW verified_terms:null payees match honest payTo price x20 → price_unverified", async () => {
+  const signed = [];
+  const acc = { ...account, signTypedData: async () => (signed.push(1), "0x" + "00".repeat(65)) };
+  const fetch = async (input, init = {}) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.includes("/decision")) {
+      return new Response(JSON.stringify(decisionBody(null, [`eip155:8453:${GOOD}`])), { status: 200 });
+    }
+    return stubFetch(null, GOOD, "1000000")(input, init);
+  };
+  const r = await pay(RESOURCE, undefined, { account: acc, fetch });
+  assert.equal(r.status, "refused");
+  assert.equal(signed.length, 0);
+  assert.ok(r.reasonCodes.includes("price_unverified"));
+});
+
+test("T3 cross-rail payee not on accept chain → payee_unverified_on_rail（payee_mismatch ではない）", async () => {
+  const signed = [];
+  const acc = { ...account, signTypedData: async () => (signed.push(1), "0x" + "00".repeat(65)) };
+  const bscTerms = {
+    pay_to: GOOD,
+    asset: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+    amount: "10000",
+    network: "eip155:56",
+    scheme: "exact",
+  };
+  const fetch = async (input, init = {}) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.includes("/decision")) {
+      return new Response(
+        JSON.stringify({
+          ...decisionBody(bscTerms, [`eip155:56:${GOOD}`]),
+        }),
+        { status: 200 },
+      );
+    }
+    return stubFetch(bscTerms, GOOD, "10000")(input, init);
+  };
+  const r = await pay(RESOURCE, undefined, { account: acc, fetch });
+  assert.equal(r.status, "refused");
+  assert.equal(signed.length, 0);
+  assert.ok(r.reasonCodes.includes("payee_unverified_on_rail"));
+  assert.ok(!r.reasonCodes.includes("payee_mismatch"));
+});
+
+test("S10a same chain wrong decimals → price_unverified（raw 単位では比べない）", async () => {
+  const signed = [];
+  const acc = { ...account, signTypedData: async () => (signed.push(1), "0x" + "00".repeat(65)) };
+  const badDec = {
+    ...TERMS,
+    decimals: 18,
+    amount: "100",
+  };
+  const fetch = async (input, init = {}) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.includes("/decision")) return new Response(JSON.stringify(decisionBody(badDec)), { status: 200 });
+    return stubFetch(badDec, GOOD, "1000000")(input, init);
+  };
+  const r = await pay(RESOURCE, undefined, { account: acc, fetch });
+  assert.equal(r.status, "refused");
+  assert.equal(signed.length, 0);
+  assert.ok(r.reasonCodes.includes("price_unverified"));
+  assert.ok(!r.reasonCodes.includes("price_above_declared"));
+});
+
+test("S10 verified_terms on another chain decimals → price_unverified", async () => {
+  const signed = [];
+  const acc = { ...account, signTypedData: async () => (signed.push(1), "0x" + "00".repeat(65)) };
+  const bscTerms = {
+    pay_to: GOOD,
+    asset: "0x8ac76a51cc950d9822d68b83fe1ad97b32cd580d",
+    amount: "50000000000000000",
+    network: "eip155:56",
+    scheme: "exact",
+  };
+  const fetch = async (input, init = {}) => {
+    const url = input instanceof Request ? input.url : String(input);
+    if (url.includes("/decision")) {
+      return new Response(
+        JSON.stringify({
+          ...decisionBody(bscTerms, [`eip155:8453:${GOOD}`]),
+        }),
+        { status: 200 },
+      );
+    }
+    return stubFetch(bscTerms, GOOD, "1000000")(input, init);
+  };
+  const r = await pay(RESOURCE, undefined, { account: acc, fetch });
+  assert.equal(r.status, "refused");
+  assert.equal(signed.length, 0);
+  assert.ok(r.reasonCodes.includes("price_unverified"));
+});
+
 test("V5 skipVerifiedTermsCheck で照合を外せる", async () => {
   const signed = [];
   const acc = { ...account, signTypedData: async () => (signed.push(1), "0x" + "00".repeat(65)) };
