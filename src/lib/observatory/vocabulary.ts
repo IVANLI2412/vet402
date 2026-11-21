@@ -285,7 +285,13 @@ export const VOCABULARY_GROUP_LABELS: Record<VocabularyTerm["group"], string> = 
  * DefinedTermSet JSON-LD。回答エンジンが「settled とは何か」を語として引ける形。
  * 定義文は上の配列そのままで、頁の HTML と 1 文字も違わない。
  */
-export function vocabularyJsonLd(siteUrl: string) {
+/** Short form: each term keeps its first sentence so the JSON-LD stays small (FIX_UX4, 2026-11-21). */
+function firstSentence(text: string): string {
+  const i = text.indexOf(". ");
+  return i === -1 ? text : text.slice(0, i + 1);
+}
+
+export function vocabularyJsonLd(siteUrl: string, opts: { short?: boolean } = {}) {
   const setUrl = `${siteUrl}/observatory/methodology`;
   return {
     "@context": "https://schema.org",
@@ -300,7 +306,7 @@ export function vocabularyJsonLd(siteUrl: string) {
       "@type": "DefinedTerm",
       "@id": `${setUrl}#term-${t.term}`,
       name: t.term,
-      description: t.definition,
+      description: opts.short ? firstSentence(t.definition) : t.definition,
       inDefinedTermSet: `${setUrl}#vocabulary`,
     })),
   };

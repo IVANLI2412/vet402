@@ -130,8 +130,8 @@ export default async function ObservatoryMethodologyPage() {
     inLanguage: "en",
   };
 
-  // DefinedTermSet JSON-LD (vocabularyJsonLd) is omitted from first HTML; §10 keeps the same definitions.
-  void vocabularyJsonLd;
+  // Short DefinedTermSet JSON-LD (first sentence per term) keeps the terms machine-readable at a small size. §10 keeps the full definitions.
+  const vocabulary = vocabularyJsonLd(SITE_URL, { short: true });
 
   return (
     <main className="px-4 pt-8 pb-4 sm:px-6 md:px-8 md:pt-12">
@@ -148,6 +148,12 @@ export default async function ObservatoryMethodologyPage() {
           nonce={nonce}
           suppressHydrationWarning
           dangerouslySetInnerHTML={{ __html: safeJsonLd(article) }}
+        />
+        <script
+          type="application/ld+json"
+          nonce={nonce}
+          suppressHydrationWarning
+          dangerouslySetInnerHTML={{ __html: safeJsonLd(vocabulary) }}
         />
         <div className="doc-head doc-head-compact">
           <div className="doc-head-col">
