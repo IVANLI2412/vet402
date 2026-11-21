@@ -176,8 +176,9 @@ test("signup eyebrow says Free API key, not Access request", () => {
   assert.doesNotMatch(src, /Access request/);
 });
 
-test("observatory network field keeps full eip155:8453 placeholder width at 360px", () => {
+test("observatory network field stays readable at 360px (select, not eip155 placeholder)", () => {
   const src = read("src/app/observatory/page.tsx");
-  assert.match(src, /placeholder="eip155:8453"/);
+  assert.match(src, /<select[^>]*name="network"/);
+  assert.doesNotMatch(src, /placeholder="eip155:8453"/);
   assert.match(src, /min-w-\[13ch\]/);
 });
