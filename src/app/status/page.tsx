@@ -16,6 +16,7 @@ import {
 } from "@/lib/health/snapshot";
 import { formatPct1 } from "@/lib/util/pct";
 import { readChainFreshness, type ChainFreshness } from "@/lib/health/chain-freshness";
+import { CurrentIndexFreshness } from "@/components/site/status/CurrentIndexFreshness";
 
 /**
  * /status — B5, 2026-08-15. The record of vet402's own uptime, published the
@@ -234,7 +235,10 @@ export default async function StatusPage() {
         <p className="doc-p">
           {verdict.kind === "fresh" ? (
             <>
-              <strong>{verdict.status}</strong>, last sampled {fmtDateTime(verdict.checkedAt)}.
+              <strong>{verdict.status}</strong>, last sampled {fmtDateTime(verdict.checkedAt)}.{" "}
+              <Suspense fallback={<span className="text-brand-lift">Reading settlements index…</span>}>
+                <CurrentIndexFreshness />
+              </Suspense>
             </>
           ) : verdict.kind === "stale" ? (
             <>
