@@ -57,7 +57,8 @@ export const TOOL_TEXT = {
   check_my_x402_endpoint: {
     title: "Check my x402 endpoint",
     description:
-      "For x402 sellers: shows whether vet402 finds the endpoint in the catalogs it reads, what happened when vet402 paid it, and when vet402 can buy again. " +
+      "Look up vet402's records for the x402 listings on one seller host. Read-only. It does not pay. " +
+      "Shows whether vet402 finds the endpoint in the catalogs it reads, what happened when vet402 paid it, and when vet402 can buy again. " +
       "Pass any URL on your host. The answer covers the listings on that host as shown on the public seller page, the failure modes vet402 recorded with links to the fix-first page, and the five most recent purchases with their transactions. " +
       "To look up a URL on a host you do not run, use check_x402_seller. " +
       "It changes no data, needs no API key and has no charge. Up to 30 calls per minute per IP. " +
@@ -66,7 +67,8 @@ export const TOOL_TEXT = {
   find_x402_sellers: {
     title: "Find x402 sellers with delivered purchases",
     description:
-      "Finds x402 listings whose URL or description matches query, among listings with at least one vet402 paid test in the last 30 days and a delivered rate of at least 80%. " +
+      "Which x402 listings match these words and have a strong delivered record in the last 30 days? Read-only. It does not pay. " +
+      "Listings whose URL or description matches query, among those with at least one vet402 paid test in the last 30 days and a delivered rate of at least 80%. " +
       "Order matches GET /api/v1/find with the same words: the 95% Wilson lower bound on the delivered share, then deliveries in the last 30 days, then the latest paid test. " +
       "Each row includes delivered_rate_pct and wilson_lower_bound. Listings that vet402 has not paid yet come back in untested, in no particular order. " +
       "When query trims to nothing useful, the tool answers invalid_query. Short queries of one or two characters are accepted here though GET /api/v1/find requires at least three. " +
@@ -77,6 +79,7 @@ export const TOOL_TEXT = {
   check_8004_agent: {
     title: "Re-read ERC-8004 feedback proofOfPayment",
     description:
+      "Look up one ERC-8004 feedback and whether its payment proof matches. Read-only. It does not pay. " +
       "Pass agentId. Add client and feedbackIndex when the person names them. " +
       "check_8004_agent loads one ERC-8004 Reputation Registry feedback on Base by default (chain eip155:8453), fetches its feedbackURI JSON, re-reads proofOfPayment on chain, and returns the same verdict and checks as GET /api/v1/erc8004/check. Recipient pass comes from vet402 state (agent payTo, owner, agentWallet). Payees named inside the feedback body do not count. " +
       "Pass agentId with client to read that client's latest feedback, or with feedbackIndex to read one feedback. Pass client when more than one client left feedback at the same index. chain accepts eip155:8453 and defaults to it. verdict is verified, verified_payment_unlinked_client, mismatch, no_proof, or unreadable. " +
@@ -86,7 +89,8 @@ export const TOOL_TEXT = {
   check_payment_proof: {
     title: "Read a payment response on its chain",
     description:
-      "check_payment_proof reads a seller PAYMENT-RESPONSE header, or a network and a transaction hash, on a chain vet402 reads again after a purchase. " +
+      "Read a seller payment receipt on its chain. Read-only. It does not pay. " +
+      "Reads a seller PAYMENT-RESPONSE header, or a network and a transaction hash, on a chain vet402 reads again after a purchase. " +
       "It returns whether the transaction is on that chain, plus from, to, asset and amount in atomic units. " +
       "A chain outside that set comes back as unsupported_network. vet402 does not pay and does not sign. " +
       "Use it to confirm the transaction a seller returned after a payment. For the vet402 purchase record of a URL, use check_x402_seller. " +
