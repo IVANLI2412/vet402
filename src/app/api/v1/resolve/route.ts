@@ -6,6 +6,14 @@ import { ACCEPTED_QUERY_FORMS, classifyQuery, explainInvalidQuery } from "@/lib/
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { isKeylessRequest, recordClientUsage } from "@/lib/api/client-usage";
 import { exportDisallowedMethodHandlers } from "@/lib/api/method-not-allowed";
+import { rateLimitPolicyHeader } from "@/lib/api/ip-rate-limit";
+
+const KEYLESS_POLICY = rateLimitPolicyHeader(RESOLVE_KEYLESS_LIMIT, RESOLVE_KEYLESS_WINDOW_MS);
+
+/** Keyless validation errors must not be CDN-shared with per-IP RateLimit-Remaining (same as /check). */
+function keylessPrivateHeaders(headers: Record<string, string>): Record<string, string> {
+  return { ...headers, "RateLimit-Policy": KEYLESS_POLICY, "Cache-Control": "private, no-store" };
+}
 
 // §7.3 / §9.1: GET /api/v1/resolve?q={url|domain|address|tx|payee_id}[&method=GET|POST|…]
 // キー不要。ID を持たない呼び手が「この URL / この受取先 / この tx は何か」を
@@ -30,7 +38,7 @@ export async function GET(request: NextRequest) {
     };
     if (invalid?.suggestion) body.suggestion = invalid.suggestion;
     if (q && q.trim().length > 0 && q.length <= 2048) body.query = classifyQuery(q);
-    return NextResponse.json(body, { status: 400, headers: gate.headers });
+    return NextResponse.json(body, { status: 400, headers: keylessPrivateHeaders(gate.headers) });
   }
   // 2026-09-29 監査 7 周目: `method`（任意）で URL の問いを 1 つの method に絞る。支払う側が
   // 「払う method の正規の resource_id」を得るため。英字 1〜10 文字以外は 400 invalid_method。
@@ -38,7 +46,7 @@ export async function GET(request: NextRequest) {
   if (methodRaw !== null && !/^[A-Za-z]{1,10}$/.test(methodRaw)) {
     return NextResponse.json(
       { error: "invalid_method", expected: "method", message: "method must be an HTTP method name such as GET or POST.", documentation: "https://vet402.com/docs/api#endpoints" },
-      { status: 400, headers: gate.headers },
+      { status: 400, headers: keylessPrivateHeaders(gate.headers) },
     );
   }
   try {
@@ -51,7 +59,10 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(result, { headers: gate.cacheHeaders });
   } catch (error) {
     logServerErrorSafe("resolve", error);
-    return NextResponse.json({ error: "resolve_unavailable" }, { status: 503, headers: gate.headers });
+    return NextResponse.json(
+      { error: "resolve_unavailable" },
+      { status: 503, headers: keylessPrivateHeaders(gate.headers) },
+    );
   }
 }
 const __disallowed = exportDisallowedMethodHandlers(["GET"]);
