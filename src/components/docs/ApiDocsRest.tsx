@@ -687,7 +687,10 @@ app.use("/api/paid", createExpressGate({
             below are 1 unit per call (a batch of N is N). Key-less calls spend no monthly
             units: <code>/decision</code> without a key ({keylessDecisionPerMinute()}/min per IP), <code>/resolve</code>{" "}
             (60/min per IP), and the observatory and accuracy reads each have their own per-IP
-            window instead.
+            window instead. Those key-less paths return{" "}
+            <code>RateLimit-Limit</code>, <code>RateLimit-Remaining</code>, and{" "}
+            <code>RateLimit-Reset</code> (not <code>X-RateLimit-*</code>, which is only for
+            monthly score quota).
           </li>
           <li>
             <strong>No per-second burst throttle on authenticated calls today.</strong>{" "}
