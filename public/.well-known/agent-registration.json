@@ -9,11 +9,16 @@
       "endpoint": "https://vet402.com/"
     },
     {
+      "name": "MCP",
+      "endpoint": "https://vet402.com/mcp",
+      "version": "2025-06-18"
+    },
+    {
       "name": "wallet",
       "endpoint": "eip155:42220:0xc9c7b38C0942914fC8EA12063BC92dcd3b581670"
     }
   ],
-  "x402Support": false,
+  "x402Support": true,
   "active": true,
   "registrations": [
     {

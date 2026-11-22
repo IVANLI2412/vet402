@@ -6,6 +6,36 @@
 
 *vet402 buys. It settles. It publishes the measurements.*
 
+An x402 seller can take the payment and return nothing. vet402 pays sellers with its own funds, records whether the paid response came back, and answers one question before your agent signs: did this seller deliver when vet402 paid? Live totals (settled, delivered, settled but not delivered): https://vet402.com/api/v1/observatory/state
+
+**Try it, no key:**
+
+```bash
+curl -sL "https://vet402.com/api/v1/check?url=https://seller.example/api/endpoint"
+```
+
+`recommendation` is `ALLOW`, `WARN` or `BLOCK`; `delivery` shows paid attempts, delivered and settled-but-not-delivered for the last 30 days.
+
+**Add it to your agent as an MCP server** (Claude, Cursor, any MCP client; hosted, no key, CORS open):
+
+```json
+{ "mcpServers": { "vet402": { "url": "https://vet402.com/mcp" } } }
+```
+
+**Check from code before paying:**
+
+```bash
+npm install vet402
+```
+
+```typescript
+import { check } from "vet402";
+const r = await check("https://seller.example/api/endpoint");
+if (r.recommendation === "BLOCK") throw new Error("vet402: seller did not deliver when paid");
+```
+
+ERC-8004: vet402 is agent 9907 on Celo ([registration file](https://vet402.com/.well-known/agent-registration.json)). Data license: CC BY 4.0.
+
 ## Chains vet402 buys on
 
 vet402 pays x402 sellers on the chains below with its own funds and publishes every attempt. Counts were read from https://vet402.com/api/v1/observatory/state at 2026-10-23 09:10 UTC (whole ledger). At that read vet402 had purchase activity on ten chains. Avalanche C-Chain started on 2026-10-26, after that read, so it has no row here. Robinhood Chain and any chain added later may also be missing from the table. For counts not in the table, read live `l1.byChain` at the same URL.
