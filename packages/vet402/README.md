@@ -14,6 +14,14 @@ Setup guide for each stack: [vet402.com/connect](https://vet402.com/connect).
 A free API key: [vet402.com/signup](https://vet402.com/signup). `check` works without one
 (60 requests/min per IP).
 
+## From the terminal
+
+```bash
+npx vet402 check https://api.example.com/v1/quote
+```
+
+Prints `ALLOW`, `WARN`, `BLOCK` or `UNKNOWN` with the reasons and the public record. Exit code 0 ALLOW, 1 BLOCK, 2 WARN or UNKNOWN, 3 usage or network error. `--json` prints the full result. No key, no wallet, nothing is paid.
+
 ## Buyer: check a URL before paying
 
 ```typescript
