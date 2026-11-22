@@ -41,7 +41,7 @@ export async function main(argv, out = process.stdout, err = process.stderr) {
     }
     let r;
     try {
-        r = await check(url, { apiKey: process.env.VET402_API_KEY || undefined });
+        r = await check(url);
     }
     catch (e) {
         err.write(`${e instanceof Error ? e.message : String(e)}\n`);

@@ -40,7 +40,7 @@ export async function main(argv: string[], out = process.stdout, err = process.s
   }
   let r: CheckResult;
   try {
-    r = await check(url, { apiKey: process.env.VET402_API_KEY || undefined });
+    r = await check(url);
   } catch (e) {
     err.write(`${e instanceof Error ? e.message : String(e)}\n`);
     return 3;
