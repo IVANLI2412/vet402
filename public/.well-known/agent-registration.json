@@ -15,6 +15,10 @@
     },
     {
       "name": "wallet",
+      "endpoint": "eip155:42220:0x970b37b3c58edc62cccb7beeab5972bc7c6b0435"
+    },
+    {
+      "name": "wallet",
       "endpoint": "eip155:42220:0xc9c7b38C0942914fC8EA12063BC92dcd3b581670"
     }
   ],
