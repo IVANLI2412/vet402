@@ -1403,6 +1403,9 @@ paths:
                   method_url: { type: string, format: uri }
                   license: { type: string }
                   license_url: { type: string, format: uri }
+                  rate_formula:
+                    type: string
+                    description: Version of the delivery rate formula. v1.0-wilson95 is the 95% Wilson score lower bound of delivered over settled (delivered plus settled_not_delivered), in basis points, rounded down.
                   row_count: { type: integer, description: Rows in this page. }
                   total_rows: { type: integer, description: Rows after filters, all pages. }
                   next_cursor: { type: string, nullable: true }
@@ -1426,6 +1429,14 @@ paths:
                         settled_not_delivered_30d: { type: integer }
                         last_attempt_at_30d: { type: string, format: date-time, nullable: true }
                         last_delivered_at_30d: { type: string, format: date-time, nullable: true }
+                        delivery_rate_lower_bps_30d:
+                          type: integer
+                          nullable: true
+                          description: 95% Wilson lower bound of delivered_30d over settled purchases (delivered_30d plus settled_not_delivered_30d), 0 to 10000 basis points. Null when nothing settled in the window.
+                        delivery_rate_band_30d:
+                          type: string
+                          enum: [insufficient, provisional, established]
+                          description: insufficient below 5 settled purchases, provisional from 5 to 29, established from 30.
                         record_url: { type: string, format: uri }
                       required:
                         - url
@@ -1439,6 +1450,8 @@ paths:
                         - settled_not_delivered_30d
                         - last_attempt_at_30d
                         - last_delivered_at_30d
+                        - delivery_rate_lower_bps_30d
+                        - delivery_rate_band_30d
                         - record_url
         "400":
           $ref: "#/components/responses/BadRequest"

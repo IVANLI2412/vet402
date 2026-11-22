@@ -78,6 +78,7 @@ test("#7 response headers on success path shape", async () => {
     as_of: "2026-10-01T00:00:00.000Z",
     window_days: DELIVERY_FEED_WINDOW_DAYS,
     method_url: DELIVERY_FEED_METHOD_URL,
+    rate_formula: "v1.0-wilson95" as const,
     license: DELIVERY_FEED_LICENSE,
     license_url: "https://creativecommons.org/licenses/by/4.0/",
     row_count: 0,

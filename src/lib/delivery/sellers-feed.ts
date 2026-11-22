@@ -18,6 +18,7 @@ import { feedListedIn, type FeedListedIn } from "./listed-in";
 import { feedPriceUsd } from "./feed-price";
 import type { DeliverySellersQuery } from "./sellers-feed-query";
 import { compareFeedRows, decodeFeedCursor, encodeFeedCursor } from "./sellers-feed-query";
+import { DELIVERY_RATE_FORMULA, deliveryRate, type DeliveryRateBand } from "./delivery-rate";
 
 export type Db = NonNullable<ReturnType<typeof getDb>>;
 
@@ -40,6 +41,8 @@ export const DELIVERY_FEED_PUBLIC_ROW_KEYS = [
   "settled_not_delivered_30d",
   "last_attempt_at_30d",
   "last_delivered_at_30d",
+  "delivery_rate_lower_bps_30d",
+  "delivery_rate_band_30d",
   "record_url",
 ] as const;
 
@@ -61,7 +64,11 @@ export type DeliveryFeedRow = {
   window_purchase_networks: string[];
 };
 
-export type DeliveryFeedPublicRow = Omit<DeliveryFeedRow, "endpoint_id" | "window_purchase_networks">;
+export type DeliveryFeedPublicRow = Omit<DeliveryFeedRow, "endpoint_id" | "window_purchase_networks"> & {
+  /** 95% Wilson 下限（bps）。settled（delivered + settled_not_delivered）が 0 なら null。式は rate_formula。 */
+  delivery_rate_lower_bps_30d: number | null;
+  delivery_rate_band_30d: DeliveryRateBand;
+};
 
 export type DeliveryFeedPayload = {
   as_of: string;
@@ -69,6 +76,7 @@ export type DeliveryFeedPayload = {
   method_url: string;
   license: string;
   license_url: string;
+  rate_formula: typeof DELIVERY_RATE_FORMULA;
   row_count: number;
   total_rows: number;
   next_cursor: string | null;
@@ -326,8 +334,14 @@ function feedRowAfterCursor(r: DeliveryFeedRow, cursor: { url: string; method: s
 }
 
 export function deliveryFeedPublicRow(row: DeliveryFeedRow): DeliveryFeedPublicRow {
-  const { endpoint_id: _id, window_purchase_networks: _purchaseNets, ...rest } = row;
-  return rest;
+  const { endpoint_id: _id, window_purchase_networks: _purchaseNets, record_url, ...rest } = row;
+  const rate = deliveryRate(row.delivered_30d, row.settled_not_delivered_30d);
+  return {
+    ...rest,
+    delivery_rate_lower_bps_30d: rate.lower_bps,
+    delivery_rate_band_30d: rate.band,
+    record_url,
+  };
 }
 
 export function buildDeliveryFeedPayload(snapshot: DeliveryFeedSnapshot, query: DeliverySellersQuery): DeliveryFeedPayload {
@@ -340,6 +354,7 @@ export function buildDeliveryFeedPayload(snapshot: DeliveryFeedSnapshot, query: 
     method_url: DELIVERY_FEED_METHOD_URL,
     license: DELIVERY_FEED_LICENSE,
     license_url: DELIVERY_FEED_LICENSE_URL,
+    rate_formula: DELIVERY_RATE_FORMULA,
     row_count: page.length,
     total_rows: filtered.length,
     next_cursor,

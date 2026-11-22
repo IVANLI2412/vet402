@@ -471,6 +471,7 @@ api.example.com,521e929e-…,api.example.com/v1/x,delivered,,,,,2026-09-29T00:02
   "method_url": "https://vet402.com/observatory/methodology",
   "license": "CC-BY-4.0",
   "license_url": "https://creativecommons.org/licenses/by/4.0/",
+  "rate_formula": "v1.0-wilson95",
   "row_count": 1,
   "total_rows": 1,
   "next_cursor": null,
@@ -486,6 +487,8 @@ api.example.com,521e929e-…,api.example.com/v1/x,delivered,,,,,2026-09-29T00:02
     "settled_not_delivered_30d": 0,
     "last_attempt_at_30d": "2026-10-27T00:00:00Z",
     "last_delivered_at_30d": "2026-10-26T00:00:00Z",
+    "delivery_rate_lower_bps_30d": 3423,
+    "delivery_rate_band_30d": "insufficient",
     "record_url": "https://vet402.com/observatory/e/00000000-0000-0000-0000-000000000001"
   }]
 }`,

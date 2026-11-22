@@ -58,6 +58,8 @@ export const MCP_DOCS_FEED_FIELDS: { name: string; meaning: string }[] = [
   { name: "settled_not_delivered_30d", meaning: MCP_DOCS_SETTLED_NOT_DELIVERED_FEED },
   { name: "last_attempt_at_30d", meaning: MCP_DOCS_FEED_FIELD_LAST_ATTEMPT },
   { name: "last_delivered_at_30d", meaning: MCP_DOCS_FEED_FIELD_LAST_DELIVERED },
+  { name: "delivery_rate_lower_bps_30d", meaning: "95% Wilson lower bound of delivered over settled purchases in the window, in basis points (0 to 10000), or null when nothing settled. Formula v1.0-wilson95." },
+  { name: "delivery_rate_band_30d", meaning: "insufficient below 5 settled purchases, provisional from 5 to 29, established from 30." },
   { name: "record_url", meaning: "Public observatory record for this listing." },
 ];
 
