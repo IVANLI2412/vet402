@@ -3,7 +3,7 @@
   "version": "0.3.3",
   "type": "module",
   "bin": {
-    "vet402-mcp": "./dist/index.js"
+    "vet402-mcp": "dist/index.js"
   },
   "scripts": {
     "build": "tsc && chmod +x dist/index.js",

@@ -39,6 +39,6 @@ test("usage errors exit 3 and print usage", async () => {
 
 test("package.json declares the vet402 bin and the built file starts with a shebang", () => {
   const pkg = JSON.parse(readFileSync(new URL("../package.json", import.meta.url), "utf8"));
-  assert.deepEqual(pkg.bin, { vet402: "./dist/cli.js" });
+  assert.deepEqual(pkg.bin, { vet402: "dist/cli.js" });
   assert.match(readFileSync(new URL("../dist/cli.js", import.meta.url), "utf8"), /^#!\/usr\/bin\/env node\n/);
 });
