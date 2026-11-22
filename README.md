@@ -11,6 +11,12 @@ An x402 seller can take the payment and return nothing. vet402 pays sellers with
 **Try it, no key:**
 
 ```bash
+npx vet402 check https://seller.example/api/endpoint
+```
+
+or
+
+```bash
 curl -sL "https://vet402.com/api/v1/check?url=https://seller.example/api/endpoint"
 ```
 
