@@ -65,6 +65,7 @@ test("#1 2025-06-18 で initialize → tools/list: ① ③ ②、各 tool に ti
   const { FIND_TOOL_ENABLED } = await import("@/lib/mcp/tools");
   const expected = [
     "check_8004_agent",
+    "check_concordium_agent",
     "check_x402_seller",
     "check_my_x402_endpoint",
     "check_payment_proof",
@@ -82,7 +83,7 @@ test("#1 2025-06-18 で initialize → tools/list: ① ③ ②、各 tool に ti
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
-        openWorldHint: t.name === "check_payment_proof" || t.name === "check_8004_agent",
+        openWorldHint: t.name === "check_payment_proof" || t.name === "check_8004_agent" || t.name === "check_concordium_agent",
       },
       `${t.name} annotations`,
     );
@@ -286,6 +287,7 @@ test("§2.6 packages/mcp-server の README に「ネット上の入口」の節�
     "find_x402_sellers",
     "check_payment_proof",
     "check_8004_agent",
+    "check_concordium_agent",
   ]) {
     assert.ok(readme.includes(`\`${name}\``), name);
   }

@@ -35,6 +35,7 @@ The hosted endpoint has its own read-only tools. `check_x402_seller` and
 | `find_x402_sellers` | Listings that match `query` with at least one vet402 paid test in the last 30 days and a delivered rate of at least 80%, in the same Wilson order as `GET /api/v1/find` |
 | `check_payment_proof` | Reads a PAYMENT-RESPONSE header or a network and a transaction on the chains vet402 reads again after a purchase, and returns found, from, to, asset and amount in atomic units |
 | `check_8004_agent` | Same JSON as `GET /api/v1/erc8004/check`: re-read one ERC-8004 Reputation Registry feedback and its proofOfPayment |
+| `check_concordium_agent` | One Concordium testnet CIS-8004 agent: the badge status from the agent registry and vet402's verdict (go, no or unproven) from its payments to that agent, with the transaction behind it |
 
 The hosted endpoint does not pay and holds no signer. `pay_if_trusted` stays
 in this stdio package only. Limits: 120 requests per minute per IP, plus 30 per

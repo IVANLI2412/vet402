@@ -174,6 +174,7 @@ export default async function McpDocsPage() {
               ["find_x402_sellers", TOOL_TEXT.find_x402_sellers],
               ["check_payment_proof", TOOL_TEXT.check_payment_proof],
               ["check_8004_agent", TOOL_TEXT.check_8004_agent],
+              ["check_concordium_agent", TOOL_TEXT.check_concordium_agent],
             ] as const
           ).map(([name, meta]) => (
             <div key={name} className="space-y-2">

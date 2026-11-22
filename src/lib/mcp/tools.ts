@@ -30,9 +30,12 @@ import { getErc8004CheckCached } from "@/lib/erc8004-check/cache";
 import { pct1 } from "@/lib/util/pct";
 import type { FoundListing, HostExtras } from "./reads";
 import { runCheckPaymentProof } from "@/lib/payment-proof/handle";
+import { checkConcordiumAgent, isConcordiumAgent } from "./concordium";
 import {
   check8004AgentInput,
   check8004AgentOutput,
+  checkConcordiumAgentInput,
+  checkConcordiumAgentOutput,
   checkEndpointInput,
   checkEndpointOutput,
   checkPaymentProofInput,
@@ -66,6 +69,7 @@ export const TOOL_NAMES = {
   checkPayment: "check_payment_proof",
   findSellers: "find_x402_sellers",
   check8004: "check_8004_agent",
+  checkConcordium: "check_concordium_agent",
 } as const;
 
 const FIND_MIN_DELIVERED_PCT = Math.round(FIND_MIN_DELIVERED_RATE * 100);
@@ -89,6 +93,8 @@ export type McpDeps = {
   findAlternatives: (like: string, poolLimit: number) => Promise<{ fetchedAt: string; listings: FindListing[] }>;
   findUntested: (like: string) => Promise<FoundListing[]>;
   erc8004Check?: (input: Erc8004CheckInput, deps?: Erc8004CheckDeps) => Promise<Erc8004CheckResult | { error: Erc8004CheckError }>;
+  /** check_concordium_agent が vet402-concordium を読む fetch（試験で差し替える）。 */
+  concordiumFetch?: typeof fetch;
   now?: () => Date;
 };
 
@@ -681,6 +687,25 @@ export function registerVet402Tools(server: McpServer, deps: McpDeps, state: Mcp
           return fail("invalid_agent_id");
         }
         return ok(out as unknown as Record<string, unknown>);
+      }),
+  );
+  server.registerTool(
+    TOOL_NAMES.checkConcordium,
+    {
+      title: TOOL_TEXT.check_concordium_agent.title,
+      description: TOOL_TEXT.check_concordium_agent.description,
+      inputSchema: checkConcordiumAgentInput,
+      outputSchema: checkConcordiumAgentOutput,
+      annotations: { title: TOOL_TEXT.check_concordium_agent.title, ...CHAIN_READ_ANNOTATIONS },
+    },
+    async (args) =>
+      guarded(state, TOOL_NAMES.checkConcordium, async () => {
+        const agent = (args.agent ?? "").trim();
+        if (!agent || !isConcordiumAgent(agent)) return fail("invalid_concordium_agent");
+        // Concordium 側に届かなくても vet402 の障害（503）には数えない。state.unavailable を立てない。
+        const out = await checkConcordiumAgent(agent, deps.concordiumFetch ?? fetch);
+        if (out === "unavailable") return fail("concordium_unavailable");
+        return ok(out);
       }),
   );
   if (!FIND_TOOL_ENABLED) return;

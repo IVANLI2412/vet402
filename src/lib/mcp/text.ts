@@ -24,12 +24,14 @@ export const SERVER_INSTRUCTIONS =
   "check_x402_seller shows that record for one x402 URL. check_my_x402_endpoint shows the record for the listings on one seller's host. " +
   "check_payment_proof reads a PAYMENT-RESPONSE header on its chain and returns the asset movement. " +
   "check_8004_agent re-reads one ERC-8004 Reputation Registry feedback and its proofOfPayment. " +
+  "check_concordium_agent reads the CIS-8004 badge and vet402's verdict for one Concordium testnet agent. " +
   "Each record links to its public page at record_url, and method_url explains how vet402 measures.";
 
 export const TOOL_EMPTY_HINT = {
   check_x402_seller: "Pass url: the absolute https x402 URL your agent is about to pay, such as https://api.exa.ai/search.",
   check_my_x402_endpoint: "Pass url: any https URL on your host, such as https://api.exa.ai/search.",
   find_x402_sellers: "Pass query: words to match listing URLs and descriptions, such as weather.",
+  check_concordium_agent: "Pass agent: a Concordium CIS-8004 agent token id, such as 1350, or the Concordium account that owns it.",
   check_8004_agent:
     "Pass agentId: the ERC-8004 token id. Add client and feedbackIndex when the person names them.",
   check_payment_proof:
@@ -76,6 +78,16 @@ export const TOOL_TEXT = {
       "Use it to discover sellers, then look up a chosen URL with check_x402_seller. " +
       "It changes no data, needs no API key and has no charge. Up to 30 calls per minute per IP.",
   },
+  check_concordium_agent: {
+    title: "Concordium agent badge and vet402 verdict",
+    description:
+      "Look up one Concordium CIS-8004 agent on Concordium testnet. Read-only. It does not pay and signs nothing. " +
+      "Pass agent: the agent token id, such as 1350, or the Concordium account that owns it. " +
+      "The answer holds badge_status from the agent registry, verdict (go, no or unproven) from the payments vet402 made to the agent, trust_summary in one line, and row_url for the transaction behind the verdict. " +
+      "go means what vet402 paid for arrived. no means payments did not arrive. unproven means vet402 has no counted payment for the agent, and an agent vet402 does not know comes back as unproven. " +
+      "The check is read from vet402-concordium.fly.dev, and the request carries the agent and the caller name vet402.com-mcp. " +
+      "It changes no data, needs no API key and has no charge. Up to 30 calls per minute per IP.",
+  },
   check_8004_agent: {
     title: "Re-read ERC-8004 feedback proofOfPayment",
     description:
@@ -110,12 +122,15 @@ export const INPUT_TEXT = {
   payment_transaction: "Transaction hash on that chain. Pass it with network when payment_response is left out.",
   erc8004_chain: "CAIP-2 chain id. The default is eip155:8453 (Base).",
   erc8004_agent_id: "ERC-8004 agent token id on that chain.",
+  concordium_agent: "Concordium CIS-8004 agent token id, such as 1350, or the Concordium account that owns it.",
   erc8004_client: "EVM address of the feedback client (0x…). Pass client or feedbackIndex.",
   erc8004_feedback_index: "Feedback index for that client. Pass client or feedbackIndex.",
 } as const;
 
 /** 出力に載る固定文。 */
 export const OUTPUT_TEXT = {
+  concordium_note:
+    "These results come from Concordium testnet. badge_status is the CIS-8004 badge read from the agent registry. verdict is what vet402 recorded for payments to this agent: go when what vet402 paid for arrived, no when payments did not arrive, unproven when vet402 has no counted payment.",
   notInCatalog:
     "vet402 has no record of this URL in the catalogs it reads. listing_sources names those catalogs and when vet402 syncs them. " +
     "same_host_listings shows up to five other listings on the same host. Having no record says nothing about the URL itself.",
@@ -149,6 +164,9 @@ export const ERROR_TEXT = {
   ambiguous_feedback_index:
     "Several clients left feedback at this index. Pass client with feedbackIndex to choose one.",
   temporarily_unavailable: "The vet402 database could not be read. Retry in 30 seconds.",
+  invalid_concordium_agent:
+    "Pass agent: a Concordium CIS-8004 agent token id, such as 1350, or the Concordium account that owns it.",
+  concordium_unavailable: "The Concordium check could not be read right now. Retry in 30 seconds. Other vet402 tools are not affected.",
   chain_unreadable: "The ERC-8004 registry or the feedback URI could not be read right now. Retry in 30 seconds.",
 } as const;
 

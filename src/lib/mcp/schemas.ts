@@ -71,6 +71,25 @@ export const check8004AgentInput = z.object({
     .describe(INPUT_TEXT.erc8004_feedback_index),
 });
 
+export const checkConcordiumAgentInput = z.object({
+  agent: z.string().max(64).optional().describe(INPUT_TEXT.concordium_agent),
+});
+
+export const checkConcordiumAgentOutput = z
+  .object({
+    agent: z.string(),
+    network: z.literal("concordium-testnet"),
+    badge_status: z.string(),
+    verdict: z.enum(["go", "no", "unproven"]),
+    reason: z.string().nullable(),
+    trust_summary: z.string().nullable(),
+    row_url: z.string().nullable(),
+    checked_at: z.string().nullable(),
+    source_url: z.string(),
+    note: z.string(),
+  })
+  .strict();
+
 export const checkPaymentProofInput = z.object({
   payment_response: z.string().max(8_192).optional().describe(INPUT_TEXT.payment_response),
   network: z.string().max(128).optional().describe(INPUT_TEXT.payment_network),
