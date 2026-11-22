@@ -166,6 +166,7 @@ test("#8 GET と DELETE は 405（JSON クライアント）。GET + Accept text
   assert.equal(res.headers.get("allow"), "POST");
 });
 
+// 2026-11-22 Origin で 403 にする守りを外した。資格情報なしの CORS（allow-origin *・credentials なし）なので、curl で直接叩くのと同じで新しい権限は生まれない。
 test("#9 CORS: 他サイトの Origin も 200 と allow-origin *。資格情報は許可しない。Origin 無しは今と同じ", async () => {
   for (const origin of ["https://example.vercel.app", "http://localhost:5173", "https://vet402.com"]) {
     const r = await post({ jsonrpc: "2.0", id: 2, method: "tools/list" }, { origin, "mcp-protocol-version": "2025-06-18" });
