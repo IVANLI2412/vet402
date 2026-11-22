@@ -3,7 +3,7 @@
 //
 // 出力は全部 `.strict()`。tool はライブラリの戻り値を広げて返さず、ここに書いた欄だけを 1 つずつ写す
 // （tools.ts）。秘密の値（auth_nonce・payer・raw_*・購入の証拠の 2 列（402 の写しと署名済みペイロード）・鍵）は欄に無いので出せない。
-// pay_to は verified_terms の中にだけある。
+// pay_to は verified_terms と verified_pay_to_by_network の中にだけある。
 // ============================================================
 import { z } from "zod";
 import { ERC8004_NO_PROOF_REASONS, ERC8004_UNREADABLE_REASONS } from "@/lib/erc8004-check/types";
@@ -132,6 +132,15 @@ export const verifiedTermsSchema = z
   })
   .strict();
 
+export const verifiedPayToSchema = z
+  .object({
+    network: z.string().describe("CAIP-2, e.g. eip155:8453."),
+    pay_to: z.string().describe("0x addresses lowercase; other chains as recorded."),
+    purchase_id: z.string().nullable(),
+    verified_at: z.string(),
+  })
+  .strict();
+
 export const reasonEvidenceRefSchema = z
   .object({
     kind: z.enum(["purchase", "tx", "response_hash", "declaration_hash", "diff_hash", "record"]),
@@ -199,6 +208,11 @@ export const checkSellerOutput = z
       .nullable(),
     l0_status: z.enum(["pass", "fail", "unverified"]).nullable(),
     verified_terms: verifiedTermsSchema.nullable(),
+    verified_pay_to_by_network: z
+      .array(verifiedPayToSchema)
+      .describe(
+        "Recipients vet402 paid and confirmed delivery to, per chain (latest per network and pay_to, newest first, at most 10). If the network and payTo pair of the 402 you received is not here, vet402 has not verified the recipient on that network.",
+      ),
     spending_halted: z.boolean().nullable(),
     freshness: z.object({ l0: z.string().nullable(), l1: z.string().nullable(), l2: z.string().nullable() }).strict().nullable(),
     l1_purchases: z.array(l1PurchaseSchema),

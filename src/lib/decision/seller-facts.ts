@@ -41,7 +41,7 @@ import { getSettlementCounts } from "@/lib/settlements/census";
 import { rowsOf } from "@/lib/settlements/upsert";
 import { toIsoUtc } from "@/lib/util/iso-utc";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
-import type { Dialect, Evidence, L2Status, OfferStability, SellerFacts, VerifiedTerms } from "./types";
+import type { Dialect, Evidence, L2Status, OfferStability, SellerFacts, VerifiedPayTo, VerifiedTerms } from "./types";
 import { fetchL1WindowPurchaseRows, fetchLastDeliveredPurchaseRow, purchaseInputFromL1WindowRow } from "./l1-window-purchases";
 import type { L1Timeline } from "./rules";
 
@@ -778,6 +778,8 @@ export type SellerFactsLoaded = {
   l1Timeline?: L1Timeline;
   /** 2026-09-29 監査 5 周目: 最後に配達を確かめた購入の条件（応答の verified_terms）。無ければ null。 */
   verifiedTerms?: VerifiedTerms | null;
+  /** 2026-11-22: 配達を確かめた受取先を網ごとに（応答の verified_pay_to_by_network・verifiedPayToByNetworkOf）。無ければ []。 */
+  verifiedPayToByNetwork?: VerifiedPayTo[];
   /** 2026-09-29.3: L2 を決めた応答の Content-Type（l2ContentTypeOf）。L2 の evidence の content_type。 */
   l2ContentType?: string | null;
   /** 2026-11-02.2: L2 を決めた購入の ID（l2PurchaseIdOf）。L2 の evidence の purchase_id。 */
@@ -827,6 +829,44 @@ export function verifiedTermsOf(r: Record<string, unknown> | null): VerifiedTerm
     protocol: mpp ? "mpp" : "x402",
     verified_at: at,
   };
+}
+
+/** verified_pay_to_by_network の上限（応答の大きさを抑える）。 */
+export const VERIFIED_PAY_TO_MAX = 10;
+/** SQL で読む行の上限。XRPL の除外と、網の表記ゆれ（CAIP-2 へ寄せた後の重複）を落としても上限まで残るよう多めに読む。 */
+const VERIFIED_PAY_TO_SQL_LIMIT = VERIFIED_PAY_TO_MAX * 2;
+
+/**
+ * 台帳の行（配達を確かめた購入・(network, pay_to) ごとの最新）→ VerifiedPayTo[]。純関数。
+ * verifiedTermsOf と同じ読み方: network は CAIP-2、EVM の受取先は小文字、欠けた列は捨てる、XRPL は載せない。
+ * 寄せた後に同じ (network, pay_to) が残れば最新の 1 行だけ。新しい順で最大 VERIFIED_PAY_TO_MAX 件。
+ */
+export function verifiedPayToByNetworkOf(rows: readonly Record<string, unknown>[]): VerifiedPayTo[] {
+  const str = (v: unknown): string | null => (typeof v === "string" && v.trim() !== "" ? v : null);
+  const byKey = new Map<string, VerifiedPayTo>();
+  for (const r of rows) {
+    const rawNetwork = str(r.network);
+    const rawPayTo = str(r.pay_to);
+    const at = toIsoUtc(str(r.attempted_at));
+    if (!rawNetwork || !rawPayTo || !at) continue;
+    const network = toCaip2(rawNetwork) ?? rawNetwork;
+    // verifiedTermsOf と同じ理由（XRPL の資産は発行者が台帳に無い）で、XRPL の受取先も「確かめた」として返さない。
+    if (/^xrpl:/i.test(network)) continue;
+    const payTo = /^0x/i.test(rawPayTo) ? rawPayTo.toLowerCase() : rawPayTo;
+    const tx = str(r.tx_hash);
+    const row: VerifiedPayTo = {
+      network,
+      pay_to: payTo,
+      purchase_id: tx ? toPurchaseId(network, tx) : null,
+      verified_at: at,
+    };
+    const key = `${network}\u0000${payTo}`;
+    const prev = byKey.get(key);
+    if (!prev || Date.parse(row.verified_at) > Date.parse(prev.verified_at)) byKey.set(key, row);
+  }
+  return [...byKey.values()]
+    .sort((a, b) => Date.parse(b.verified_at) - Date.parse(a.verified_at))
+    .slice(0, VERIFIED_PAY_TO_MAX);
 }
 
 /** endpoint uuid から 30 日分の事実を組む。無ければ null。 */
@@ -954,6 +994,25 @@ export async function loadSellerFacts(endpointUuid: string): Promise<SellerFacts
   );
   const verifiedTerms = verifiedTermsOf(verifiedTermsRows[0] ?? null);
 
+  // 2026-11-22: 同じ配達の述語で、(network, pay_to) の組ごとに最後に配達を確かめた購入（全履歴）。
+  // 402 の network と payTo の組がここに無ければ、その網の受取先は vet402 が確かめていない。
+  // EVM の受取先は大文字小文字の違いを同じ組に数える（Solana などは原文のまま）。
+  const verifiedPayToRows = rowsOf<Record<string, unknown>>(
+    await db.execute(sql`
+      SELECT tx_hash, pay_to, network, attempted_at FROM (
+        SELECT DISTINCT ON (network, CASE WHEN pay_to ~* '^0x' THEN lower(pay_to) ELSE pay_to END)
+               tx_hash, pay_to, network, attempted_at::text AS attempted_at, attempted_at AS attempted_ts
+        FROM x402_l1_purchases
+        WHERE endpoint_id = ${endpointUuid}::uuid
+          AND ${sql.raw(DELIVERED_ROW_SQL)}
+          AND pay_to IS NOT NULL AND network IS NOT NULL
+        ORDER BY network, CASE WHEN pay_to ~* '^0x' THEN lower(pay_to) ELSE pay_to END, attempted_at DESC
+      ) latest
+      ORDER BY attempted_ts DESC LIMIT ${VERIFIED_PAY_TO_SQL_LIMIT}
+    `),
+  );
+  const verifiedPayToByNetwork = verifiedPayToByNetworkOf(verifiedPayToRows);
+
   const lastDeliveredAt = toIsoUtc(lastSignedRows[0]?.last_delivered ?? null);
   const declaredSchema = ep.declared_schema ?? null;
   // 2026-11-02.2: L2 は窓に関係なく最後の配達を読む。窓の中に配達が無いときだけ 1 往復足す。
@@ -989,6 +1048,7 @@ export async function loadSellerFacts(endpointUuid: string): Promise<SellerFacts
     l0UnverifiedCause: l0UnverifiedCauseOf(probes, l0VerdictsBeforeWindow, l0HasProbeBeforeWindow),
     l1Timeline,
     verifiedTerms,
+    verifiedPayToByNetwork,
     l2ContentType: l2ContentTypeOf(purchases, facts, lastDeliveryOutsideWindow),
     l2PurchaseId: l2PurchaseIdOf(purchases, lastDeliveryOutsideWindow),
     endpoint: {

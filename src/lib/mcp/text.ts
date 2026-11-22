@@ -48,6 +48,7 @@ export const TOOL_TEXT = {
       "For WARN or BLOCK, read reason_codes. " +
       "verified_terms holds the payTo, amount and network of the last purchase where content came back, so they can be set against the terms of a 402 response. " +
       "Its amount is in 6-decimal ledger units: multiply it by 10^12 on BNB Chain and by 10 on Stellar before comparing it with a 402. " +
+      "verified_pay_to_by_network lists each payTo vet402 paid and saw content come back from, per network. If the network and payTo of a 402 response are not in that list, vet402 has not checked that payTo on that network. " +
       "When method is left out, GET is looked up first and then POST. " +
       "A URL that vet402 has no record of comes back with not_in_catalog set to true, up to five other listings on the same host, the catalogs vet402 reads, and diagnose_url for a live 402 read. " +
       "Use it to look up the vet402 purchase record of one URL. For the 402 response as it is now, open diagnose_url. To search for sellers, use find_x402_sellers. For a host you run, use check_my_x402_endpoint. " +

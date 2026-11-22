@@ -1,6 +1,6 @@
 import type { DecisionResult, DecisionSubject, RegistryStatus } from "@/lib/decision/decide";
 import type { L1Basis } from "@/lib/decision/rules";
-import type { Evidence, Freshness, SellerFacts, VerifiedTerms } from "@/lib/decision/types";
+import type { Evidence, Freshness, SellerFacts, VerifiedPayTo, VerifiedTerms } from "@/lib/decision/types";
 
 export const JUDGMENT_DAY_RE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -34,6 +34,7 @@ const PUBLIC_DECISION_KEYS = [
   "freshness",
   "l1_basis",
   "verified_terms",
+  "verified_pay_to_by_network",
   "refunds",
   "evidence",
   "degraded",
@@ -177,6 +178,12 @@ const VERIFIED_TERMS_SPEC: Shape<VerifiedTerms> = {
   protocol: true,
   verified_at: true,
 };
+const VERIFIED_PAY_TO_SPEC: Shape<VerifiedPayTo> = {
+  network: true,
+  pay_to: true,
+  purchase_id: true,
+  verified_at: true,
+};
 const EVIDENCE_SPEC: Shape<Evidence> = {
   level: true,
   source: true,
@@ -217,6 +224,7 @@ const PUBLIC_JUDGMENT_SPEC: { readonly [K in (typeof PUBLIC_DECISION_KEYS)[numbe
   freshness: FRESHNESS_SPEC,
   l1_basis: L1_BASIS_SPEC,
   verified_terms: VERIFIED_TERMS_SPEC,
+  verified_pay_to_by_network: [VERIFIED_PAY_TO_SPEC],
   refunds: REFUNDS_SPEC,
   evidence: [EVIDENCE_SPEC],
   degraded: true,

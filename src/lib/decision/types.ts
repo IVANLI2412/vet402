@@ -157,6 +157,23 @@ export type VerifiedTerms = {
 };
 
 /**
+ * 2026-11-22: vet402 が払って配達を確かめた受取先を、網ごとに（role=payer の verified_pay_to_by_network の 1 行）。
+ * 配達の述語は verified_terms と同じ（settled・2xx・非空）。(network, pay_to) の組ごとに最新の 1 行。
+ * 受け取った 402 の network と payTo の組がこの一覧に無ければ、その網の受取先は vet402 が確かめていない
+ * （SDK の payee_unverified_on_rail と同じ穴を、SDK を使わない呼び手にも見せる）。XRPL は verified_terms と同じ理由で載せない。
+ */
+export type VerifiedPayTo = {
+  /** CAIP-2（例: eip155:8453）。 */
+  network: string;
+  /** 払った受取先。EVM は小文字、Solana の base58 などは原文。 */
+  pay_to: string;
+  /** 公開台帳の購入 id（`<CAIP-2>:<tx>`）。tx の無い行は null。 */
+  purchase_id: string | null;
+  /** その組で最後に配達を確かめた試行の時刻（ISO 8601 UTC）。 */
+  verified_at: string;
+};
+
+/**
  * 証拠 1 行の**出どころ**（2026-09-05・WINDOW_PLAN §2 #3）。
  *
  *   vet402    我々自身の L0–L2 台帳。実際に払って測った記録

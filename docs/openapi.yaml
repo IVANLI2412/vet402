@@ -1778,7 +1778,8 @@ paths:
       description: |
         Key-less REST twin of the hosted MCP tool `check_x402_seller`. Returns the
         same JSON document the tool returns (`recommendation`, `delivery`, the five
-        latest purchases with explorer links, `verified_terms`, `listing_sources`).
+        latest purchases with explorer links, `verified_terms`,
+        `verified_pay_to_by_network`, `listing_sources`).
         Uses the same cached readers as `POST /mcp` tools/call. Counts against the
         same per-IP rate limit as `GET /api/v1/resolve`. Responses are not shared
         across callers (`Cache-Control: private, no-store`) because
@@ -5797,6 +5798,14 @@ components:
         verified_terms:
           type: object
           nullable: true
+        verified_pay_to_by_network:
+          type: array
+          items: { $ref: "#/components/schemas/VerifiedPayTo" }
+          description: >-
+            Since 2026-11-22. Recipients vet402 paid and confirmed delivery to,
+            per chain. If the network and payTo pair of the 402 you received is
+            not here, vet402 has not verified the recipient on that network.
+            Empty when the URL is not in the catalog.
         spending_halted: { type: boolean, nullable: true }
         freshness:
           type: object
@@ -5827,6 +5836,18 @@ components:
           type: string
           nullable: true
           description: Plain-language next step after ALLOW, WARN, or BLOCK (verdictNextStep).
+
+    VerifiedPayTo:
+      type: object
+      description: >-
+        Since 2026-11-22. One recipient vet402 paid and confirmed delivery to on
+        one chain (the latest delivered purchase for this network and pay_to).
+      required: [network, pay_to, purchase_id, verified_at]
+      properties:
+        network: { type: string, description: "CAIP-2, e.g. eip155:8453." }
+        pay_to: { type: string, description: "The recipient paid. EVM addresses lowercase; Solana base58 as written." }
+        purchase_id: { type: string, nullable: true, description: "Same form as facts.l1.last_purchase_id (`<CAIP-2>:<tx>`); null when the row has no tx." }
+        verified_at: { type: string, format: date-time, description: "When that purchase was made (ISO 8601 UTC)." }
 
     EvidenceAge:
       type: object
@@ -5879,7 +5900,7 @@ components:
         the same document; there is no facts-less mode. `score` is the
         transitional 0–100 opinion, present only with `include_score=1`
         (since 2026-09-29.3), and is never the basis of `recommendation`.
-      required: [subject, role, payer, recommendation, reason_codes, facts, spending_halted, not_attempted_reason, freshness, l1_basis, verified_terms, evidence, degraded, policy, rules_version, registry, scoredAt, cacheExpiresAt, disclaimer]
+      required: [subject, role, payer, recommendation, reason_codes, facts, spending_halted, not_attempted_reason, freshness, l1_basis, verified_terms, verified_pay_to_by_network, evidence, degraded, policy, rules_version, registry, scoredAt, cacheExpiresAt, disclaimer]
       properties:
         evidence_age:
           nullable: true
@@ -6094,6 +6115,17 @@ components:
             scheme: { type: string, enum: [exact, charge], description: "exact for x402, charge for MPP (Tempo)." }
             protocol: { type: string, enum: [x402, mpp] }
             verified_at: { type: string, format: date-time, description: "When that purchase was made (ISO 8601 UTC)." }
+        verified_pay_to_by_network:
+          type: array
+          items: { $ref: "#/components/schemas/VerifiedPayTo" }
+          description: >-
+            Since 2026-11-22. The recipients vet402 paid and confirmed delivery
+            to, per chain: one row per network and pay_to (the latest delivered
+            purchase, same predicate as verified_terms, full history), newest
+            first, at most 10. If the network and payTo pair of the 402 you
+            received is not here, vet402 has not verified the recipient on that
+            network. Empty for role=payee and when nothing was ever delivered;
+            XRPL is left out for the same reason as verified_terms.
         evidence:
           type: array
           items: { $ref: "#/components/schemas/Evidence" }

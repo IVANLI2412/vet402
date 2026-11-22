@@ -107,14 +107,17 @@ const SURFACES: Surface[] = [
       // scheme・時刻）。呼び手が受け取った 402 と照合する材料。role=payee と未配達では null。
       "verified_terms",
       "refunds",
+      // 2026-11-22: vet402 が払って配達を確かめた受取先を網ごとに。402 の (network, payTo) がここに無ければ
+      // その網の受取先は未確認（SDK の payee_unverified_on_rail と同じ穴をサーバの応答でも見せる）。payee は []。
+      "verified_pay_to_by_network",
     ],
     pendingImpl: {
       "packages/sdk/src/index.ts": {
-        fields: ["l1_basis", "reasons", "evidence_age", "refunds"],
+        fields: ["l1_basis", "reasons", "evidence_age", "refunds", "verified_pay_to_by_network"],
         why: "SDK は凍結中（2026-09-29）。応答の未知のキーは型に無いだけで実行時はそのまま透過する（reason_codes も文字列のまま通す）。凍結が解けたら型に足してこの例外を消す。",
       },
       "packages/mcp-server/src/vouch-client.ts": {
-        fields: ["l1_basis", "verified_terms", "reasons", "evidence_age"],
+        fields: ["l1_basis", "verified_terms", "reasons", "evidence_age", "verified_pay_to_by_network"],
         why: "2026-09-29.2 の判定規則の変更は src/lib/decision の担当範囲で、MCP の型は別担当。実行時は応答をそのまま受ける。型に足したらこの例外を消す。",
       },
     },

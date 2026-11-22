@@ -29,7 +29,7 @@ import { attachSellerRefundsToDecision, type DecisionHostRefunds } from "./selle
 import { evidenceAgeOf, explainReasons, type EvidenceAge, type ReasonExplanation } from "./reason-explain";
 import { isSpendingHalted } from "@/lib/observatory/kill-switch";
 import { assertEvidenceContract, vet402Evidence } from "./evidence";
-import type { BuyerFacts, Evidence, Freshness, NotAttemptedReason, SellerFacts, VerifiedTerms } from "./types";
+import type { BuyerFacts, Evidence, Freshness, NotAttemptedReason, SellerFacts, VerifiedPayTo, VerifiedTerms } from "./types";
 import type { CallerPolicy } from "./caller-policy";
 
 export const DECISION_DISCLAIMER =
@@ -83,6 +83,12 @@ export type DecisionResult = {
    * ALLOW は「この条件で届いた」事実で、別の受取先・別の額への支払いを保証しない。
    */
   verified_terms: VerifiedTerms | null;
+  /**
+   * 2026-11-22: vet402 が払って配達を確かめた受取先を網ごとに（role=payer・(network, pay_to) ごとに最新・新しい順・最大 10）。
+   * 受け取った 402 の network と payTo の組がここに無ければ、その網の受取先は vet402 が確かめていない。
+   * 無ければ []。payee は常に []。XRPL は verified_terms と同じ理由で載せない。
+   */
+  verified_pay_to_by_network: VerifiedPayTo[];
   evidence: Evidence[];
   /**
    * 2026-09-29.3: `?include_score=1` のときだけ応答に載る（キーごと無いのが既定）。移行期の 0–100 の受取人スコアで、
@@ -153,6 +159,8 @@ export type BuildInput =
       notAttemptedReason?: NotAttemptedReason | null;
       /** 最後に配達を確かめた購入の条件（seller-facts verifiedTermsOf）。省略は null。 */
       verifiedTerms?: VerifiedTerms | null;
+      /** 2026-11-22: 配達を確かめた受取先を網ごとに（seller-facts verifiedPayToByNetworkOf）。省略は []。 */
+      verifiedPayToByNetwork?: VerifiedPayTo[];
       /** 2026-09-29.3: L2 を決めた応答の Content-Type（seller-facts l2ContentTypeOf）。省略時は evidence に載せない。 */
       l2ContentType?: string | null;
       /** 2026-11-02.2: L2 を決めた購入の ID（seller-facts l2PurchaseIdOf）。省略時は facts.l1.last_purchase_id。 */
@@ -237,6 +245,7 @@ export function buildDecision(input: BuildInput): DecisionResult {
       freshness: { l0: f.l0.observed_at, l1: f.l1.observed_at, l2: f.l2.observed_at },
       l1_basis,
       verified_terms: input.verifiedTerms ?? null,
+      verified_pay_to_by_network: input.verifiedPayToByNetwork ? input.verifiedPayToByNetwork.map((v) => ({ ...v })) : [],
       evidence,
       score: input.score ? { ...input.score, deprecated: true, superseded_by: "recommendation", note: DECISION_SCORE_NOTE } : null,
       // 2026-09-29 監査 7 周目: L0 が unverified（未プローブ・測れていない）は WARN。測れていない入力なので degraded は立てる
@@ -268,6 +277,7 @@ export function buildDecision(input: BuildInput): DecisionResult {
     freshness: { l0: null, l1: input.facts.last_seen, l2: null },
     l1_basis: null,
     verified_terms: null,
+    verified_pay_to_by_network: [],
     evidence: [],
     score: null,
     degraded: input.facts.sybil.unavailable.length > 0,
@@ -421,6 +431,7 @@ export async function decide(req: DecideRequest): Promise<DecisionResult | null>
         registry,
         notAttemptedReason: notAttemptedReasonOf(halt.halted, loaded.lastAttempt.status),
         verifiedTerms: loaded.verifiedTerms ?? null,
+        verifiedPayToByNetwork: loaded.verifiedPayToByNetwork ?? [],
         l2ContentType: loaded.l2ContentType,
         l2PurchaseId: loaded.l2PurchaseId,
       }),

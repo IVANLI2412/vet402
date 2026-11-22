@@ -275,9 +275,12 @@ if (!TEST_DB) {
         // skipScore: 判定の文書に score が無い（受取人スコアを読んでいない）。payTo は EVM なので、渡さなければ読みに行く
         const d = await decide({ role: "payer", observatoryId: shopA, operatorBlacklist: false, callerMaterial: null, skipScore: true });
         assert.equal(d?.score, null);
-        // pay_to は verified_terms の中にだけある
-        const withoutTerms = JSON.stringify({ ...o, verified_terms: null });
-        assert.ok(!withoutTerms.toLowerCase().includes(PAY_TO), "pay_to が verified_terms の外に出た");
+        // 2026-11-22: 配達を確かめた受取先は網ごとの一覧にも載る（payTo は EVM なので小文字）
+        for (const v of o.verified_pay_to_by_network) assert.equal(v.pay_to, v.pay_to.toLowerCase());
+        if (o.verified_terms) assert.ok(o.verified_pay_to_by_network.some((v) => v.pay_to === o.verified_terms!.pay_to && v.network === o.verified_terms!.network));
+        // pay_to は verified_terms と verified_pay_to_by_network の中にだけある
+        const withoutTerms = JSON.stringify({ ...o, verified_terms: null, verified_pay_to_by_network: [] });
+        assert.ok(!withoutTerms.toLowerCase().includes(PAY_TO), "pay_to が verified_terms・verified_pay_to_by_network の外に出た");
       });
 
       await t.test("#4 ① にカタログに無い URL（同じホストに出品あり／なし）", async () => {

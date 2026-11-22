@@ -175,6 +175,7 @@ export function emptyCheckSellerHint(asOf: string): CheckSellerOutput {
     delivery: null,
     l0_status: null,
     verified_terms: null,
+    verified_pay_to_by_network: [],
     spending_halted: null,
     refunds: null,
     freshness: null,
@@ -220,6 +221,7 @@ export async function checkSeller(deps: CheckSellerDeps, input: { url: string; m
         delivery: null,
         l0_status: null,
         verified_terms: null,
+        verified_pay_to_by_network: [],
         spending_halted: null,
         refunds: null,
         freshness: null,
@@ -281,6 +283,13 @@ export async function checkSeller(deps: CheckSellerDeps, input: { url: string; m
           verified_at: vt.verified_at,
         }
       : null,
+    // 2026-11-22: 広げて返さず 1 欄ずつ写す（schemas の strict と同じ欄だけ）。
+    verified_pay_to_by_network: (decision.verified_pay_to_by_network ?? []).map((v) => ({
+      network: v.network,
+      pay_to: v.pay_to,
+      purchase_id: v.purchase_id,
+      verified_at: v.verified_at,
+    })),
     spending_halted: decision.spending_halted,
     refunds: decision.refunds
       ? {
