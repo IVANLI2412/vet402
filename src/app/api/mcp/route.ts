@@ -7,7 +7,10 @@
 //
 // 守り（§2.3）:
 //   - MCP_ENABLED=false なら全部の要求に 503 mcp_disabled
-//   - Origin が付いていて OWN_ORIGINS に無ければ 403（MCP 仕様の MUST）。付いていない要求は通す。CORS のヘッダーは付けない
+//   - CORS は開ける（2026-11-22・オーナー「開けて」・WORK_ORDERS「vet402.com/mcp をブラウザから呼べるようにする」）。
+//     全部の応答に Access-Control-Allow-Origin: * を付け、資格情報（cookie）は許可しない。OPTIONS は 204 と許可ヘッダー。
+//     Origin で断らない理由: 公開ドメインの HTTPS なので DNS rebinding で手元のサーバーに届く筋が無く、
+//     道具は読むだけ・鍵なし・cookie を使わない。枠（IP ごと）はそのまま効く
 //   - GET と DELETE は 405
 //   - 本文は 64KB まで（SDK の既定は 4MB で、mcp-handler からは変えられない）。JSON-RPC の batch 配列は受けない
 //   - 枠: bucket mcp（MCP_RATE_PER_MIN・既定 120/分/IP）と、② は bucket mcp_find（MCP_FIND_RATE_PER_MIN・既定 30）、
@@ -25,7 +28,6 @@ import { createMcpHandler } from "mcp-handler";
 import { PAYMENT_PROOF_KEYLESS_LIMIT } from "@/lib/api/keyless-limits";
 import { publicRateLimit } from "@/lib/api/public-route";
 import { mcpClientUsageLabel, isOwnPageRequest, recordMcpUsage, type McpUsageRoute } from "@/lib/api/client-usage";
-import { OWN_ORIGINS } from "@/lib/decision/lookup-caller";
 import { logServerErrorSafe } from "@/lib/util/log-safe";
 import { mcpDeps } from "@/lib/mcp/deps";
 import { FIND_TOOL_ENABLED, registerVet402Tools, TOOL_NAMES, type McpRequestState } from "@/lib/mcp/tools";
@@ -69,11 +71,19 @@ function disabled(): NextResponse {
 }
 
 /** Origin が付いていて自サイトでなければ拒否する。付いていない要求（サーバー間）は通す。 */
-function originRejected(request: Request): NextResponse | null {
-  const origin = request.headers.get("origin");
-  if (origin === null) return null;
-  if (OWN_ORIGINS.has(origin.trim())) return null;
-  return NextResponse.json({ error: "forbidden" }, { status: 403, headers: NO_STORE });
+/** ブラウザから呼べるようにする CORS（資格情報なし）。 */
+export const MCP_CORS_HEADERS: Readonly<Record<string, string>> = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "POST, GET, DELETE, OPTIONS",
+  "Access-Control-Allow-Headers": "content-type, accept, mcp-session-id, mcp-protocol-version, last-event-id",
+  "Access-Control-Expose-Headers": "mcp-session-id, mcp-protocol-version, retry-after, ratelimit-limit, ratelimit-remaining, ratelimit-reset",
+  "Access-Control-Max-Age": "86400",
+};
+
+function withCors(res: Response): Response {
+  for (const [k, v] of Object.entries(MCP_CORS_HEADERS)) res.headers.set(k, v);
+  res.headers.delete("access-control-allow-credentials");
+  return res;
 }
 
 function methodNotAllowed(): NextResponse {
@@ -163,9 +173,11 @@ function countUsage(request: Request, rpc: Rpc, contentType: string, text: strin
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
+  return withCors(await handlePost(request));
+}
+
+async function handlePost(request: NextRequest): Promise<Response> {
   if (!mcpEnabled()) return disabled();
-  const rejected = originRejected(request);
-  if (rejected) return rejected;
 
   const text = await readBodyCapped(request);
   if (text === null) return jsonRpcError(413, null, -32600, "request_too_large");
@@ -244,7 +256,15 @@ async function rateLimitedOrUnavailable(response: NextResponse, id: unknown): Pr
   return jsonRpcError(429, id, MCP_RATE_LIMIT_CODE, "rate_limited", headers, { retry_after_s: Number.isFinite(retry) ? retry : 60 });
 }
 
+export async function OPTIONS(): Promise<Response> {
+  return withCors(new Response(null, { status: 204, headers: NO_STORE }));
+}
+
 export async function GET(request: NextRequest): Promise<Response> {
+  return withCors(await handleGet(request));
+}
+
+async function handleGet(request: NextRequest): Promise<Response> {
   if (!mcpEnabled()) return disabled();
   const accept = request.headers.get("accept") ?? "";
   if (accept.includes("text/html")) {
@@ -257,6 +277,5 @@ export async function GET(request: NextRequest): Promise<Response> {
 }
 
 export async function DELETE(): Promise<Response> {
-  if (!mcpEnabled()) return disabled();
-  return methodNotAllowed();
+  return withCors(mcpEnabled() ? methodNotAllowed() : disabled());
 }

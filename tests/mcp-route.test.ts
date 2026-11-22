@@ -5,7 +5,7 @@
 //   - 2025-06-18 で initialize → tools/list。各 tool に title・5 つの annotations・outputSchema
 //   - 2026-07-28 の server/discover（Mcp-Method ヘッダー付きの POST）は 200 で、版の一覧に 2026-07-28
 //   - http://・javascript:・2049 字の URL は入力エラー（isError true・invalid_url）。81 字の query も入力エラー
-//   - GET・DELETE は 405。Origin が他サイトなら 403、Origin 無しは通る
+//   - GET・DELETE は 405。CORS は開いている（allow-origin *、credentials なし）、Origin 無しも通る
 //   - 枠を 2/分にすると 3 本目が HTTP 429 と -32029。MCP_ENABLED=false は 503 mcp_disabled
 //   - 64KB を超える本文は 413、batch 配列は 400。route は force-dynamic・maxDuration 30
 // ============================================================
@@ -166,15 +166,32 @@ test("#8 GET と DELETE は 405（JSON クライアント）。GET + Accept text
   assert.equal(res.headers.get("allow"), "POST");
 });
 
-test("#9 Origin が他サイトなら 403。Origin 無し・自サイトは通る。CORS のヘッダーは付けない", async () => {
-  const bad = await post(init, { origin: "https://evil.example" });
-  assert.equal(bad.res.status, 403);
-  assert.equal(bad.json.error, "forbidden");
-  const none = await post(init);
+test("#9 CORS: 他サイトの Origin も 200 と allow-origin *。資格情報は許可しない。Origin 無しは今と同じ", async () => {
+  for (const origin of ["https://example.vercel.app", "http://localhost:5173", "https://vet402.com"]) {
+    const r = await post({ jsonrpc: "2.0", id: 2, method: "tools/list" }, { origin, "mcp-protocol-version": "2025-06-18" });
+    assert.equal(r.res.status, 200, origin);
+    assert.equal(r.res.headers.get("access-control-allow-origin"), "*");
+    assert.equal(r.res.headers.get("access-control-allow-credentials"), null);
+    assert.ok(Array.isArray((r.json.result as { tools?: unknown[] })?.tools), origin);
+  }
+  const none = await post({ jsonrpc: "2.0", id: 3, method: "tools/list" }, { "mcp-protocol-version": "2025-06-18" });
   assert.equal(none.res.status, 200);
-  const own = await post(init, { origin: "https://vet402.com" });
-  assert.equal(own.res.status, 200);
-  for (const r of [bad, none, own]) assert.equal(r.res.headers.get("access-control-allow-origin"), null);
+  assert.ok(((none.json.result as { tools?: unknown[] })?.tools ?? []).length > 0);
+  const big = await post(null, { origin: "https://example.vercel.app" }, "x".repeat(70 * 1024));
+  assert.equal(big.res.status, 413);
+  assert.equal(big.res.headers.get("access-control-allow-origin"), "*", "errors are readable from the browser too");
+});
+
+test("#9b CORS: OPTIONS は 204 で POST と mcp-session-id を許可、credentials は付けない", async () => {
+  const { OPTIONS } = (await route()) as unknown as { OPTIONS: () => Promise<Response> };
+  const res = await OPTIONS();
+  assert.equal(res.status, 204);
+  assert.equal(res.headers.get("access-control-allow-origin"), "*");
+  assert.match(res.headers.get("access-control-allow-methods") ?? "", /\bPOST\b/);
+  const allow = (res.headers.get("access-control-allow-headers") ?? "").toLowerCase();
+  for (const h of ["content-type", "accept", "mcp-session-id", "mcp-protocol-version"]) assert.ok(allow.includes(h), h);
+  assert.match((res.headers.get("access-control-expose-headers") ?? "").toLowerCase(), /mcp-session-id/);
+  assert.equal(res.headers.get("access-control-allow-credentials"), null);
 });
 
 test("#10 枠を超えると HTTP 429 と -32029（data.retry_after_s）。② は別の低い枠", async () => {
